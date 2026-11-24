@@ -3,4 +3,4 @@
 /**
  * 抗力の面積の出所。
  */
-export type DragAreaSource = "given" | "tumbling_box";
+export type DragAreaSource = "given" | "body_boxes";

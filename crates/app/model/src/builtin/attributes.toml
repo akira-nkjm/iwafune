@@ -596,6 +596,22 @@ units        = ["mm", "m", "cm"]
 display_unit = "mm"
 section      = "structure"
 
+[launch_constraint]
+label       = "打ち上げ時の拘束の種類"
+label_en    = "Launch support type"
+description = "打ち上げ機・ディスペンサーが衛星を支える形（`structure.modal_fem` の拘束）。base_fixed: 指定した面の全節点を固定、rails: 機軸に平行な 4 本の辺を横方向に、8 つの角を機軸方向に固定、tabs: 指定した面の機軸に平行な 2 本の辺を固定、fixed: 指定した面の節点の並進を固定、free: 拘束なし"
+type        = "enum"
+symbols     = ["base_fixed", "rails", "tabs", "fixed", "free"]
+section     = "structure"
+
+[launch_constraint_face]
+label       = "拘束する面"
+label_en    = "Constrained face"
+description = "拘束の種類 base_fixed・tabs・fixed が使う、機体を囲む箱の面（法線の向き付きの軸。+z は発射軸の先、-z は打ち上げ機側）"
+type        = "enum"
+symbols     = ["+x", "-x", "+y", "-y", "+z", "-z"]
+section     = "structure"
+
 [launch_load_axial]
 label        = "準静的荷重（機軸方向）"
 label_en     = "Quasi-static load (axial)"

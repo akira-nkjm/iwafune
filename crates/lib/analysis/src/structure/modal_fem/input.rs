@@ -48,6 +48,33 @@ pub enum ModalFemFace {
 }
 
 impl ModalFemFace {
+    /// すべての面（綴りは `+x`・`-x`・…。打ち上げ条件の属性 `launch_constraint_face` の語彙と同じで、projection のテストが照合する）。
+    pub const ALL: [Self; 6] = [
+        Self::PlusX,
+        Self::MinusX,
+        Self::PlusY,
+        Self::MinusY,
+        Self::PlusZ,
+        Self::MinusZ,
+    ];
+
+    /// 面の綴り（`+x`・`-z` など。serde の綴りと同じ）。
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::PlusX => "+x",
+            Self::MinusX => "-x",
+            Self::PlusY => "+y",
+            Self::MinusY => "-y",
+            Self::PlusZ => "+z",
+            Self::MinusZ => "-z",
+        }
+    }
+
+    /// 綴りから面（知らない綴りは `None`）。
+    pub fn parse(text: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|f| f.as_str() == text)
+    }
+
     /// 面の法線の軸。
     pub fn axis(self) -> ModalFemAxis {
         match self {
@@ -94,7 +121,7 @@ pub struct ModalFemLumped {
     /// 外形の箱の x, y, z 方向の長さ [m]。与えると、取り付けるパネルの面への投影の範囲に質量を配る（無ければ 1 点）
     #[serde(default)]
     pub footprint: Option<[Qty<Length>; 3]>,
-    /// 取り付けるパネルの ID（無ければ最も近いパネル）
+    /// 取り付けるパネルの ID（無ければ最も近いパネル。同じ距離のパネルが複数あれば質量を等分する）
     #[serde(default)]
     pub panel: Option<String>,
 }
@@ -139,6 +166,53 @@ pub enum ModalFemSupport {
     Fixed { items: Vec<ModalFemFixedItem> },
 }
 
+/// 拘束の種類の綴りから拘束を作れなかった理由。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ModalFemSupportError {
+    /// 知らない綴り
+    UnknownKind,
+    /// 面が要る種類なのに、面が無い
+    FaceRequired,
+}
+
+impl ModalFemSupport {
+    /// 打ち上げ条件の拘束の種類の綴り（属性 `launch_constraint` の語彙。projection のテストが属性定義と照合する）。
+    pub const LAUNCH_KINDS: [&'static str; 5] = ["base_fixed", "rails", "tabs", "fixed", "free"];
+
+    /// 打ち上げ条件の拘束の種類（`LAUNCH_KINDS` の綴り）と面から拘束を作る。**綴りの意味はここだけ**:
+    /// `base_fixed` は面の全自由度、`tabs` は面の機軸に平行な 2 本の辺、`fixed` は面の節点の並進（回転は自由）、
+    /// `rails` と `free` は面を使わない。
+    pub fn from_launch_kind(
+        kind: &str,
+        face: Option<ModalFemFace>,
+    ) -> Result<Self, ModalFemSupportError> {
+        use ModalFemSupportError::{FaceRequired, UnknownKind};
+        match (kind, face) {
+            ("rails", _) => Ok(Self::Rails),
+            ("free", _) => Ok(Self::Free),
+            ("base_fixed" | "tabs" | "fixed", None) => Err(FaceRequired),
+            ("base_fixed", Some(face)) => Ok(Self::BaseFixed { face }),
+            ("tabs", Some(face)) => Ok(Self::Tabs { face }),
+            ("fixed", Some(face)) => Ok(Self::Fixed {
+                items: vec![ModalFemFixedItem {
+                    target: ModalFemTarget::Face { face },
+                    clamp: false,
+                }],
+            }),
+            _ => Err(UnknownKind),
+        }
+    }
+}
+
+/// モデルにしなかったパネル（理由つき。入力から出力へそのまま渡して、結果の読み手に見せる）。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+pub struct ModalFemSkipped {
+    pub id: String,
+    /// モデルにしなかった理由
+    pub reason: String,
+}
+
 /// `structure.modal_fem` の入力。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
@@ -146,6 +220,9 @@ pub struct ModalFemInput {
     pub panels: Vec<ModalFemPanel>,
     #[serde(default)]
     pub lumped: Vec<ModalFemLumped>,
+    /// 射影がモデルにできなかったパネル（斜めのパネルなど。出力の `skipped_panels` にそのまま出す。質量は `lumped` に入れる）
+    #[serde(default)]
+    pub skipped_panels: Vec<ModalFemSkipped>,
     /// 全節点に、担当する面積に比例して配る非構造質量（配線・断熱材など）
     #[serde(default)]
     pub distributed_mass: Option<Qty<Mass>>,

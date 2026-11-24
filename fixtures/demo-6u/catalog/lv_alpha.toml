@@ -4,10 +4,12 @@ label_en     = "Alpha launch vehicle (fictional)"
 manufacturer = "Example Launch"
 
 [attr]
-max_payload_mass      = { value = 150.0, unit = "kg" }
-launch_envelope       = { x = 1000.0, y = 1000.0, z = 1500.0, unit = "mm" }
-launch_load_axial     = { value = 8.0, unit = "g0" }
-launch_load_lateral   = { value = 3.0, unit = "g0" }
-min_frequency_axial   = { value = 50.0, unit = "Hz" }
-min_frequency_lateral = { value = 25.0, unit = "Hz" }
-max_tip_off_rate      = { value = 5.0, unit = "deg/s" }
+max_payload_mass       = { value = 150.0, unit = "kg" }
+launch_envelope        = { x = 1000.0, y = 1000.0, z = 1500.0, unit = "mm" }
+launch_load_axial      = { value = 8.0, unit = "g0" }
+launch_load_lateral    = { value = 3.0, unit = "g0" }
+min_frequency_axial    = { value = 50.0, unit = "Hz" }
+min_frequency_lateral  = { value = 25.0, unit = "Hz" }
+max_tip_off_rate       = { value = 5.0, unit = "deg/s" }
+launch_constraint      = "base_fixed"
+launch_constraint_face = "-z"

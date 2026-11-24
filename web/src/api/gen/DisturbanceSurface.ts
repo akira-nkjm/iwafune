@@ -2,14 +2,19 @@
 import type { Vec3 } from "./Vec3";
 
 /**
- * 力を受ける面（キャノンボール近似: 向きによらず一定の係数 × 面積）。
+ * 力を受ける面（キャノンボール近似: 向きによらない一定の係数。面積と圧力中心は書くか、箱から出す）。
  */
 export type DisturbanceSurface = { 
 /**
- * 圧力中心 − 重心 [m]（機体座標系）。省略時は [`DEFAULT_CP_OFFSET`]（0 = 重心に一致しトルクが出ない）
+ * 係数（空力は Cd、太陽輻射圧は Cr）
  */
-cp_offset: Vec3 | null, 
+coefficient: number, 
 /**
- * 係数 × 面積（空力は Cd·A、太陽輻射圧は Cr·A）
+ * 受圧面積。書かれていればこの値（向きによらない）。省略時は部品の箱から向きごとに出す（箱が要る）
  */
-coefficient_area: number, };
+area: number | null, 
+/**
+ * 圧力中心 − 重心 [m]（機体座標系）。書かれていればこの値。省略時は箱から出した圧力中心と重心の差
+ * （箱が無ければ [`DEFAULT_CP_OFFSET`] = 0、重心に一致しトルクが出ない）
+ */
+cp_offset: Vec3 | null, };
