@@ -1,4 +1,5 @@
-//! 熱の射影: `thermal.steady`・`thermal.transient`。節点は `analysis.thermal.nodes`（節点 → 部品）でまとめる。
+//! 熱の射影: `thermal.steady`・`thermal.transient`。節点は既定で 1 部品 1 節点で、`analysis.thermal.nodes`（節点 → 部品）は
+//! まとめたい部品だけを書く上書き。部品 → 節点の対応を決めるのは fune-model の `ThermalSettings::node_map` だけ（[`thermal_nodes`] が呼ぶ）。
 //! 熱の計算（入熱・放射・解法・電力 → 発熱の変換・表面材の混ぜ方・温度範囲の判定）は sat-analysis が行う。
 //! ここは部品と設定の値を集めるだけ（ネットワークは [`network`]）。既定値（プリセットの環境・解析マージン）も解析が持つ。
 
@@ -12,7 +13,9 @@ use crate::quantity::setting_opt;
 use crate::timeline;
 use fune_model::Target;
 use fune_model::design::setting_dims as dims;
-use fune_model::design::{AnalysisSystem, ThermalCaseSettings, ThermalPresetKind, ThermalSettings};
+use fune_model::design::{
+    AnalysisSystem, ThermalCaseSettings, ThermalNodes, ThermalPresetKind, ThermalSettings,
+};
 use fune_model::path::SettingPath;
 use heaters::{heaters, is_thermostat};
 use network::network;
@@ -28,7 +31,6 @@ use sat_analysis::thermal::{
 use sat_analysis::thermal::{ThermalSteady, ThermalTransient};
 use sat_astro::ephem::CentralBody;
 use sat_units::typed::{Fraction, Power, Qty};
-use std::collections::BTreeMap;
 
 fn settings<'a>(ctx: &'a Context<'_>, m: &mut MissingInputs) -> Option<&'a ThermalSettings> {
     let s = ctx.design.analysis.thermal.as_ref();
@@ -44,16 +46,13 @@ pub(crate) fn thermal(keys: &[&str]) -> SettingPath {
     AnalysisSystem::Thermal.setting_path().child(keys)
 }
 
-/// 部品 → 節点。
-pub(crate) fn node_of(s: &ThermalSettings) -> BTreeMap<&str, &str> {
-    s.nodes
-        .iter()
-        .flat_map(|(node, parts)| parts.iter().map(move |p| (p.as_str(), node.as_str())))
-        .collect()
+/// 熱の節点と部品 → 節点の対応（解決後の設計の部品すべてに対して。決め方は `ThermalSettings::node_map`）。
+pub(crate) fn thermal_nodes(ctx: &Context<'_>, s: &ThermalSettings) -> ThermalNodes {
+    s.node_map(ctx.resolved.parts.keys().map(|p| p.as_str()))
 }
 
 /// モードでの内部発熱の源（部品の平均電力・RF 出力・heat_fraction。発熱への変換は解析の中）。
-/// 熱を出す節点は `[heat_node]` に書いた節点、無ければ部品の属する節点。節点に入っていない部品も `[heat_node]` に書けば源になる。
+/// 熱を出す節点は `[heat_node]` に書いた節点、無ければ部品の属する節点（既定は部品自身の節点）。
 pub fn loads(
     ctx: &Context<'_>,
     s: &ThermalSettings,
@@ -79,7 +78,7 @@ fn mode_loads(
     with_thermostats: bool,
 ) -> Option<ThermalModeLoads> {
     let mode = mode.and_then(|id| ctx.design.modes.get(id))?;
-    let sources = heaters::heat_nodes(s);
+    let sources = heaters::heat_nodes(ctx, s);
     let parts = sources
         .iter()
         .filter_map(|(pid, node)| {

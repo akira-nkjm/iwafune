@@ -19,9 +19,9 @@ table link-budget case=null subject="uhf_up@TOKYO_GS" variant="input" rows=14 | 
   caption: Link budget inputs: uhf_up (uplink) @ TOKYO_GS, 437 MHz
 table link-budget case=null subject="uhf_up@TOKYO_GS" variant="result" rows=14 | Parameter | Value | Unit
   caption: Link budget results: uhf_up (uplink) @ TOKYO_GS, 437 MHz
-table thermal-result case="hot_imaging" subject=null variant=null rows=12 | Node | Cold (winter solstice, β 0) [°C] | Cold (nominal operation, β 0) [°C] | Hot (summer solstice, high β) [°C] | Min [°C] | Max [°C] | Allowable range (operating) [°C] | Verdict
+table thermal-result case="hot_imaging" subject=null variant=null rows=14 | Node | Cold (winter solstice, β 0) [°C] | Cold (nominal operation, β 0) [°C] | Hot (summer solstice, high β) [°C] | Min [°C] | Max [°C] | Allowable range (operating) [°C] | Verdict
   caption: Thermal analysis results (Hot (imaging))
-figure thermal-history case="hot_imaging" file="figs/thermal-history-hot_imaging.svg" shaded=5 x=Elapsed time [h] panels: Temperature [°C] (12 series)
+figure thermal-history case="hot_imaging" file="figs/thermal-history-hot_imaging.svg" shaded=5 x=Elapsed time [h] panels: Temperature [°C] (14 series)
   caption: Node temperatures over time (Hot (imaging))
 figure power-history case="hot_imaging" file="figs/power-history-hot_imaging.svg" shaded=15 x=Elapsed time [h] panels: Power [W] (2 series); State of charge [%] (1 series)
   caption: Generation, load and battery state of charge over time (Hot (imaging))

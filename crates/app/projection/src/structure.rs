@@ -1,9 +1,15 @@
 //! 構造の射影: `structure.mass_properties`（と、姿勢の解析が使う慣性）。慣性の計算は sat-analysis に任せる。
+//! 部品の箱の置き場所は子の `body_boxes`、`structure.interference` の射影は子の `interference`。
+
+mod body_boxes;
+mod interference;
+
+pub use body_boxes::{BodyBox, BodyBoxes, Placed, boxes, placed};
+pub use interference::interference;
 
 use crate::context::Context;
 use crate::launch::{LaunchValues, frequency_limits, launch_path};
 use crate::missing::MissingInputs;
-use crate::pose;
 use crate::quantity::{qty_opt, setting, setting_opt};
 use fune_model::Target;
 use fune_model::builtin::Role;
@@ -20,7 +26,6 @@ use sat_analysis::structure::static_load::{StaticLoadCase, StaticLoadInterface, 
 use sat_analysis::structure::{
     MassPropertiesInput, ModalEstimateInput, StaticLoadInput, mass_properties as compute,
 };
-use sat_astro::math::Vec3;
 use sat_units::typed::{Acceleration, Length, Mass, Qty};
 
 /// 質量を持つ部品の質量特性の項目（位置は取付をたどった機体座標の部品原点。外形 `size` があれば箱として慣性を足す）。
@@ -31,15 +36,14 @@ pub fn items(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<MassPropertiesItem
         let Some(mass) = crate::parts::mass_or_missing(ctx, p, m) else {
             continue;
         };
-        let (position, orientation) = pose::body_pose(ctx.resolved, &p.id)
-            .unwrap_or((Vec3::ZERO, sat_astro::math::Quat::IDENTITY));
+        let at = placed(ctx, p);
         out.push(MassPropertiesItem {
-            id: p.id.clone(),
+            id: at.id,
             mass: Qty::from_raw(mass),
             count: p.count_or_one(),
-            position,
-            size: ctx.vec3(p, "size").map(|s| Vec3::new(s[0], s[1], s[2])),
-            orientation: Some(orientation),
+            position: at.position,
+            size: at.size,
+            orientation: Some(at.orientation),
             inertia: None,
         });
     }

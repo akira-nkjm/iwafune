@@ -28,6 +28,10 @@ fn builders_and_readers_agree_for_every_family() {
             vec![(Part, "PANEL_PX")],
         ),
         (
+            part_overlap("EPT", "RW_Y"),
+            vec![(Part, "EPT"), (Part, "RW_Y")],
+        ),
+        (
             thermal_range(family::RANGE_LOW, "BUS", "operating"),
             vec![(ThermalNode, "BUS")],
         ),

@@ -98,10 +98,6 @@ export class Board {
   point(i: number): Pt {
     return { x: this.x0 + (i % this.nx) * GRID, y: this.y0 + Math.floor(i / this.nx) * GRID };
   }
-  other(axis: 0 | 1, i: number, net: number) {
-    const o = this.occ[axis][i] ?? 0;
-    return o !== 0 && o !== net + 1;
-  }
   mark(axis: 0 | 1, i: number, net: number) {
     const o = this.occ[axis][i] ?? 0;
     this.occ[axis][i] = o === 0 || o === net + 1 ? net + 1 : -1;
@@ -119,6 +115,7 @@ export class Work {
   seen = new Uint32Array(0);
   closed = new Uint32Array(0);
   stamp = 0;
+  readonly heap = new Heap();
   ensure(n: number) {
     if (this.g.length >= n) return;
     this.g = new Float32Array(n);
@@ -129,23 +126,34 @@ export class Work {
   }
 }
 
-/** 最小ヒープ（費用と状態） */
+/**
+ * 最小ヒープ（費用と状態）。型付き配列に持ち、探索ごとに作り直さず `clear` で使い回す。
+ * 同じ費用の要素を取り出す順は、押す順と下ろし方だけで決まる（配列で持っていた頃と同じ）。
+ */
 export class Heap {
-  private keys: number[] = [];
-  private vals: number[] = [];
-  get size() {
-    return this.keys.length;
+  private keys = new Float64Array(4096);
+  private vals = new Int32Array(4096);
+  size = 0;
+  clear() {
+    this.size = 0;
   }
   push(k: number, v: number) {
+    if (this.size === this.keys.length) {
+      const keys = new Float64Array(this.size * 2);
+      const vals = new Int32Array(this.size * 2);
+      keys.set(this.keys);
+      vals.set(this.vals);
+      this.keys = keys;
+      this.vals = vals;
+    }
     const keys = this.keys;
     const vals = this.vals;
-    let i = keys.length;
-    keys.push(k);
-    vals.push(v);
+    let i = this.size++;
     while (i > 0) {
       const p = (i - 1) >> 1;
-      if ((keys[p] ?? 0) <= k) break;
-      keys[i] = keys[p] ?? 0;
+      const pk = keys[p] ?? 0;
+      if (pk <= k) break;
+      keys[i] = pk;
       vals[i] = vals[p] ?? 0;
       i = p;
     }
@@ -156,17 +164,19 @@ export class Heap {
     const keys = this.keys;
     const vals = this.vals;
     const top = vals[0] ?? -1;
-    const k = keys.pop() ?? 0;
-    const v = vals.pop() ?? 0;
-    if (keys.length > 0) {
+    const n = --this.size;
+    const k = keys[n] ?? 0;
+    const v = vals[n] ?? 0;
+    if (n > 0) {
       let i = 0;
       for (;;) {
         const l = 2 * i + 1;
-        if (l >= keys.length) break;
+        if (l >= n) break;
         const r = l + 1;
-        const c = r < keys.length && (keys[r] ?? 0) < (keys[l] ?? 0) ? r : l;
-        if ((keys[c] ?? 0) >= k) break;
-        keys[i] = keys[c] ?? 0;
+        const c = r < n && (keys[r] ?? 0) < (keys[l] ?? 0) ? r : l;
+        const ck = keys[c] ?? 0;
+        if (ck >= k) break;
+        keys[i] = ck;
         vals[i] = vals[c] ?? 0;
         i = c;
       }
