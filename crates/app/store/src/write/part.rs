@@ -230,9 +230,42 @@ pub fn set_attr(
 ) -> Result<(), StoreError> {
     edit_part(edits, file, |doc| {
         let table = table_mut(doc, &["attr"])?;
+        let added = !table.contains_key(attr);
         put(table, attr, encode_value(value));
+        if added {
+            place_sorted(table, attr);
+        }
         Ok(())
     })
+}
+
+/// 新しく足した属性 `key` を、正規の順（ID の昇順。新しいファイルの書き手 `new_part_text` が `BTreeMap` の順に書く）での
+/// 直前の属性のすぐ後ろに置く（直前が無ければ先頭）。既にある属性は動かさない（手で並べ替えたファイルは並べ替えない）。
+/// 値の行（`x = { … }`）は値の行どうし、見出しの表（`[attr.x]`）は見出しの表どうしで直前を探す
+/// （値の行は常に見出しの表より前に出力されるため）。見出しの表の出力の順は位置で決まるので、直前の表と同じ位置にして
+/// 表の中の並び（同じ位置なら先に並んだ方が先）で後ろに出す。
+fn place_sorted(table: &mut Table, key: &str) {
+    let header = table.get(key).is_some_and(is_header_table);
+    let same_kind = |k: &str, item: &Item| k != key && is_header_table(item) == header;
+    let siblings: Vec<(String, Option<isize>)> = table
+        .iter()
+        .filter(|(k, item)| same_kind(k, item))
+        .map(|(k, item)| (k.to_string(), item.as_table().and_then(Table::position)))
+        .collect();
+    let latest = siblings
+        .iter()
+        .filter(|(k, _)| k.as_str() < key)
+        .max_by(|a, b| a.0.cmp(&b.0));
+    place_after(table, key, latest.map(|(k, _)| k.as_str()));
+    if header {
+        let position = match latest {
+            Some((_, p)) => *p,
+            None => siblings.iter().filter_map(|(_, p)| *p).min(),
+        };
+        if let (Some(position), Some(Item::Table(t))) = (position, table.get_mut(key)) {
+            t.set_position(Some(position));
+        }
+    }
 }
 
 /// 状態ごとの値の 1 セルを書く（`[attr.<attr>]` の 1 行）。
@@ -244,8 +277,13 @@ pub fn set_attr_state(
     cell: &Authored<Scalar>,
 ) -> Result<(), StoreError> {
     edit_part(edits, file, |doc| {
+        let fresh = table_opt(doc, &["attr", attr]).is_none();
         let table = table_mut(doc, &["attr", attr])?;
         put(table, state, encode_cell(cell));
+        if fresh {
+            // 新しい属性の表（`[attr.power]`）も、値ごと書く場合と同じ正規の位置に置く
+            place_sorted(table_mut(doc, &["attr"])?, attr);
+        }
         Ok(())
     })
 }

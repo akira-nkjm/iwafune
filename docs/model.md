@@ -2295,6 +2295,10 @@ Writing rules enforced by `fune fmt` and `fune check`.
      (`[attr.power.on]` would be three levels, so it is not used). Cells with no source stay as the current one-liners and sit in the same table.
    - A heading table is placed after the value rows of its parent table (a TOML rule). If no value rows remain in the parent table, the parent's heading (`[attr]`) is not written.
    - The `=` signs are aligned per table, including the dotted-key rows.
+   - A heading table with value rows comes before its sub-tables: the value rows of `[attr]` (the attributes without a source) are written first, then the `[attr.<name>]` tables.
+     A file with `[attr]` after `[attr.<name>]` is valid TOML but not canonical; `fune fmt` moves it and `fmt --check` reports it.
+   - Order of attributes: a file written from scratch lists attributes in ID order. An attribute added to an existing file goes right after its predecessor in ID order
+     (the first one if there is none); the attributes already in the file are never reordered, so a hand-ordered file stays as it is. Rows without a source and `[attr.<name>]` tables are ordered separately.
    - Reading gives the same value from either form (the old one-line inline table, or heading tables and dotted keys). `fune fmt` rewrites to the current form.
 
    ```toml
