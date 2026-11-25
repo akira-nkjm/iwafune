@@ -59,8 +59,8 @@ export function DiagramPage() {
   const d = design.data;
   const [params, setParams] = useSearchParams();
   const hiddenSystems = useMemo(
-    () => diagramHiddenSystems(params, d?.defs.systems ?? []),
-    [params, d?.defs.systems],
+    () => diagramHiddenSystems(params, d?.defs ?? { systems: [], diagram_hidden_systems: [] }),
+    [params, d?.defs],
   );
   const {
     model,

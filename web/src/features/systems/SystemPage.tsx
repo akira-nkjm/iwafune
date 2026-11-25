@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useParams, useSearchParams } from "react-router";
 import { useAnalyses, useDesign, useSystemAnalyses } from "@/api/queries";
-import type { AnalysisEntry, DefsView, System } from "@/api/types";
+import type { AnalysisEntry, System } from "@/api/types";
 import { useT } from "@/i18n";
 import { Empty } from "@/kit/feedback/Empty";
 import { SkeletonPage, SkeletonPanel } from "@/kit/feedback/Loading";
@@ -11,34 +11,9 @@ import { systemTitle } from "@/lib/design";
 import { paths, SEARCH } from "@/lib/nav";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
-import { dedicatedViews } from "./dedicated";
-import { systemExtras } from "./extras";
-import { hasExtraTab } from "./preload";
+import { resolveTab, systemExtras, systemRegistration, systemTabs } from "./dedicated";
 import { SystemHeaderActions } from "./SystemHeaderActions";
-import { hasModes, type SystemTab, SystemTabs, tabFillsBody } from "./SystemTabs";
-
-const TABS: SystemTab[] = [
-  "results",
-  "maneuvers",
-  "heat",
-  "couplings",
-  "analyses",
-  "modes",
-  "series",
-  "settings",
-];
-
-/** 系にそのタブがあるか（モードの見方は持つ系だけ、熱画像・解析結果のような追加のタブは `preload.ts` の `EXTRA_TABS` の系だけ） */
-function shows(system: System, tab: SystemTab, defs: DefsView | undefined): boolean {
-  if (tab === "modes") return hasModes(system, defs);
-  if (tab === "heat" || tab === "couplings" || tab === "analyses" || tab === "maneuvers")
-    return hasExtraTab(system, tab);
-  return true;
-}
-
-function isTab(s: string | undefined): s is SystemTab {
-  return TABS.some((t) => t === s);
-}
+import { SystemTabs, tabFillsBody } from "./SystemTabs";
 
 type DesignQuery = ReturnType<typeof useDesign>;
 
@@ -97,8 +72,7 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
     () => new Map<string, AnalysisEntry>(catalog.entries.map((e) => [e.info.id, e])),
     [catalog.entries],
   );
-  const tab: SystemTab =
-    isTab(rawTab) && shows(system, rawTab, design.data?.defs) ? rawTab : "results";
+  const tab = resolveTab(system, rawTab, design.data?.defs);
   const tabs = (d: NonNullable<DesignQuery["data"]>) => (
     <SystemTabs
       tab={tab}
@@ -119,7 +93,7 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
         subtitle={t.systems.specs[system].description}
         actions={
           <>
-            {dedicatedViews(system)?.actions?.({ design: design.data, kase })}
+            {systemRegistration(system)?.actions?.({ design: design.data, kase })}
             <SystemHeaderActions
               cases={design.data?.cases ?? []}
               kase={kase}
@@ -133,7 +107,7 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
         }
       />
       <PageTabs
-        tabs={TABS.filter((k) => shows(system, k, design.data?.defs)).map((k) => ({
+        tabs={systemTabs(system, design.data?.defs).map((k) => ({
           to: paths.system(system, { tab: k === "results" ? null : k, kase }),
           label: t.systems.tabs[k],
         }))}

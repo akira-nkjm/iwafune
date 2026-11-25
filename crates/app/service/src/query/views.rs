@@ -313,6 +313,8 @@ pub(crate) fn defs(design: &Design) -> DefsView {
         budget_kinds: BudgetKind::ALL.to_vec(),
         mode_systems: crate::mode_systems::mode_systems(),
         mode_levels: crate::mode_systems::mode_levels(),
+        diagram_hidden_systems: crate::mode_systems::diagram_hidden_systems(),
+        mode_totals_system: crate::mode_systems::totals_system(),
     }
 }
 

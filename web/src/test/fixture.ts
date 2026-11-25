@@ -397,6 +397,8 @@ export const fixture: DesignView = {
     systems: ["aocs", "cdh", "comm", "payload", "power", "propulsion", "structure", "thermal"],
     budget_kinds: ["mass", "power", "data"],
     mode_systems: ["aocs", "cdh", "power", "thermal"],
+    diagram_hidden_systems: ["structure"],
+    mode_totals_system: "power",
     mode_levels: [
       { system: null, levels: "power_levels" },
       { system: "aocs", levels: "states" },
