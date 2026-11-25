@@ -149,6 +149,8 @@ impl Edits {
         let out = f(&mut doc)?;
         // 編集でキーが増減した表は、ここで `=` を揃え直す（書き込みごとの揃えに頼らない。fmt と同じ定義）
         crate::profile::realign_changed(before.as_table(), doc.as_table_mut());
+        // 値の行のある見出しの表（`[attr]`）は、下の見出しの表（`[attr.mass]`）より前に出す（fmt と同じ定義）
+        crate::profile::order_parents_first(&mut doc);
         self.current.insert(path, doc.to_string());
         Ok(out)
     }
