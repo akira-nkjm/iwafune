@@ -1,10 +1,9 @@
 //! 実行の共通の入口・表や図の共通の部品（脚注・判定と状態の表示名・数えられなかった項目の表）。
 
 use super::{Ctx, Out};
-use crate::analysis::run_analysis;
+use crate::analysis::run_cached;
 use crate::dto::{
     AnalysisRunResult, AnalysisRunStatus, QuantityView, ReportItem, ReportLang, ReportUnavailable,
-    RunAnalysisRequest,
 };
 use crate::error::Result;
 use crate::units::number_text;
@@ -12,17 +11,11 @@ use fune_report::labels::{Text, t, tr};
 use fune_report::model::{Table, ValueEntry};
 use sat_analysis::spec::Verdict;
 use sat_units::format::unit_label;
+use std::rc::Rc;
 
-/// 解析を設計から実行する（保存済みの設計。`case` が None なら解析の既定のケース）。
-pub(super) fn run(ctx: &Ctx<'_>, id: &str, case: Option<&str>) -> Result<AnalysisRunResult> {
-    run_analysis(
-        ctx.ws,
-        id,
-        &RunAnalysisRequest {
-            case: case.map(str::to_owned),
-            ..RunAnalysisRequest::default()
-        },
-    )
+/// 解析を設計から実行する（書き出す設計の記憶から。同じ解析・ケースは 1 回だけ計算する。`case` が None なら解析の既定のケース）。
+pub(super) fn run(ctx: &Ctx, id: &str, case: Option<&str>) -> Result<Rc<AnalysisRunResult>> {
+    run_cached(&ctx.session, id, case)
 }
 
 /// 解析が数えられなかった理由（数えられたなら None）。
@@ -43,7 +36,7 @@ pub(super) fn why_not(r: &AnalysisRunResult) -> Option<String> {
 }
 
 /// 表・図の下の注記の共通部分（有効数字・モデルの revision）。
-pub(super) fn footer(ctx: &Ctx<'_>) -> Vec<String> {
+pub(super) fn footer(ctx: &Ctx) -> Vec<String> {
     vec![
         tr(
             ctx.lang,
@@ -55,8 +48,8 @@ pub(super) fn footer(ctx: &Ctx<'_>) -> Vec<String> {
 }
 
 /// 設計の revision。
-pub(super) fn revision(ctx: &Ctx<'_>) -> String {
-    ctx.snapshot.design.revision.0.clone()
+pub(super) fn revision(ctx: &Ctx) -> String {
+    ctx.snapshot().design.revision.0.clone()
 }
 
 /// 数えられなかった項目を並べる（表や図は呼び出し側が「算出できません」の注記で書く）。
@@ -70,7 +63,7 @@ pub(super) fn note_unavailable(out: &mut Out, item: ReportItem, case: Option<&st
 
 /// 数えられなかったときの空の表。
 pub(super) fn empty_table(
-    ctx: &Ctx<'_>,
+    ctx: &Ctx,
     item: ReportItem,
     case: Option<&str>,
     caption: String,
@@ -110,11 +103,11 @@ pub(super) fn pick_label(lang: ReportLang, label: &str, label_en: Option<&str>) 
 }
 
 /// 解析ケースの表示名（ケースの `label`、無ければ ID、ケースが無ければ「既定のケース」）。
-pub(super) fn case_label(ctx: &Ctx<'_>, case: Option<&str>) -> String {
+pub(super) fn case_label(ctx: &Ctx, case: Option<&str>) -> String {
     match case {
         None => t(ctx.lang, Text::CaseDefault).to_owned(),
         Some(id) => ctx
-            .snapshot
+            .snapshot()
             .design
             .cases
             .get(id)
@@ -124,9 +117,9 @@ pub(super) fn case_label(ctx: &Ctx<'_>, case: Option<&str>) -> String {
 }
 
 /// 部品の表示名（`<名前> (<ID>)`。名前が無ければ ID）。
-pub(super) fn part_name(ctx: &Ctx<'_>, id: &str) -> String {
+pub(super) fn part_name(ctx: &Ctx, id: &str) -> String {
     match ctx
-        .snapshot
+        .snapshot()
         .resolved
         .parts
         .get(id)

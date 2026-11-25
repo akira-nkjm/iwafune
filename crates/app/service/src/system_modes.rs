@@ -9,6 +9,7 @@ mod power;
 use crate::dto::{ModeSummaryScope, SystemModesRequest};
 use crate::error::Result;
 use crate::mode_systems::mode_systems;
+use crate::session::Session;
 use crate::workspace::{Snapshot, Workspace};
 pub use failure::fails;
 
@@ -19,10 +20,10 @@ pub fn system_modes(
     system: sat_analysis::spec::System,
     req: &SystemModesRequest,
 ) -> Result<crate::dto::SystemModesView> {
-    let s = crate::preview::snapshot_with(ws, &req.ops)?;
-    let mut view = system_modes_of(&s, system)?;
+    let session = Session::open(ws, &req.ops)?;
+    let mut view = system_modes_of(session.snapshot(), system)?;
     if req.analyzed && system == sat_analysis::spec::System::Power {
-        power::attach(&s, req.case.as_deref(), &mut view.modes)?;
+        power::attach(&session, req.case.as_deref(), &mut view.modes)?;
     }
     view.summary = summary_rows(system, req.summary);
     Ok(view)

@@ -5,7 +5,7 @@
 
 use crate::dto::{AnalysisOverview, AnalysisRunResult, CheckView, KpiView, OverviewCheckGroup};
 use crate::dto::{OverviewChart, QuantityView};
-use crate::workspace::Snapshot;
+use crate::session::Session;
 
 mod power;
 
@@ -46,14 +46,14 @@ pub(crate) fn overview(
     }
 }
 
-/// 系ごとの組み立て（今は電源の棒グラフと隠す表）を結果の概要の行に足す。`snapshot` と `case` は実行に使った設計とケース
-/// （入力を丸ごと与えた実行は `snapshot` が無い）。
+/// 系ごとの組み立て（今は電源の棒グラフと隠す表）を結果の概要の行に足す。`session` と `case` は実行に使った設計の記憶とケース
+/// （入力を丸ごと与えた実行は `session` が無い）。隠す表のために回すほかの解析は、`session` の記憶から使い回す。
 pub(crate) fn add_system_parts(
     result: &mut AnalysisRunResult,
-    snapshot: Option<&Snapshot>,
+    session: Option<&Session>,
     case: Option<&str>,
 ) {
-    power::add(result, snapshot, case);
+    power::add(result, session, case);
 }
 
 /// 棒の塗りの長さ: いちばん大きい値に対する割合（0〜1。最大が 0 以下か値が無ければ 0）。
