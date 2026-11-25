@@ -13,8 +13,8 @@ expression: "stdout(&[\"-C\", root.to_str().unwrap(), \"part\", \"ls\"])"
  CELL_MOD_4   power        solar_panel           local/tj_module_5       1   13.0 g             —   not set            
  EPT          propulsion   propulsion_thruster   —                       1    400 g   30.0 W (on)   not set            
  GPS          aocs         gps                   local/gps_l1            1   80.0 g   900 mW (on)   -20.0 °C … 60.0 °C 
- HTR_BAT      thermal      heater                —                       1   5.00 g   2.00 W (on)   not set            
- HTR_CAM      thermal      heater                —                       1   4.00 g   1.00 W (on)   not set            
+ HTR_BAT      thermal      heater                —                       1   5.00 g   3.00 W (on)   not set            
+ HTR_CAM      thermal      heater                —                       1   4.00 g   7.00 W (on)   not set            
  MTQ_X        aocs         magnetorquer          local/mtq_0p2           1   30.0 g   450 mW (on)   -30.0 °C … 70.0 °C 
  MTQ_Y        aocs         magnetorquer          local/mtq_0p2           1   30.0 g   450 mW (on)   -30.0 °C … 70.0 °C 
  MTQ_Z        aocs         magnetorquer          local/mtq_0p2           1   30.0 g   450 mW (on)   -30.0 °C … 70.0 °C 

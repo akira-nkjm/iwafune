@@ -190,7 +190,8 @@ fn thermostat_heaters_are_passed_as_heaters_not_loads() {
     // #472: 電池の性能範囲（10〜35 °C に不確かさ 5 K と警告幅 5 K）に合わせ、設定温度を 5〜10 °C から 20〜25 °C にした
     assert!((h.on_below.value() - 293.15).abs() < 1e-9);
     assert!((h.off_above.value() - 298.15).abs() < 1e-9);
-    assert_eq!(h.power.value(), 2.0);
+    // #491: 低温のケースで飽和しないよう 2 W から 3 W にした
+    assert_eq!(h.power.value(), 3.0);
     assert_eq!(case.heaters.len(), 2);
     let analysis_parts = &case.mode_loads.as_ref().unwrap().parts;
     assert!(analysis_parts.iter().all(|p| !p.id.starts_with("HTR_")));
