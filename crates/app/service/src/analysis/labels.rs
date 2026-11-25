@@ -253,7 +253,7 @@ fn span_fallback(f: SpanFallback) -> AnalysisLabel {
     }
 }
 
-fn link_direction(d: LinkBudgetDirection) -> AnalysisLabel {
+pub(crate) fn link_direction(d: LinkBudgetDirection) -> AnalysisLabel {
     match d {
         LinkBudgetDirection::Uplink => label("アップリンク", "Uplink"),
         LinkBudgetDirection::Downlink => label("ダウンリンク", "Downlink"),

@@ -42,7 +42,7 @@ pub(super) fn mass(
 pub(super) fn kpis(ctx: &Ctx, out: &mut Out, r: &AnalysisRunResult, case: Option<&str>) {
     for k in &r.kpis {
         let Some(q) = &k.value else { continue };
-        let Ok(serde_json::Value::String(key)) = serde_json::to_value(k.key) else {
+        let Some(key) = k.key.wire_name() else {
             continue;
         };
         let at = case.map(|c| format!("@{c}")).unwrap_or_default();

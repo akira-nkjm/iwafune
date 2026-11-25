@@ -1,4 +1,5 @@
 //! 表・図の見出しと注記の日本語・英語の対。**書き出す文言はここだけ**（設計データの名前・解析の表示名は service が渡す）。
+//! 画面や解析の語彙に同じ語がある場合（回線の向き・「その他」など）はそちらの表示名を使い、ここには足さない。
 //! 文言の `{}` は引数で順に置き換える（[`tr`]）。
 
 use crate::model::Lang;
@@ -20,9 +21,6 @@ pub enum Text {
     VerdictOk,
     VerdictWarning,
     VerdictViolation,
-    Uplink,
-    Downlink,
-    Other,
     CaseDefault,
     NotAvailable,
     ModelRevision,
@@ -125,9 +123,6 @@ fn pair(t: Text) -> (&'static str, &'static str) {
         VerdictOk => ("適合", "OK"),
         VerdictWarning => ("注意", "Warning"),
         VerdictViolation => ("不適合", "Violation"),
-        Uplink => ("アップリンク", "uplink"),
-        Downlink => ("ダウンリンク", "downlink"),
-        Other => ("その他", "Other"),
         CaseDefault => ("既定のケース", "default case"),
         NotAvailable => ("算出できません: {}", "Not available: {}"),
         ModelRevision => ("モデルの revision: {}", "Model revision: {}"),

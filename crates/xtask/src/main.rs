@@ -10,6 +10,7 @@
 //! - projection にモデル化の既定値を書かない: `const DEFAULT_…` と値の直書きの `unwrap_or(`（[`projection_defaults`]）
 //! - 1 機能 1 か所: 台帳で決めた定義が別のファイルに現れていないか。許したパスのどこにも現れない（死んだ）定義の規則も違反にする（[`single_home`]）
 //! - 設計ファイルの書き込みの入口: `write::commit` を呼ぶのは store と ops だけ（例外は理由付きの許可リスト。[`store_writes`]）
+//! - 設計書の書き出しの JSON 読み: `report` が解析の出力を JSON の欄の名前で読んでいないか（[`report_json`]）
 //! - Web の文字列の分解: ID やパスを `/`・`.` で分けていないか（[`web_strings`]）
 //! - Web の色の直書き: hex・色の名前（`white` など）・`color-mix(` が `lib/tone.ts` の外に無いか（[`web_colors`]）
 //! - Web のページ: ページの URL を `lib/nav.ts` の外で組み立てていないか、`features/` に shell などから依存していないか
@@ -26,6 +27,7 @@ mod meta;
 mod module_cycles;
 mod projection_defaults;
 mod registry;
+mod report_json;
 mod scan;
 mod single_home;
 mod sizes;
@@ -61,6 +63,7 @@ fn check() -> Result<()> {
     single_home::check(root, &files, &mut errors);
     projection_defaults::check(root, &files, &mut errors);
     store_writes::check(root, &files, &mut errors);
+    report_json::check(root, &files, &mut errors);
     web_strings::check(root, &files, &mut errors);
     web_colors::check(root, &files, &mut errors);
     web_pages::check(root, &files, &mut errors);

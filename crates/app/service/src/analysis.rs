@@ -69,6 +69,7 @@ pub fn analysis_catalog() -> Result<Vec<AnalysisEntry>> {
 }
 
 /// 実行の結果を組み立てる途中の値。
+#[derive(Clone)]
 struct Outcome {
     status: AnalysisRunStatus,
     dims: BTreeMap<String, String>,
@@ -153,7 +154,13 @@ fn execute(
         crate::query::pose::require_configuration(&snapshot.design, req.configuration.as_deref())?;
     }
     let (case, case_source, side) = effective_case(snapshot, id, req.case.as_deref());
-    let outcome = run_inner(id, req, snapshot, case.as_deref())?;
+    let outcome = match session {
+        // 設計から組み立てるだけの実行は、実効のケースごとに 1 回だけ計算する（型付きの実行と同じ計算を使い回す）
+        Some(session) if cached::is_plain(req) => cached::outcome(session, id, case.as_deref())?
+            .as_ref()
+            .clone(),
+        _ => run_inner(id, req, snapshot, case.as_deref())?,
+    };
     let mut result = finish(id, (case, case_source, side), outcome);
     overview::add_system_parts(&mut result, session, req.case.as_deref());
     Ok(result)
@@ -238,12 +245,20 @@ pub(crate) type CaseInfo = (
     Option<UncertaintySide>,
 );
 
+// 解析の実行の中身を計算した回数（このスレッドの。計算が 1 回だけかをテストで数える）。
+#[cfg(test)]
+thread_local! {
+    pub(crate) static INNER_RUNS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 fn run_inner(
     id: &str,
     req: &RunAnalysisRequest,
     snapshot: Option<&crate::workspace::Snapshot>,
     case: Option<&str>,
 ) -> Result<Outcome> {
+    #[cfg(test)]
+    INNER_RUNS.with(|c| c.set(c.get() + 1));
     let (projected, configuration) = match &req.source {
         AnalysisInputSource::Given { input } => (
             Projected {
