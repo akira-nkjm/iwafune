@@ -19,6 +19,10 @@ unshadowed: Array<string>,
  */
 casters: Array<string>, 
 /**
+ * 報告した面のどれかを覆っている・平行に向き合っている部品（ID の昇順。熱の外面だけが数える）
+ */
+coverers?: Array<string>, 
+/**
  * 影で遮られた直達日射のうち、影を落とす部品が外面を持たず、どこにも吸収されない分の報告（熱の解析だけ）
  */
 lost?: ShadowLoss | null, };

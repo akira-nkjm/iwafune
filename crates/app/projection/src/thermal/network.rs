@@ -99,25 +99,39 @@ fn pairs<D: sat_units::typed::Dimension>(
     out
 }
 
-/// 箱型の外殻（`[enclosure] emissivity` を書いたときだけ）。箱の寸法は機体の根（取付を持たない外形のある部品）の `size`。
+/// 箱型の外殻（`[enclosure] emissivity` を書いたときだけ）。箱の寸法は機体の根（取付を持たない外形のある部品）の `size`、
+/// 中心は根の箱の中心（`structure::boxes`。いま有効な形態の配置）。外面が 6 面のどれの上にあるかを調べるために、部品の箱も渡す。
 /// 6 面と節点の対応と、使えるかの判断は解析が行う。
 fn enclosure(ctx: &Context<'_>, s: &ThermalSettings) -> Option<ThermalEnclosure> {
     let emissivity = s.enclosure.as_ref()?.emissivity?;
     let mut roots = crate::outline::candidates(ctx.resolved)
         .into_iter()
         .filter_map(|p| Some((p, ctx.vec3(p, "size")?)));
-    let size = match (roots.next(), roots.next()) {
+    let boxes: Vec<InterferenceBox> = crate::structure::boxes(ctx)
+        .boxes
+        .into_iter()
+        .map(InterferenceBox::from)
+        .collect();
+    let (size, center) = match (roots.next(), roots.next()) {
         (Some((root, size)), None) => {
             let [x, y, z] = crate::outline::body_extents(ctx.resolved, &root.id, size);
-            Some(ThermalBoxSize {
-                x: Qty::from_raw(x),
-                y: Qty::from_raw(y),
-                z: Qty::from_raw(z),
-            })
+            (
+                Some(ThermalBoxSize {
+                    x: Qty::from_raw(x),
+                    y: Qty::from_raw(y),
+                    z: Qty::from_raw(z),
+                }),
+                boxes.iter().find(|b| b.id == root.id).map(|b| b.position),
+            )
         }
-        _ => None,
+        _ => (None, None),
     };
-    Some(ThermalEnclosure { size, emissivity })
+    Some(ThermalEnclosure {
+        size,
+        emissivity,
+        center,
+        boxes,
+    })
 }
 
 /// 内部の放射を形態係数から出す入力（`[view_factors] emissivity` を書いたときだけ）。部品の箱（`structure::boxes`。いま有効な形態の配置）と放射率を渡すだけで、

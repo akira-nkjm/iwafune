@@ -2,7 +2,7 @@ use super::super::ThermalConductiveLink;
 use super::super::tests::node;
 use super::*;
 use crate::thermal::enclosure::ThermalBoxSize;
-use crate::thermal::network::{Compiled, ThermalLoad, ThermalMounts};
+use crate::thermal::network::{Compiled, ThermalLoad, ThermalMounts, ThermalSurface};
 use sat_units::typed::Qty;
 
 pub(super) fn cond(a: &str, b: &str, g: f64) -> ThermalConductiveLink {
@@ -194,6 +194,8 @@ fn box_net() -> ThermalNetwork {
             z: Qty::from_raw(z),
         }),
         emissivity: 0.8,
+        center: None,
+        boxes: Vec::new(),
     });
     n
 }
