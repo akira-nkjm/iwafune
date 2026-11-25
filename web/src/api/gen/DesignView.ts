@@ -7,6 +7,7 @@ import type { DefsView } from "./DefsView";
 import type { DiagnosticView } from "./DiagnosticView";
 import type { GroundStationView } from "./GroundStationView";
 import type { HarnessView } from "./HarnessView";
+import type { LinkView } from "./LinkView";
 import type { ManeuverView } from "./ManeuverView";
 import type { ModeTable } from "./ModeTable";
 import type { NetView } from "./NetView";
@@ -43,6 +44,10 @@ configurations: Array<ConfigurationView>,
  * 地上局（`conditions/ground/<ID>.toml`。ID 順。値は `settings`）
  */
 stations: Array<GroundStationView>, 
+/**
+ * 通信の回線（`analysis/comm.toml` の `[link.<名前>]`。名前順。開いて直す・消すための一覧）
+ */
+links: Array<LinkView>, 
 /**
  * 通信の回線・解析ケースを足すダイアログの選択肢（候補の絞り込みは service が決める）
  */

@@ -7,6 +7,7 @@
 //! | `parts` | 部品の行・1 部品の全情報・1 つの値 |
 //! | `pose` | 部品の配置の表示（取付・取付点・機体座標の位置と姿勢の角度。位置は 1 部品で同じ単位。形態を選ぶのもここだけ） |
 //! | `add_choices` | 通信の回線・解析ケースを足すダイアログの選択肢（送受信機・帯域・熱の環境条件） |
+//! | `comm_links` | 通信の回線の一覧（向き・送受信機・帯域） |
 //! | `ground` | 地上局（ID 順・表示名・ファイル・解析が使っているか） |
 //! | `maneuvers` | マヌーバ（実行の順・目標の要素・編集の欄の初期値） |
 //! | `configurations` | 形態（ID 順・姿勢を上書きしている部品・編集の欄の初期値） |
@@ -20,6 +21,7 @@
 
 pub(crate) mod add_choices;
 pub(crate) mod catalog;
+pub(crate) mod comm_links;
 pub(crate) mod configurations;
 pub(crate) mod ground;
 pub(crate) mod maneuvers;
@@ -110,6 +112,7 @@ pub fn design_view(ws: &Workspace) -> Result<DesignView> {
         phases: phases::phases(d),
         configurations: configurations::configurations(d),
         stations: ground::stations(d),
+        links: comm_links::links(d),
         add_choices: add_choices::add_choices(d),
         requirements: requirements::requirements(d),
         sources: sources::sources(d),
