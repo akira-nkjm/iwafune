@@ -5,17 +5,19 @@
 //!
 //! | モジュール | 中身 |
 //! |---|---|
-//! | `de440` | DE440 の暦表。`gh release download` で取得し、決めてある SHA-256 を確かめてから置く |
+//! | `release` | リリース配布のデータの共通の仕組み（表の 1 行 = [`Dataset`]。取得・SHA-256 の照合・状態・登録）。データを足すときは表に 1 行と登録する関数を足す |
+//! | `de440` | 表の最初の行（DE440 の暦表）と、sat-astro への登録 |
 //! | [`space_weather`] | 宇宙天気（CelesTrak SW-All）。毎日更新されるので取得のたびに取得日時と SHA-256 を記録し、どの版を使ったかを返す |
 //! | `verify` | ファイルの印（大きさ・更新時刻）が変わらない間、求めた結果を使い回す覚え |
 
 mod de440;
+mod release;
 pub mod space_weather;
 mod verify;
 
-pub use de440::install_cached_ephemeris;
+use release::{Dataset, Downloader};
 
-use crate::dto::DataStatus;
+use crate::dto::{DataItem, DataStatus};
 use crate::error::{Result, ServiceError};
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
@@ -38,6 +40,9 @@ pub fn cache_dir() -> Result<PathBuf> {
         })
 }
 
+/// リリース配布のデータの表。**データを足すときはここに 1 行足す**（状態・取得・起動時の登録はこの表で決まる）。
+static RELEASE_DATASETS: [&Dataset; 1] = [&de440::DE440];
+
 /// データの状態（`GET /data/status`、`fune data status`）。ファイルの SHA-256 も確かめる
 /// （同じプロセスの中では、ファイルの大きさと更新時刻が変わらない間は前回の結果を使う）。
 pub fn data_status() -> Result<DataStatus> {
@@ -45,26 +50,53 @@ pub fn data_status() -> Result<DataStatus> {
     Ok(DataStatus {
         cache_dir: dir.display().to_string(),
         ephemeris: ephemeris_source(),
-        items: vec![de440::item(&dir)?, space_weather::item(&dir)?],
+        items: all_items(&dir, &RELEASE_DATASETS)?,
     })
+}
+
+/// 表のデータの状態に、宇宙天気（毎日更新される取得物で、表の形に乗らない）を続けたもの。
+fn all_items(dir: &Path, table: &[&Dataset]) -> Result<Vec<DataItem>> {
+    let mut items = table
+        .iter()
+        .map(|d| d.item(dir))
+        .collect::<Result<Vec<_>>>()?;
+    items.push(space_weather::item(dir)?);
+    Ok(items)
+}
+
+/// キャッシュにあるリリース配布のデータを読み込んで登録する（プロセスで一度だけ。CLI と HTTP サーバーの起動時に明示的に呼ぶ）。
+pub fn install_cached_datasets() {
+    if let Ok(dir) = cache_dir() {
+        for dataset in RELEASE_DATASETS {
+            dataset.install_cached(&dir);
+        }
+    }
 }
 
 /// データを取得してキャッシュに置く（`POST /data/{id}/fetch`、`fune data fetch <id>`）。
 /// 一時ディレクトリに落として確かめてから置き換えるので、失敗しても既存のファイルは壊れない。
 pub fn fetch(id: &str) -> Result<DataStatus> {
     let dir = cache_dir()?;
-    let run: fn(&Path, &Path) -> Result<()> = match id {
-        _ if id == de440::DE440.id => de440::fetch,
-        space_weather::ID => space_weather::fetch,
-        _ => return Err(ServiceError::not_found("data", id)),
+    fetch_in(&dir, id, &RELEASE_DATASETS, &release::gh_download)?;
+    data_status()
+}
+
+/// `fetch` の本体。表と取得の関数を引数に取る（試験では差し替える）。
+fn fetch_in(dir: &Path, id: &str, table: &[&Dataset], download: Downloader<'_>) -> Result<()> {
+    type Run<'a> = Box<dyn Fn(&Path, &Path) -> Result<()> + 'a>;
+    let run: Run<'_> = if let Some(dataset) = table.iter().find(|d| d.spec.id == id) {
+        Box::new(move |tmp, dir| dataset.fetch(tmp, dir, download))
+    } else if id == space_weather::ID {
+        Box::new(space_weather::fetch)
+    } else {
+        return Err(ServiceError::not_found("data", id));
     };
-    std::fs::create_dir_all(&dir).map_err(|e| io_error(&dir, e))?;
+    std::fs::create_dir_all(dir).map_err(|e| io_error(dir, e))?;
     let tmp = dir.join(format!(".download-{}", std::process::id()));
     std::fs::create_dir_all(&tmp).map_err(|e| io_error(&tmp, e))?;
-    let result = run(&tmp, &dir);
+    let result = run(&tmp, dir);
     let _ = std::fs::remove_dir_all(&tmp);
-    result?;
-    data_status()
+    result
 }
 
 pub(crate) fn sha256_file(path: &Path) -> Result<String> {
@@ -85,3 +117,6 @@ fn io_error(path: &Path, e: std::io::Error) -> ServiceError {
 fn ephemeris_source() -> sat_astro::ephem::EphemerisSource {
     sat_astro::ephem::source_at(sat_astro::time::Epoch::from_calendar(2026, 1, 1, 0, 0, 0.0))
 }
+
+#[cfg(test)]
+mod tests;

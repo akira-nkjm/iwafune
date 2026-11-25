@@ -16,6 +16,8 @@ const item = (id: string): DataItem => ({
   install_error: null,
   source: "https://example.com/data",
   fetched_at: null,
+  used_by: "Used by tests",
+  license: null,
 });
 const status: DataStatus = {
   cache_dir: "/cache",

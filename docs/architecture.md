@@ -406,7 +406,9 @@ The physics and mathematics building blocks that analyses use are in sat-astro, 
 The input specifications (`OrbitSpec`, `GroundStation`, etc.) take typed quantities, and internal functions pass f64 SI values.
 The orbit propagation that the design data passes to analyses is either two-body plus the secular term of J2 (the default) or two-body only.
 
-### 6.5 External data (DE440)
+### 6.5 External data (release datasets: DE440)
+
+Data that is too large or too restricted for git or the binary is placed in this repository's releases and fetched on demand. **A dataset is one row of a single typed table** (`RELEASE_DATASETS` in `fune_service::data`; the row type is `release::Dataset`): id, cache file name (= release asset name), repository and tag, expected SHA-256 and size, what uses it, the source/licence text shown to the user, and the installer (a function that receives the bytes and registers them with the consumer, for example sat-astro). Status, fetch, and the registration at CLI/server startup (`install_cached_datasets`) are all driven by that table, so adding a dataset is one row plus its installer. The space-weather table (§6.6) is fetched differently (daily updates, no fixed hash) and is listed after the table's rows in `fune data status`. DE440 is the first row:
 
 The DE440 ephemeris (`de440.bin`, about 20.7 MB. JPL DE440 converted into a format that sat-astro reads) is not put in git and is placed in this repository's release (tag `data-de440-v1`).
 
