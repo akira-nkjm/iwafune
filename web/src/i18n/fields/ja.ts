@@ -1,5 +1,12 @@
 /** 解析の出力の欄の表示名（日本語）。欄の名前（sat-analysis の型のフィールド名）→ 表示名 */
 const labels: Record<string, string> = {
+  bodies: "天体",
+  chain_solves: "連鎖を解いた回数",
+  flyby_dates: "通過の日",
+  flyby_search: "通過のある探索",
+  infeasible_cells: "実現できる通過が無い点の数",
+  infeasible_solves: "除いた回数（通過が曲がりきれない）",
+  refine_evaluations: "詰めの評価の回数",
   sunlit_average_generation: "日照中の平均発電",
   sunlit_average_charge: "日照中の平均充電電力",
   sunlit_average_discharge: "日照中の平均放電電力",
@@ -59,6 +66,7 @@ const labels: Record<string, string> = {
   evaluations: "収支を評価した回数",
   series_count: "直列数",
   parallel_count: "並列数",
+  unpowered_residual: "最小の点の動力なしの通過の数えていない噴射",
   used: "使用した仮定",
   longest: "最長蝕の標本",
   beta_min: "β 最小の標本",

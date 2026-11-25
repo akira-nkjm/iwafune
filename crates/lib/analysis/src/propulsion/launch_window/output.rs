@@ -19,6 +19,12 @@ pub enum LaunchWindowNote {
     MinimumAtGridEdge,
     /// マヌーバに書かれた日付では解けない
     WrittenDatesUnsolved,
+    /// 書かれた日付では、通過のどれかが下限の高度で曲がりきれない（`propulsion.maneuvers` が足りない回頭の分を噴射に足して警告するのと同じ点）
+    WrittenFlybyInfeasible,
+    /// 動力なしと書かれた通過の入りと出の超過速度が、探索の最良の点でも揃っていない（近点の噴射が `BALLISTIC_DV_M_S` を超える。その噴射は ΔV に数えていないので、最小の ΔV はその分だけ小さい。`propulsion.maneuvers` は同じ点で `swing_by_unpowered` を警告する）
+    UnpoweredFlybyNotBallistic,
+    /// 全部の日付の詰めが評価の上限で止まった（最小はまだ下がるかもしれない）
+    RefinementIncomplete,
 }
 
 /// 格子の量の種類（表示名は service の語彙が引く）。
@@ -82,8 +88,31 @@ pub struct LaunchWindowPoint {
     pub v_inf_arrival: Qty<Velocity>,
     /// 出発の漸近線の赤緯（出発天体の赤道に対して）
     pub departure_declination: Qty<Angle>,
-    /// マヌーバの ΔV（出発の脱出 + 到着の捕獲。損失を除く）
+    /// マヌーバの ΔV（出発の脱出 + 通過の近点の噴射 + 到着の捕獲。損失を除く）
     pub delta_v: Qty<Velocity>,
+    /// 通過の日（出発から到着の順。直接の遷移は無く、出力にも出さない）。通過のある探索の点は、この日付で通過の噴射まで含めた値
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "ts", ts(optional, as = "Option<Vec<Epoch>>"))]
+    pub flyby_dates: Vec<Epoch>,
+}
+
+/// 通過のある探索の集計（直接の遷移には無い）。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+pub struct LaunchWindowFlybySearch {
+    /// 通過する天体（出発から到着の順）
+    pub bodies: Vec<CentralBody>,
+    /// 日付の列ごとに連鎖（Lambert の脚と通過）を解いた回数（局所の詰めも含む）
+    pub chain_solves: u32,
+    /// そのうち、通過のどれかが下限の高度で曲がりきれなくて除いた回数
+    pub infeasible_solves: u32,
+    /// 実現できる通過の日が 1 つも無く、値なしになった格子の点の数
+    pub infeasible_cells: u32,
+    /// 全部の日付（出発・通過・到着）の局所の詰めで評価した点の数（`chain_solves` に含む）
+    pub refine_evaluations: u32,
+    /// 最小の点で、動力なしと書かれた通過の数えていない近点の噴射（入りと出の超過速度の差）の合計。
+    /// 探索はこれも小さくなる向きに選ぶ（ΔV には足さない）。ほぼ 0 なら弾道の通過で、`UnpoweredFlybyNotBallistic` が付くのは、残りが `BALLISTIC_DV_M_S` を超えるとき
+    pub unpowered_residual: Qty<Velocity>,
 }
 
 /// マヌーバに書かれた日付での値と、格子の最小との差。
@@ -116,6 +145,11 @@ pub struct LaunchWindowResult {
     /// 飛行時間が範囲に入って解こうとした点の数と、そのうち解けた点の数
     pub evaluated_cells: u32,
     pub solved_cells: u32,
+    /// 通過のある探索の集計（直接の遷移は無く、出力にも出さない）。通過があるときの格子の点は、通過の日を ΔV が最小になるよう決めた値で、
+    /// 最小の ΔV の点は格子の最小から全部の日付を詰めた点、最小の C3 の点は格子の点（詰めない）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub flyby_search: Option<LaunchWindowFlybySearch>,
     pub minimum_delta_v: Option<LaunchWindowPoint>,
     pub minimum_c3: Option<LaunchWindowPoint>,
     /// マヌーバに日付が書かれていれば、その値
