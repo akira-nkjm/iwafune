@@ -117,6 +117,16 @@ pub enum KpiKey {
     TotalDoseMargin,
 }
 
+impl KpiKey {
+    /// キーの綴り（serde が書き出す snake_case。設計書の値の項目 `kpi.<解析 ID>.<キー>` や JSON の `key` と同じ。**綴りの唯一の定義**）。
+    pub fn wire_name(self) -> Option<String> {
+        match serde_json::to_value(self) {
+            Ok(serde_json::Value::String(name)) => Some(name),
+            _ => None,
+        }
+    }
+}
+
 /// KPI の定義（`GET /analyses` の `AnalysisEntry.kpis`。結果が届く前に名前を並べるのに使う）。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct KpiDef {
@@ -264,5 +274,18 @@ mod tests {
             acknowledged: None,
         };
         assert!(none.ok_share().is_none());
+    }
+}
+
+#[cfg(test)]
+mod wire_name_tests {
+    use super::KpiKey;
+
+    #[test]
+    fn wire_name_is_the_snake_case_spelling() {
+        assert_eq!(
+            KpiKey::LongestEclipse.wire_name().as_deref(),
+            Some("longest_eclipse")
+        );
     }
 }

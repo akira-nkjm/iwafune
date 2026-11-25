@@ -104,7 +104,10 @@ fn system_rows(ctx: &Ctx, r: &BudgetRow, lines: &[PartLine], unit: &str) -> Vec<
 /// 配分の行の表示名（系は日英の名前、部品の配分は部品の名前、どれにも属さない行は「その他」）。
 fn system_label(ctx: &Ctx, r: &BudgetRow) -> String {
     match (&r.node, &r.label) {
-        (None, _) => t(ctx.lang, Text::Other).to_owned(),
+        (None, _) => {
+            let other = fune_model::builtin::role_other_label();
+            super::common::pick_label(ctx.lang, &other.label, other.label_en.as_deref())
+        }
         (Some(node), None) => node.clone(),
         (Some(_), Some(label)) => super::common::pick_label(ctx.lang, label, r.label_en.as_deref()),
     }

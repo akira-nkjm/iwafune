@@ -1,34 +1,34 @@
 //! 温度の結果表。節点ごとに、定常解析のケース（高温・低温など）の温度を列に並べ、全ケースの最低・最高、許容範囲、判定を添える。
-//! 値と判定は `thermal.steady` の結果（`envelope` の判定）をそのまま使う。
+//! 値と判定は `thermal.steady` の型付きの出力（`ThermalSteadyOutput`。`envelope` の判定）をそのまま使う。
 
 use super::column::{label_of, number_in, pick_unit_smallest};
 use super::common::{
-    case_label, effective, empty_table, footer, note_unavailable, remember_case, run, verdict_text,
-    why_not,
+    Counted, case_label, effective, empty_table, footer, note_unavailable, remember_case, run,
+    verdict_text,
 };
-use super::json::{get, list, num, text};
 use super::{Ctx, Out};
 use crate::dto::{ReportItem, ReportLang};
 use crate::error::Result;
 use fune_report::labels::{Text, t, tr};
 use fune_report::model::{Align, Cell, Column, Row, RowStyle, Table};
-use sat_analysis::spec::Verdict;
-use serde_json::Value;
+use sat_analysis::thermal::range::ThermalRangeKind;
+use sat_analysis::thermal::steady::{
+    ThermalSteady, ThermalSteadyCaseResult, ThermalSteadyEnvelope, ThermalSteadyOutput,
+};
 
 pub(super) fn build(ctx: &Ctx, case: Option<&str>, out: &mut Out) -> Result<()> {
-    let result = run(ctx, "thermal.steady", case)?;
-    let case = effective(&result, case);
+    let run = run::<ThermalSteady>(ctx, case)?;
+    let case = effective(&run.result, case);
     remember_case(out, &case);
-    super::values::kpis(ctx, out, &result, case.as_deref());
+    super::values::kpis(ctx, out, &run.result, case.as_deref());
     let caption = tr(
         ctx.lang,
         Text::ThermalCaption,
         &[&case_label(ctx, case.as_deref())],
     );
-    let output = match (why_not(&result), &result.output) {
-        (None, Some(o)) => o,
-        (reason, _) => {
-            let reason = reason.unwrap_or_default();
+    let output = match run.counted()? {
+        Counted::Yes { output, .. } => output,
+        Counted::No(reason) => {
             out.tables.push(empty_table(
                 ctx,
                 ReportItem::ThermalResult,
@@ -40,14 +40,14 @@ pub(super) fn build(ctx: &Ctx, case: Option<&str>, out: &mut Out) -> Result<()> 
             return Ok(());
         }
     };
-    let cases = list(output, "cases");
-    let envelope = list(output, "envelope");
+    let cases = &output.cases;
+    let envelope = &output.envelope;
     let temps = cases
         .iter()
-        .flat_map(|c| list(c, "nodes"))
-        .filter_map(|n| num(n, "temperature"))
-        .chain(envelope.iter().filter_map(|e| num(e, "min")))
-        .chain(envelope.iter().filter_map(|e| num(e, "max")));
+        .flat_map(|c| &c.nodes)
+        .map(|n| n.temperature.value())
+        .chain(envelope.iter().map(|e| e.min.value()))
+        .chain(envelope.iter().map(|e| e.max.value()));
     let unit = pick_unit_smallest("Temperature", temps);
     let kind = range_kind(envelope);
     let rows = envelope
@@ -69,31 +69,36 @@ pub(super) fn build(ctx: &Ctx, case: Option<&str>, out: &mut Out) -> Result<()> 
 }
 
 /// 許容範囲として載せる種類（動作があれば動作、無ければ最初に出てくる種類）。
-fn range_kind(envelope: &[Value]) -> Option<&str> {
-    let kinds: Vec<&str> = envelope
+fn range_kind(envelope: &[ThermalSteadyEnvelope]) -> Option<ThermalRangeKind> {
+    let kinds: Vec<ThermalRangeKind> = envelope
         .iter()
-        .flat_map(|e| list(e, "ranges"))
-        .filter_map(|r| text(r, "kind"))
+        .flat_map(|e| &e.ranges)
+        .map(|r| r.kind)
         .collect();
     kinds
         .iter()
-        .find(|k| **k == "operating")
+        .find(|k| **k == ThermalRangeKind::Operating)
         .or_else(|| kinds.first())
         .copied()
 }
 
-fn kind_label(lang: ReportLang, kind: Option<&str>) -> &'static str {
+fn kind_label(lang: ReportLang, kind: Option<ThermalRangeKind>) -> &'static str {
     t(
         lang,
         match kind {
-            Some("storage") => Text::RangeStorage,
-            Some("performance") => Text::RangePerformance,
-            _ => Text::RangeOperating,
+            Some(ThermalRangeKind::Storage) => Text::RangeStorage,
+            Some(ThermalRangeKind::Performance) => Text::RangePerformance,
+            Some(ThermalRangeKind::Operating) | None => Text::RangeOperating,
         },
     )
 }
 
-fn columns(ctx: &Ctx, cases: &[Value], unit: &str, kind: Option<&str>) -> Vec<Column> {
+fn columns(
+    ctx: &Ctx,
+    cases: &[ThermalSteadyCaseResult],
+    unit: &str,
+    kind: Option<ThermalRangeKind>,
+) -> Vec<Column> {
     let temp = Some(label_of(unit));
     let col = |header: String, unit: Option<String>, align| Column {
         header,
@@ -101,11 +106,11 @@ fn columns(ctx: &Ctx, cases: &[Value], unit: &str, kind: Option<&str>) -> Vec<Co
         align,
     };
     let mut cols = vec![col(t(ctx.lang, Text::Node).to_owned(), None, Align::Left)];
-    cols.extend(cases.iter().map(|c| {
-        let id = text(c, "id").unwrap_or_default();
-        let label = text(c, "label").unwrap_or(id);
-        col(label.to_owned(), temp.clone(), Align::Right)
-    }));
+    cols.extend(
+        cases
+            .iter()
+            .map(|c| col(c.label.clone(), temp.clone(), Align::Right)),
+    );
     cols.push(col(
         t(ctx.lang, Text::Minimum).to_owned(),
         temp.clone(),
@@ -133,63 +138,53 @@ fn columns(ctx: &Ctx, cases: &[Value], unit: &str, kind: Option<&str>) -> Vec<Co
     cols
 }
 
-fn node_row(lang: ReportLang, env: &Value, cases: &[Value], unit: &str, kind: Option<&str>) -> Row {
-    let node = text(env, "node").unwrap_or_default();
-    let mut cells = vec![Cell::text(node)];
+fn node_row(
+    lang: ReportLang,
+    env: &ThermalSteadyEnvelope,
+    cases: &[ThermalSteadyCaseResult],
+    unit: &str,
+    kind: Option<ThermalRangeKind>,
+) -> Row {
+    let mut cells = vec![Cell::text(env.node.as_str())];
     cells.extend(cases.iter().map(|c| {
-        list(c, "nodes")
+        c.nodes
             .iter()
-            .find(|n| text(n, "node") == Some(node))
-            .and_then(|n| num(n, "temperature"))
-            .map_or_else(Cell::empty, |v| number_in(v, unit))
+            .find(|n| n.node == env.node)
+            .map_or_else(Cell::empty, |n| number_in(n.temperature.value(), unit))
     }));
-    let cell = |key: &str| num(env, key).map_or_else(Cell::empty, |v| number_in(v, unit));
-    cells.push(cell("min"));
-    cells.push(cell("max"));
+    cells.push(number_in(env.min.value(), unit));
+    cells.push(number_in(env.max.value(), unit));
     cells.push(Cell::text(range_text(env, unit, kind)));
-    cells.push(Cell::text(verdict_cell(lang, env)));
+    cells.push(Cell::text(verdict_text(lang, env.verdict)));
     Row {
         style: RowStyle::Body,
         cells,
     }
 }
 
-/// 許容範囲の文字（`下限 – 上限`。片方だけなら片方）。
-fn range_text(env: &Value, unit: &str, kind: Option<&str>) -> String {
-    let range = list(env, "ranges")
+/// 許容範囲の文字（`下限 – 上限`）。その種類の範囲が無ければ空。
+fn range_text(env: &ThermalSteadyEnvelope, unit: &str, kind: Option<ThermalRangeKind>) -> String {
+    let Some(range) = env
+        .ranges
         .iter()
-        .find(|r| text(r, "kind") == kind)
-        .and_then(|r| get(r, "range"));
-    let Some(range) = range else {
+        .find(|r| Some(r.kind) == kind)
+        .map(|r| &r.range)
+    else {
         return String::new();
     };
-    let end = |key: &str| num(range, key).map(|v| number_in(v, unit).text);
-    match (end("min"), end("max")) {
-        (Some(lo), Some(hi)) => format!("{lo} – {hi}"),
-        (Some(lo), None) => format!("≥ {lo}"),
-        (None, Some(hi)) => format!("≤ {hi}"),
-        (None, None) => String::new(),
-    }
+    let end = |v: f64| number_in(v, unit).text;
+    format!("{} – {}", end(range.min.value()), end(range.max.value()))
 }
 
-fn verdict_cell(lang: ReportLang, env: &Value) -> &'static str {
-    get(env, "verdict")
-        .and_then(|v| serde_json::from_value::<Verdict>(v.clone()).ok())
-        .map_or("", |v| verdict_text(lang, v))
-}
-
-fn notes(ctx: &Ctx, output: &Value) -> Vec<String> {
-    let q = |key: &str| {
-        get(output, "margin")
-            .and_then(|m| num(m, key))
-            .map_or_else(String::new, |v| {
-                super::column::display(v, "TemperatureDifference")
-            })
-    };
+fn notes(ctx: &Ctx, output: &ThermalSteadyOutput) -> Vec<String> {
+    let q = |v: f64| super::column::display(v, "TemperatureDifference");
     let mut notes = vec![tr(
         ctx.lang,
         Text::ThermalNote,
-        &[&q("uncertainty"), &q("warning_band")],
+        &[
+            &q(output.margin.uncertainty.value()),
+            &q(output.margin.warning_band.value()),
+        ],
     )];
     notes.extend(footer(ctx));
     notes

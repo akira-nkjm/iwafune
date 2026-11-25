@@ -398,3 +398,30 @@ fn export_does_not_touch_the_design() {
     assert!(!tmp.path().join("demo-6u/exports").exists());
     assert!(!tmp.path().join("demo-6u/.fune").exists());
 }
+
+/// 回線の結果表の「要求余裕」は、その回線 × 局に要求があればその値（判定に使う値）で、無ければ解析全体の値。
+#[test]
+fn link_required_margin_row_shows_the_per_link_requirement() {
+    let (tmp, ws) = demo_copy();
+    let path = tmp.path().join("demo-6u/requirements/R_LINK_S.toml");
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(text.contains("value = 3.0"));
+    std::fs::write(&path, text.replace("value = 3.0", "value = 7.0")).unwrap();
+    let r = export(&ws, &req(&[ReportItem::LinkBudget], &[]));
+    let d = data(&r);
+    let required = |subject: &str| {
+        let t = tables(&d, "link-budget")
+            .into_iter()
+            .find(|t| t["subject"] == subject && t["variant"] == "result")
+            .unwrap();
+        let row = t["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|r| r["cells"][0]["text"] == "Required margin")
+            .unwrap();
+        row["cells"][1]["si"].as_f64().unwrap()
+    };
+    assert_eq!(required("s_down@TOKYO_GS"), 7.0);
+    assert_eq!(required("uhf_down@TOKYO_GS"), 3.0);
+}

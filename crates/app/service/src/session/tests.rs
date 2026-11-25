@@ -118,3 +118,45 @@ fn budgets_are_reused() {
     let b = budget_cached(&session, BudgetKind::Mass, None).unwrap();
     assert!(Rc::ptr_eq(&a, &b));
 }
+
+/// JSON の結果と型付きの結果は、同じ解析・同じ実効のケースなら 1 回の計算から作る（どちらを先に頼んでも、
+/// 依頼のケースの書き方（省略・既定を明示）が違っても）。
+#[test]
+fn json_and_typed_results_share_one_computation() {
+    use crate::analysis::INNER_RUNS;
+    let runs = || INNER_RUNS.with(Cell::get);
+    let id = OrbitGeneration::ID;
+    let probe = demo_session();
+    let (default, _) =
+        fune_projection::case_policy::effective_case(Some(&probe.snapshot().design), id, None);
+    // JSON が先
+    let session = demo_session();
+    let before = runs();
+    let json = run_cached(&session, id, None).unwrap();
+    let typed = typed_run::<OrbitGeneration>(&session, None).unwrap();
+    let explicit = run_cached(&session, id, default).unwrap();
+    let typed_explicit = typed_run::<OrbitGeneration>(&session, default).unwrap();
+    assert_eq!(runs() - before, 1);
+    assert!(Rc::ptr_eq(&typed, &typed_explicit));
+    assert_eq!(json.output, explicit.output);
+    // 型付きの出力は JSON の出力と同じ値
+    let average = json.output.as_ref().unwrap()["orbit_average"].as_f64();
+    assert_eq!(
+        average,
+        Some(typed.output.as_ref().unwrap().orbit_average.value())
+    );
+    // 型付きが先
+    let session = demo_session();
+    let before = runs();
+    typed_run::<OrbitGeneration>(&session, default).unwrap();
+    run_cached(&session, id, None).unwrap();
+    run_cached(&session, id, default).unwrap();
+    assert_eq!(runs() - before, 1);
+    // 別のケースは別の計算
+    run_cached(&session, id, Some("cold_safe")).unwrap();
+    assert_eq!(runs() - before, 2);
+}
+
+fn demo_session() -> Rc<Session> {
+    Session::open(&demo(), &[]).unwrap()
+}

@@ -1,25 +1,68 @@
 //! 実行の共通の入口・表や図の共通の部品（脚注・判定と状態の表示名・数えられなかった項目の表）。
 
 use super::{Ctx, Out};
-use crate::analysis::run_cached;
+use crate::analysis::{TypedRun, run_cached, typed_run};
 use crate::dto::{
     AnalysisRunResult, AnalysisRunStatus, QuantityView, ReportItem, ReportLang, ReportUnavailable,
 };
-use crate::error::Result;
+use crate::error::{Result, ServiceError};
 use crate::units::number_text;
+use fune_projection::Projects;
 use fune_report::labels::{Text, t, tr};
 use fune_report::model::{Table, ValueEntry};
-use sat_analysis::spec::Verdict;
+use sat_analysis::spec::{Analysis, Verdict};
 use sat_units::format::unit_label;
 use std::rc::Rc;
 
+/// 解析 1 回分。DTO の結果（状態・KPI・判定・選んだケース。`result`）と、同じ設計・同じケースの型付きの入出力を持つ。
+/// 表と図の値は型付きの出力から読む（JSON の欄の名前では読まない。欄の名前が変わればコンパイルが通らない）。
+pub(super) struct Run<A: Analysis> {
+    pub(super) result: Rc<AnalysisRunResult>,
+    typed: Rc<TypedRun<A>>,
+}
+
+/// [`Run::counted`] の結果。
+pub(super) enum Counted<'a, A: Analysis> {
+    /// 数えられた（入力と出力）
+    Yes {
+        input: &'a A::Input,
+        output: &'a A::Output,
+    },
+    /// 数えられなかった（理由）。表や図は「算出できません」の注記で書く
+    No(String),
+}
+
 /// 解析を設計から実行する（書き出す設計の記憶から。同じ解析・ケースは 1 回だけ計算する。`case` が None なら解析の既定のケース）。
-pub(super) fn run(ctx: &Ctx, id: &str, case: Option<&str>) -> Result<Rc<AnalysisRunResult>> {
-    run_cached(&ctx.session, id, case)
+pub(super) fn run<A>(ctx: &Ctx, case: Option<&str>) -> Result<Run<A>>
+where
+    A: Analysis + Projects + 'static,
+    A::Input: serde::de::DeserializeOwned + 'static,
+    A::Output: serde::de::DeserializeOwned + 'static,
+{
+    Ok(Run {
+        result: run_cached(&ctx.session, A::ID, case)?,
+        typed: typed_run::<A>(&ctx.session, case)?,
+    })
+}
+
+impl<A: Analysis> Run<A> {
+    /// 数えられたか。数えられたはずなのに型付きの出力が無いときは、空の表にせずエラーにする（2 つの実行が食い違っている）。
+    pub(super) fn counted(&self) -> Result<Counted<'_, A>> {
+        if let Some(reason) = why_not(&self.result) {
+            return Ok(Counted::No(reason));
+        }
+        match (&self.typed.input, &self.typed.output) {
+            (Some(input), Some(output)) => Ok(Counted::Yes { input, output }),
+            _ => Err(ServiceError::Internal(format!(
+                "The typed run of {} has no output although the analysis result has one",
+                A::ID
+            ))),
+        }
+    }
 }
 
 /// 解析が数えられなかった理由（数えられたなら None）。
-pub(super) fn why_not(r: &AnalysisRunResult) -> Option<String> {
+fn why_not(r: &AnalysisRunResult) -> Option<String> {
     match r.status {
         AnalysisRunStatus::Ok if r.output.is_some() => None,
         AnalysisRunStatus::Ok => Some("the analysis returned no output".to_owned()),
