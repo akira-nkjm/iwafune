@@ -264,10 +264,13 @@ pub fn catalog<'a>(ws: &fune_service::Workspace, c: &'a CatalogCmd) -> Built<'a>
             path,
             edit: opts,
         } => Some((
-            edit::unset_op(&edit::UnsetText {
-                item: Some(id.clone()),
-                path: path.clone(),
-            })?,
+            edit::unset_op(
+                ws,
+                &edit::UnsetText {
+                    item: Some(id.clone()),
+                    path: path.clone(),
+                },
+            )?,
             opts,
         )),
         CatalogCmd::Rm { id, edit: opts } => Some((Op::RemoveCatalogItem { id: id.clone() }, opts)),

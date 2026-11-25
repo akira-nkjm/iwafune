@@ -8,7 +8,7 @@
 //! | `conditions.orbit.altitude` | `conditions/orbit.toml` の `altitude` |
 //! | `conditions.ground.TOKYO_GS.min_elevation` | `conditions/ground/TOKYO_GS.toml` の `min_elevation` |
 //! | `analysis.power.dod_max` | `analysis/power.toml` の `dod_max` |
-//! | `cases.hot.beta` | 解析ケース hot の欄 beta（[`parse_case_field`]。部品や設定のパスとは別に読む） |
+//! | `cases.hot.beta` | 解析ケース hot の欄 beta（レコードの欄のパス。[`crate::design::parse_record_field`]。部品や設定のパスとは別に読む） |
 //! | `budget.mass.limit`・`budget.policy.growth.new` | `budget/allocation.toml`・`budget/policy.toml` |
 //!
 //! ポートの参照（`PCDU.OUT3`。部品 ID と、`.` を含まないポート名）は [`PortRef`]（ファイルと Op の上の文字列の形は [`port_text`]）。
@@ -32,9 +32,6 @@ enum_text! {
         Budget = "budget",
     }
 }
-
-/// 解析ケースの欄のパスの先頭の区切り（`cases.<ID>.<欄>`）。綴りはここだけ。
-pub const CASES_ROOT: &str = "cases";
 
 /// 系に属さない解析の共通設定の区切り（`analysis.common.<キー>`）。綴りはここだけ。
 pub const ANALYSIS_COMMON: &str = "common";
@@ -133,9 +130,9 @@ pub enum PathError {
     )]
     Syntax(String),
     #[error(
-        "Cannot read path `{0}` as a case field (write `cases.<ID>.<field>`, for example `cases.hot.beta`)"
+        "Cannot read path `{0}` as a record field (write `<collection>.<ID>.<field>`, for example `cases.hot.beta` or `requirements.R1.constraint.value`)"
     )]
-    Case(String),
+    Record(String),
     #[error("Port `{0}` must be written as `part.port` (example: `RW_X.PWR`)")]
     Port(String),
 }
@@ -162,21 +159,6 @@ pub fn parse(path: &str) -> Result<ParamPath, PathError> {
     }
     let AttrPath { attr, state } = attr_from_segments(&segments[1..]).ok_or_else(bad)?;
     Ok(ParamPath::Attr { part, attr, state })
-}
-
-/// 解析ケースの欄のパス（`cases.<ID>.<欄>` → (`<ID>`, `<欄>`)）。ケースの欄の名前の検査は [`crate::design::CaseFieldName`]。
-/// 先頭が `cases` でなければ None（部品や設定のパスは [`parse`]）。`cases` の 3 区切り以外は誤り。
-pub fn parse_case_field(path: &str) -> Option<Result<(String, String), PathError>> {
-    let segments: Vec<&str> = path.trim().split('.').collect();
-    if segments.first() != Some(&CASES_ROOT) {
-        return None;
-    }
-    Some(match segments[..] {
-        [_, id, field] if !id.is_empty() && !field.is_empty() => {
-            Ok((id.to_owned(), field.to_owned()))
-        }
-        _ => Err(PathError::Case(path.to_owned())),
-    })
 }
 
 /// 属性のパス（`mass`・`power.on`）。部品の中・カタログ品の中の属性（と状態ごとのセル）を指す。
@@ -346,23 +328,5 @@ mod tests {
             "PCDU".parse::<PortRef>(),
             Err(PathError::Port("PCDU".into()))
         );
-    }
-}
-
-#[cfg(test)]
-mod case_path_tests {
-    use super::*;
-
-    #[test]
-    fn case_field_paths_have_three_segments() {
-        assert_eq!(
-            parse_case_field("cases.hot.beta").unwrap().unwrap(),
-            ("hot".to_owned(), "beta".to_owned())
-        );
-        assert!(parse_case_field("RW_X.mass").is_none());
-        assert!(parse_case_field("analysis.power.dod_max").is_none());
-        for bad in ["cases", "cases.hot", "cases.hot.beta.x", "cases..beta"] {
-            assert!(parse_case_field(bad).unwrap().is_err(), "{bad}");
-        }
     }
 }

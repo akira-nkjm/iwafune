@@ -126,10 +126,13 @@ pub fn edit_of<'a>(ws: &Workspace, command: &'a Command) -> anyhow::Result<Optio
             })
         }
         Command::Unset { path, edit: opts } => Some(Edit {
-            ops: vec![edit::unset_op(&UnsetText {
-                item: None,
-                path: path.clone(),
-            })?],
+            ops: vec![edit::unset_op(
+                ws,
+                &UnsetText {
+                    item: None,
+                    path: path.clone(),
+                },
+            )?],
             opts,
         }),
         Command::Apply { file, edit: opts } => Some(Edit {

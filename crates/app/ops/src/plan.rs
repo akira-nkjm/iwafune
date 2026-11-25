@@ -42,6 +42,7 @@ mod others;
 mod parts;
 mod phases;
 mod project;
+mod record_field;
 mod records;
 mod remount;
 mod removed;
@@ -222,8 +223,8 @@ fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError>
         | Op::UnsetPhaseOrbit { .. }
         | Op::UnsetPhaseLaw { .. }
         | Op::SetCasePhase { .. }
-        | Op::SetCaseEpoch { .. }
-        | Op::SetCaseField { .. } => phases::interpret(edits, design, op),
+        | Op::SetCaseEpoch { .. } => phases::interpret(edits, design, op),
+        Op::SetRecordField { .. } => record_field::interpret(edits, design, op),
         Op::CreateConfiguration { .. }
         | Op::SetConfiguration { .. }
         | Op::RemoveConfiguration { .. }
