@@ -72,4 +72,28 @@ describe("コンポーネント追加ダイアログ（カタログの品から�
     expect(html).not.toContain('data-testid="catalog-chosen"');
     expect(html).toContain("ID・名前・種別で探す");
   });
+
+  it("絞り込みで、カタログの品が無ければ種別から選ばせ、種別は渡されたものだけにする", () => {
+    const withKinds: DesignView = {
+      ...design,
+      defs: {
+        ...design.defs,
+        kinds: [
+          { id: "battery", label: "Battery", label_en: "Battery" },
+          { id: "reaction_wheel", label: "RW", label_en: "RW" },
+        ],
+      } as DesignView["defs"],
+    };
+    const html = renderToStaticMarkup(
+      <AddPartDialog
+        design={withKinds}
+        open
+        onOpenChange={() => {}}
+        onDone={() => {}}
+        narrow={{ kinds: ["battery"], catalogItems: ["none/absent"] }}
+      />,
+    );
+    expect(html).toContain("battery");
+    expect(html).not.toContain("reaction_wheel");
+  });
 });

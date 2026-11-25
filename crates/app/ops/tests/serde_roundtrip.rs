@@ -4,8 +4,8 @@
 use fune_model::Id;
 use fune_model::builtin;
 use fune_model::design::{
-    Case, CaseField, CatalogField, Distribution, Harness, Maturity, NetField, PartField, Pose,
-    Source, SourceKind, UncertaintySide,
+    Case, CatalogField, Distribution, Harness, Maturity, NetField, PartField, Pose, RecordKind,
+    RecordValue, Source, SourceKind, UncertaintySide,
 };
 use fune_model::value::{
     Authored, Provenance, Quantity, Quaternion, Scalar, SettingValue, Value, Vector3,
@@ -86,7 +86,7 @@ fn name(op: &Op) -> &'static str {
         Op::UnsetPhaseLaw { .. } => "UnsetPhaseLaw",
         Op::SetCasePhase { .. } => "SetCasePhase",
         Op::SetCaseEpoch { .. } => "SetCaseEpoch",
-        Op::SetCaseField { .. } => "SetCaseField",
+        Op::SetRecordField { .. } => "SetRecordField",
         Op::CreateConfiguration { .. } => "CreateConfiguration",
         Op::SetConfiguration { .. } => "SetConfiguration",
         Op::RemoveConfiguration { .. } => "RemoveConfiguration",
@@ -501,9 +501,11 @@ fn other_ops() -> Vec<Op> {
             case: "eclipse_worst".into(),
             phase: None,
         },
-        Op::SetCaseField {
-            case: "eclipse_worst".into(),
-            field: CaseField::Beta(Some(Quantity::new(60.0, "deg"))),
+        Op::SetRecordField {
+            record: RecordKind::Requirement,
+            id: "R_MASS".into(),
+            field: "constraint.value".into(),
+            value: Some(RecordValue::Quantity(Quantity::new(60.0, "deg"))),
         },
         Op::RenameNet {
             id: "P5V".into(),

@@ -8,7 +8,7 @@
 //! | `mode` | Mode・StateAssign（運用モードの表） |
 //! | `phase` | フェーズ（ミッションの段階。軌道と姿勢則の上書き・並び `Design::ordered_phases`） |
 //! | `system` | Net・Harness・Case |
-//! | `case_field` | 解析ケースの欄の名前（`CaseFieldName`）と型付きの欄（`CaseField`。`fune set cases.<ID>.<欄>`） |
+//! | `record_field` | 名前のついたレコード（ケース・マヌーバ・要求・ハーネス・出典・フェーズの見出し）の欄 1 つ（`RecordKind`・`RecordValue`。`fune set <集まり>.<ID>.<欄>`） |
 //! | `source` | Source・SourceKind・Distribution（出典の台帳） |
 //! | `maneuver` | マヌーバ（区分・計算の段階・目標の軌道・制約）と実行の順（`Design::ordered_maneuvers`） |
 //! | `requirement` | 要求（文・制約・量化・出典・確かめる先）と解析の ID の一覧 |
@@ -30,7 +30,6 @@
 pub mod acknowledged;
 pub mod analysis;
 pub mod budget;
-pub mod case_field;
 pub mod conditions;
 pub mod configuration;
 pub mod criteria;
@@ -46,6 +45,7 @@ pub mod part;
 pub mod phase;
 pub mod power_sequences;
 pub mod project;
+pub mod record_field;
 pub mod refs;
 pub mod requirement;
 pub mod setting_dims;
@@ -63,7 +63,6 @@ pub mod view;
 pub use acknowledged::{AcknowledgedFinding, FindingKind};
 pub use analysis::*;
 pub use budget::*;
-pub use case_field::{CaseField, CaseFieldName};
 pub use conditions::*;
 pub use configuration::*;
 pub use criteria::{
@@ -80,6 +79,9 @@ pub use part::*;
 pub use phase::*;
 pub use power_sequences::{DEFAULT_SEQUENCE, SequenceView};
 pub use project::*;
+pub use record_field::{
+    FieldSpec, FieldType, RecordFieldError, RecordKind, RecordValue, parse_record_field, patched,
+};
 pub use refs::{HarnessEnd, NetEnd, RefSite, Referent};
 pub use requirement::*;
 pub use settings_view::SettingEntry;

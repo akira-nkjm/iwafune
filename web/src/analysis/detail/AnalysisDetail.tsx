@@ -4,6 +4,7 @@ import { analysisOutput } from "@/api/analysis-output";
 import { q } from "@/api/queries";
 import type { AnalysisRunResult, ModalFemShapes, ThermalPlateTemperatures } from "@/api/types";
 import { Loading, SkeletonBlock } from "@/kit/feedback/Loading";
+import { QueryState } from "@/kit/feedback/QueryState";
 
 /** 重い任意の出力（`AnalysisRunResult.detail`）の表示。型は API の型名（`AnalysisEntry.detail_type`）で、値は `unknown` で届く */
 interface DetailView {
@@ -73,23 +74,18 @@ export function AnalysisDetail({
     enabled: view !== undefined && result.status === "ok",
   });
   if (!view || result.status !== "ok") return null;
-  if (query.error) return <p className="text-neg-ink text-sm">{query.error.message}</p>;
-  const detail = query.data?.detail;
-  if (detail === undefined || detail === null)
-    return (
-      <Loading>
-        <SkeletonBlock className="h-[420px] rounded-control" />
-      </Loading>
-    );
+  const skeleton = <SkeletonBlock className="h-[420px] rounded-control" />;
   return (
-    <Suspense
-      fallback={
-        <Loading>
-          <SkeletonBlock className="h-[420px] rounded-control" />
-        </Loading>
-      }
+    <QueryState
+      query={{ data: query.data?.detail ?? undefined, error: query.error, refetch: query.refetch }}
+      skeleton={skeleton}
+      failure={(message) => message}
     >
-      <view.Body result={result} detail={detail} />
-    </Suspense>
+      {(detail) => (
+        <Suspense fallback={<Loading>{skeleton}</Loading>}>
+          <view.Body result={result} detail={detail} />
+        </Suspense>
+      )}
+    </QueryState>
   );
 }

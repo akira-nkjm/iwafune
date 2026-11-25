@@ -4,6 +4,7 @@ import type { AnalysisEntry, AnalysisOverview, AnalysisRunResult, DesignView } f
 import { localized, useT } from "@/i18n";
 import { analysisTitle } from "@/i18n/analysis-names";
 import { Loading, SkeletonLines } from "@/kit/feedback/Loading";
+import { refreshingDim } from "@/kit/feedback/Refreshable";
 import { Pill } from "@/kit/status/Pill";
 import { VerdictPill } from "@/kit/status/VerdictPill";
 import { DataTable } from "@/kit/table/DataTable";
@@ -112,7 +113,7 @@ export function AnalysisTableRow({
         className={cn(
           "cursor-pointer transition-opacity hover:bg-panel-2 motion-reduce:transition-none",
           open && "bg-panel-2",
-          item.updating && "opacity-55",
+          refreshingDim(!!item.updating),
         )}
       >
         <Td className="whitespace-normal">

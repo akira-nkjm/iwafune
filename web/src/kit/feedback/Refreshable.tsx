@@ -5,9 +5,17 @@ import { REFRESH_MARK_DELAY_MS } from "./use-working";
 import { Working } from "./Working";
 
 /**
+ * 読み直しの間、前の中身を薄くして出しておくときの class（`active` のときだけ付く）。薄くする度合いと遷移はここだけが持つ。
+ * 枠にできない要素（表の行など）はこれを直接使い、枠にできるなら `Refreshable` を使う。
+ */
+export function refreshingDim(active: boolean): string {
+  return active ? "opacity-55 transition-opacity duration-200 motion-reduce:transition-none" : "";
+}
+
+/**
  * 読み直し・再計算の間も前の中身を出しておく枠。`active` の間は、中身を少し薄くし、上端に細い帯を出す
  * （`Refreshing`）。`label` を渡した広い場所では、少したつと中央にロゴのマーク・`label`・経過秒も出る（`Working`）。中身は動かさないので、枠の大きさは変わらない。
- * 薄くする（`opacity-50` など）書き方は個々の画面に書かず、この枠を使う。
+ * 薄くする（`opacity-50` など）書き方は個々の画面に書かず、この枠（枠にできない要素は `refreshingDim`）を使う。
  * `className` は枠の class（高さの伸ばし方など。`relative` はこの枠が付ける）。
  * `blockInput` のときは、読み直す間は中身を操作できなくする（図のように、古い位置を触らせたくないとき）。
  */
@@ -52,7 +60,7 @@ export function Refreshable({
         aria-busy={active}
         className={cn(
           "flex h-full min-h-0 flex-1 flex-col transition-opacity duration-200 motion-reduce:transition-none",
-          active && "opacity-55",
+          refreshingDim(active),
           active && blockInput && "pointer-events-none",
         )}
       >

@@ -2,10 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { MissingList } from "@/analysis/MissingList";
 import { q, useDesign } from "@/api/queries";
-import type { BudgetKind, BudgetRow } from "@/api/types";
+import type { BudgetKind, BudgetRow, BudgetView } from "@/api/types";
 import { localized, useT } from "@/i18n";
-import { Empty } from "@/kit/feedback/Empty";
-import { Loading, SkeletonPanel } from "@/kit/feedback/Loading";
+import { SkeletonPanel } from "@/kit/feedback/Loading";
+import { QueryState } from "@/kit/feedback/QueryState";
 import { TickBar } from "@/kit/metrics/TickBar";
 import { Panel } from "@/kit/panel/Panel";
 import { PanelHeader } from "@/kit/panel/PanelHeader";
@@ -25,20 +25,21 @@ import { wetTotal } from "./cards";
 export function BudgetPanel({ kind }: { kind: BudgetKind }) {
   const t = useT();
   const b = useQuery(q.budget(kind));
+  return (
+    <QueryState
+      query={b}
+      skeleton={<SkeletonPanel lines={5} />}
+      failure={(message) => t.overview.budgetError(kind, message)}
+    >
+      {(v) => <BudgetBody v={v} />}
+    </QueryState>
+  );
+}
+
+/** バジェット 1 種類の中身（届いた値の表示） */
+function BudgetBody({ v }: { v: BudgetView }) {
+  const t = useT();
   const design = useDesign();
-  if (b.isError)
-    return (
-      <Panel>
-        <Empty>{t.overview.budgetError(kind, b.error.message)}</Empty>
-      </Panel>
-    );
-  if (!b.data)
-    return (
-      <Loading>
-        <SkeletonPanel lines={5} />
-      </Loading>
-    );
-  const v = b.data;
   const wet = wetTotal(v.propellant);
   const head = wet ? { verdict: wet.verdict, margin: wet.margin } : v;
   return (
