@@ -116,6 +116,10 @@ command: string,
  */
 add_command: string | null, } | { "kind": "add_list_item", list: ListKind, 
 /**
+ * 足す項目の ID の案（足りない入力が名指しした ID。名指しが無ければ None で、ID は人が決める）
+ */
+id: string | null, 
+/**
  * その一覧に足す CLI のコマンド（必須の欄は置き換え欄）
  */
 command: string, };

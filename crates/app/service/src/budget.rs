@@ -45,9 +45,7 @@ fn budget_in(s: &Snapshot, kind: BudgetKind, case: Option<&str>) -> Result<Budge
     let mut view = header(&s.design, kind, case.map(str::to_owned));
     match count(s, kind, case) {
         Ok(counted) => fill(&s.design, &mut view, counted)?,
-        Err(Uncounted::Missing(m)) => {
-            view.missing = crate::fixes::complete(&s.design, &s.resolved, m.into_vec())
-        }
+        Err(Uncounted::Missing(m)) => view.missing = crate::fixes::complete(s, m.into_vec()),
         Err(Uncounted::Failed(e)) => return Err(e),
     }
     Ok(view)
@@ -141,7 +139,7 @@ fn count(s: &Snapshot, kind: BudgetKind, case: Option<&str>) -> Result<Counted, 
     };
     Ok(match kind {
         BudgetKind::Mass => Counted {
-            propellant: Some(propellant::load(&ctx)),
+            propellant: Some(propellant::load(s, &ctx)),
             ..plain(mass_items(&ctx), uncounted::mass(s))
         },
         BudgetKind::Power => {
