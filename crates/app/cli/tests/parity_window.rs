@@ -158,3 +158,122 @@ fn set_window_refuses_a_maneuver_that_is_not_a_transfer_between_bodies() {
     }
     assert_eq!(before, snapshot_files(&root), "nothing is written on error");
 }
+
+/// 金星を通過する火星への遷移: `set-window` は CLI と HTTP で同じファイルを書き、通過の日も最小の点の日付になる
+/// （通過の天体・書かれた通過のほかの欄は保つ）。書いたあとの `propulsion.maneuvers` は探索の最小の点と同じ値。
+#[test]
+fn set_window_with_a_flyby_writes_the_flyby_date_too() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let (_a, cli) = demo_copy();
+    let (_b, http) = demo_copy();
+    for root in [&cli, &http] {
+        let mut args = MARS.to_vec();
+        args.extend([
+            "--apogee-altitude",
+            "33000 km",
+            "--depart",
+            "2028-10-01T00:00:00Z",
+            "--arrive",
+            "2030-03-01T00:00:00Z",
+            "--flyby",
+            "venus@2029-01-10T00:00:00Z,min_altitude=400 km",
+        ]);
+        run_cli(root, &args);
+    }
+    run_cli(&cli, &["maneuver", "set-window", "MARS", "--min", "dv"]);
+    let before = post_json(
+        &rt,
+        &http,
+        "/api/v1/analyses/propulsion.launch_window",
+        json!({}),
+    );
+    assert_eq!(before["status"], "ok", "{before}");
+    let w = &before["output"]["windows"][0];
+    assert_eq!(w["flyby_search"]["bodies"][0], "venus");
+    let best = w["minimum_delta_v"].clone();
+    assert_eq!(best["flyby_dates"].as_array().unwrap().len(), 1);
+    let op = post_json(
+        &rt,
+        &http,
+        "/api/v1/ops/maneuver_window",
+        json!({"id": "MARS", "min": "dv"}),
+    );
+    post_json(&rt, &http, "/api/v1/ops", json!({"ops": [op.clone()]}));
+    assert_same_files(&cli, &http, "flyby");
+    let text = String::from_utf8_lossy(&snapshot_files(&cli)["maneuvers/MARS.toml"]).to_string();
+    assert!(text.contains("venus") && text.contains("400"), "{text}");
+    let flyby = &op["maneuver"]["transfer"]["flybys"][0];
+    assert_eq!(flyby["body"], "venus");
+    assert_eq!(flyby["date"], best["flyby_dates"][0]);
+    let ms = post_json(
+        &rt,
+        &http,
+        "/api/v1/analyses/propulsion.maneuvers",
+        json!({}),
+    );
+    let m = ms["output"]["maneuvers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["id"] == "MARS")
+        .unwrap();
+    assert_eq!(m["ideal_delta_v"], best["delta_v"]);
+    assert_eq!(m["dated_transfer"]["flybys"][0]["feasible"], true);
+}
+
+/// 動力なしの金星の通過: `set-window` が書いた日付では、注記が無く、予算（`propulsion.maneuvers`）に `swing_by_unpowered` の警告が付かない。
+/// 書いた日付が探索の最小の値と残りを正確に再現する。
+#[test]
+fn set_window_with_an_unpowered_flyby_leaves_no_unpowered_warning() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let (_a, root) = demo_copy();
+    let mut args = MARS.to_vec();
+    args.extend([
+        "--apogee-altitude",
+        "33000 km",
+        "--depart",
+        "2028-10-01T00:00:00Z",
+        "--arrive",
+        "2030-03-01T00:00:00Z",
+        "--flyby",
+        "venus@2029-01-10T00:00:00Z,powered=false",
+    ]);
+    run_cli(&root, &args);
+    let before = post_json(
+        &rt,
+        &root,
+        "/api/v1/analyses/propulsion.launch_window",
+        json!({}),
+    );
+    assert_eq!(before["status"], "ok", "{before}");
+    let w = &before["output"]["windows"][0];
+    let notes = w["notes"].as_array().unwrap();
+    assert!(
+        !notes.iter().any(|n| n == "unpowered_flyby_not_ballistic"),
+        "{notes:?}"
+    );
+    run_cli(&root, &["maneuver", "set-window", "MARS", "--min", "dv"]);
+    let ms = post_json(
+        &rt,
+        &root,
+        "/api/v1/analyses/propulsion.maneuvers",
+        json!({}),
+    );
+    let m = ms["output"]["maneuvers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["id"] == "MARS")
+        .unwrap();
+    assert_eq!(m["ideal_delta_v"], w["minimum_delta_v"]["delta_v"]);
+    assert_eq!(
+        m["dated_transfer"]["flybys"][0]["delta_v"],
+        w["flyby_search"]["unpowered_residual"]
+    );
+    let warned = m["checks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|c| c["key"] == "swing_by_unpowered");
+    assert!(!warned, "{m}");
+}

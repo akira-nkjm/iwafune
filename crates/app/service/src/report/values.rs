@@ -10,7 +10,7 @@ use fune_report::labels::{Text, t};
 
 /// 質量バジェットの合計・上限・余裕と、部品ごとの 1 個あたりの質量。
 pub(super) fn mass(
-    ctx: &Ctx<'_>,
+    ctx: &Ctx,
     out: &mut Out,
     view: &BudgetView,
     total: &QuantityView,
@@ -39,7 +39,7 @@ pub(super) fn mass(
 }
 
 /// 解析の KPI（値のあるもの）。ケースがあれば `@<ケース>` を付ける。
-pub(super) fn kpis(ctx: &Ctx<'_>, out: &mut Out, r: &AnalysisRunResult, case: Option<&str>) {
+pub(super) fn kpis(ctx: &Ctx, out: &mut Out, r: &AnalysisRunResult, case: Option<&str>) {
     for k in &r.kpis {
         let Some(q) = &k.value else { continue };
         let Ok(serde_json::Value::String(key)) = serde_json::to_value(k.key) else {

@@ -8,22 +8,17 @@
 //! 外殻の 6 面と節点の対応は、外面の法線（機体座標の ±X・±Y・±Z）と面積（箱の面の面積に近いもの）から決める。
 //! 6 面が 1 つずつの別の節点に決まらないときは外殻の放射を使わず、理由を出力に残す（誤りにはしない）。
 
+use super::enclosure_faces::face_nodes;
 use super::mount_contact::{ThermalContactPair, ThermalContactUsed};
 use super::mounts::{MountConductance, MountLinks};
 use super::view_factors::{ThermalViewFactorPair, ThermalViewFactorsUsed};
-use super::{ThermalNetwork, ThermalRadiativeLink, ThermalSurface};
+use super::{ThermalNetwork, ThermalRadiativeLink};
 use crate::spec::AnalysisError;
-use crate::thermal::enclosure::{BoxExchange, ThermalEnclosure, box_exchange};
-use sat_astro::math::Vec3;
+use crate::thermal::enclosure::{ThermalEnclosure, box_exchange};
 use sat_astro::view_factor::BOX_FACES;
 use sat_units::typed::{Area, Qty, ThermalConductance};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-
-/// 面の法線が軸と一致するとみなす余弦の下限（約 2.6°）。
-const FACE_NORMAL_COS: f64 = 0.999;
-/// 外面の面積を箱の面の面積とみなす相対許容差。
-const FACE_AREA_TOLERANCE: f64 = 0.05;
 
 /// 結合の出どころ。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -306,7 +301,7 @@ fn apply_enclosure(
                 .to_owned(),
         ));
     };
-    let nodes = match face_nodes(&net.surfaces, &exchange) {
+    let nodes = match face_nodes(&net.surfaces, &exchange, e) {
         Ok(n) => n,
         Err(note) => return Ok(not_applied(&note)),
     };
@@ -331,56 +326,6 @@ fn apply_enclosure(
             .collect(),
         view_factors: exchange.view_factors.clone(),
     })
-}
-
-/// 箱の面の外向き法線（`BOX_FACES` の順）。
-fn face_normal(i: usize) -> Vec3 {
-    let mut v = [0.0; 3];
-    v[i / 2] = if i.is_multiple_of(2) { 1.0 } else { -1.0 };
-    Vec3::new(v[0], v[1], v[2])
-}
-
-/// 6 面を担う節点。面ごとに、法線がその面を向き面積が箱の面に近い外面の節点が 1 つに決まり、
-/// 6 面の節点がすべて異なるときだけ `Ok`。そうでなければ理由（英文）を返す。
-fn face_nodes(surfaces: &[ThermalSurface], exchange: &BoxExchange) -> Result<Vec<String>, String> {
-    let mut nodes: Vec<String> = Vec::with_capacity(6);
-    for i in 0..6 {
-        let want = exchange.area_m2[i];
-        let mut found: Vec<&str> = surfaces
-            .iter()
-            .filter(|s| {
-                let area = s.area.value() * f64::from(s.count);
-                s.normal
-                    .normalized()
-                    .is_some_and(|n| n.dot(face_normal(i)) >= FACE_NORMAL_COS)
-                    && (area - want).abs() <= FACE_AREA_TOLERANCE * want
-            })
-            .map(|s| s.node.as_str())
-            .collect();
-        found.sort_unstable();
-        found.dedup();
-        match found.as_slice() {
-            [node] => nodes.push((*node).to_owned()),
-            [] => {
-                return Err(format!(
-                    "No outer surface node was found for the {} face of the box",
-                    BOX_FACES[i]
-                ));
-            }
-            _ => {
-                return Err(format!(
-                    "The {} face of the box matches several nodes",
-                    BOX_FACES[i]
-                ));
-            }
-        }
-    }
-    let mut sorted = nodes.clone();
-    sorted.sort_unstable();
-    if sorted.windows(2).any(|w| w[0] == w[1]) {
-        return Err("Two faces of the box belong to the same node".to_owned());
-    }
-    Ok(nodes)
 }
 
 #[cfg(test)]

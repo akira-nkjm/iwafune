@@ -2,7 +2,8 @@
 //! 1 点の入熱の計算は親の `absorbed`。
 
 use super::{
-    Geometry, ThermalEnvironment, ThermalExposure, absorbed, absorbed_with, timeline_geometry,
+    Blockers, Geometry, ThermalEnvironment, ThermalExposure, absorbed, absorbed_with,
+    timeline_geometry,
 };
 use crate::spec::{
     AnalysisError, Check, SUNLIT_THRESHOLD, Verdict, orbit_mean, orbit_ranges, quantity_text,
@@ -21,11 +22,11 @@ pub(crate) struct ExternalHeat {
     pub shadowing: Option<ShadowingReport>,
 }
 
-/// 影を落とす部品が外面を持たないときの警告を出す、影で遮られた日射の割合（影を数えた入熱の合計に対する）の下限。**この値はここだけ。**
+/// 影を落とす・面を覆う部品が外面を持たないときの警告を出す、それらが遮った入熱の割合（影と覆いを数えた入熱の合計に対する）の下限。**この値はここだけ。**
 pub const SHADOW_LOSS_WARNING_FRACTION: f64 = 0.02;
 
-/// 面の日照割合（影）の報告: 日照中の標本の太陽方向について、面ごとの最小と平均、影を落とす部品、
-/// 外面を持たない部品が遮って吸収されない日射（影を数えない入熱の合計 − 数えた入熱の合計。`mean` で標本を 1 つの値にする）。
+/// 面の日照割合（影）と覆われた面積の報告: 日照中の標本の太陽方向について、面ごとの最小と平均、影を落とす部品、
+/// 外面を持たない部品が遮って吸収されない入熱（外面を持つ部品の影と覆いだけを数えた入熱の合計 − すべての影と覆いを数えた入熱の合計。`mean` で標本を 1 つの値にする）。
 /// 網に部品の箱が無ければ `None`。
 pub(crate) fn shadowing_report(
     net: &Compiled,
@@ -40,16 +41,23 @@ pub(crate) fn shadowing_report(
         .map(|g| g.sun_dir)
         .collect();
     let mut report = shading.summary(&sunward);
-    let total = |shaded: bool| -> Vec<f64> {
+    let total = |blockers: Blockers| -> Vec<f64> {
         geo.iter()
-            .map(|g| absorbed_with(net, env, g, shaded).iter().sum())
+            .map(|g| absorbed_with(net, env, g, blockers).iter().sum())
             .collect()
     };
-    let (with, without) = (mean(&total(true)), mean(&total(false)));
+    // 外面を持たない部品が遮った分: 外面を持つ部品の影と覆いだけの入熱 − すべての影と覆いの入熱
+    let (with, without) = (
+        mean(&total(Blockers::All)),
+        mean(&total(Blockers::SurfacedOnly)),
+    );
     let parts: Vec<String> = report
         .casters
         .iter()
+        .chain(report.coverers.iter().flatten())
         .filter(|id| !shading.has_surface(id))
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
         .cloned()
         .collect();
     report.lost = Some(ShadowLoss {
@@ -64,7 +72,7 @@ pub(crate) fn shadowing_report(
     Some(report)
 }
 
-/// 外面を持たない部品が遮って吸収されない日射が、入熱の合計に対して [`SHADOW_LOSS_WARNING_FRACTION`] を超えるときの警告。
+/// 外面を持たない部品が遮って（影を落として・面を覆って）吸収されない入熱が、入熱の合計に対して [`SHADOW_LOSS_WARNING_FRACTION`] を超えるときの警告。
 pub(crate) fn shadow_loss_check(report: &ShadowingReport, key: &str) -> Option<Check> {
     let lost = report.lost.as_ref()?;
     if lost.parts.is_empty() || lost.fraction.value() <= SHADOW_LOSS_WARNING_FRACTION {
@@ -72,14 +80,14 @@ pub(crate) fn shadow_loss_check(report: &ShadowingReport, key: &str) -> Option<C
     }
     Some(Check::new(
         key,
-        "Sunlight intercepted by parts without an outer surface",
+        "Heat intercepted by parts without an outer surface",
         Verdict::Warning,
         format!(
-            "Shadows remove {} of direct sunlight ({:.1} % of the absorbed heat; warning above {:.0} %), and the shading parts {} have no outer surface, so that heat is absorbed nowhere. Give them an outer surface (area, normal, absorptivity, emissivity) or lump them into a surface",
+            "Parts without an outer surface ({}) intercept {} by shadows and covered faces ({:.1} % of the absorbed heat; warning above {:.0} %), so that heat is absorbed nowhere. Give them an outer surface (area, normal, absorptivity, emissivity) or lump them into a surface",
+            lost.parts.join(", "),
             quantity_text::<Power>(lost.power.value()),
             100.0 * lost.fraction.value(),
             100.0 * SHADOW_LOSS_WARNING_FRACTION,
-            lost.parts.join(", "),
         ),
     ))
 }

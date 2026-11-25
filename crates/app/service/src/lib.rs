@@ -14,6 +14,7 @@
 //! | `preview` | 保存していない編集（Op の列）を書き込まずに当てた設計（下書きのまま解析・バジェットを見る） |
 //! | `units` | 単位の一覧・入力文字列の解析 |
 //! | `stale_acknowledgements` | 古くなった承知（幾何の所見の承知済みの組が今のどの所見にも当たらない）の診断。解析を回して所見を知り、`Snapshot::of` が `fune check` の診断に足す（`analysis` に依存しない葉） |
+//! | `session` | 実行の記憶（1 回の読み込みの設計を持ち、同じ解析・同じケースの結果を 1 回だけ計算して使い回す。要求適合表・設計書の書き出し・電源のモードの表示が使う。ほかの module に依存しない葉） |
 //! | `analysis` | 解析の一覧・実行・KPI（代表値・判定・塗りの比） |
 //! | `budget` | 質量・電力・データ量のバジェット |
 //! | `requirements` | 要求適合表（要求ごとに、確かめる先の解析・バジェットの判定を量化したケースで集める） |
@@ -47,6 +48,7 @@ pub mod query;
 pub mod report;
 pub mod requirements;
 pub mod self_update;
+pub mod session;
 pub mod shared_catalog;
 pub mod skill;
 mod stale_acknowledgements;
