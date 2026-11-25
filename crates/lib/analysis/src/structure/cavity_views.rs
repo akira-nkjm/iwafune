@@ -12,17 +12,21 @@
 //!   **接している面の組は除く**（`BoxFace::contact_area` が正。箱どうしが接している面は、放射でなく伝導で結ばれる。向き合う距離 0 の核は発散する）。
 //!   除いた組の数は `contact_pairs`。隙間があるだけの近接した面は積分する（`rect_view_factor` は近接でも厳密）。
 //! - 面積 × 形態係数 `A_i F_ij` は対称で、組を 1 回だけ計算する（`i < j`）。
+//! - **升に分けた板**（`cavity_views_split` の `plates`）: 板の面（箱の最も薄い軸に垂直な面）を升の長方形（`external_geometry::cells`）に分け、
+//!   その面を含む組は、升と相手の面（相手も升に分けた面なら升どうし）の `A_c F_cc'` も出す（`CavityViews::cell_pairs`）。面全体の値（`FacePair::exchange`）は
+//!   面全体の長方形で求めた値のまま（升に分けない設計と同じ数）で、升の値はその配り方を決める。升の値の和は面全体の値に求積の誤差の範囲で一致する。
 //! - **品質の指標**: 面ごとの `Σ_j F_ij`（`row_sums`）。閉じた空洞なら 1。1 から外れる分は、除いた接触面の組・重なった箱の中に入った視線・
 //!   求積の誤差（遮蔽つきは数 %）の合計で、**この空洞の面の見え方のうち数えられなかった割合** の目安。
 //!
 //! 計算量: 面の組は面の数の 2 乗。向き合わない組は積分の前に除き、遮蔽の候補は 2 つの面の外接の範囲に入る箱だけに絞る。
 
+use super::external_geometry::cells::{FaceCell, face_cells};
 use super::external_geometry::geometry::SURFACE_TOLERANCE;
 use super::external_geometry::{ExternalGeometry, PartBox};
 use super::interference::obb::{BoxFace, SegmentBox};
 use super::interference::{DEFAULT_TOLERANCE, InterferenceBox};
 use sat_astro::math::Vec3;
-use sat_astro::view_factor::{Quadrature, rect_view_factor};
+use sat_astro::view_factor::{Quadrature, Rect, rect_view_factor};
 use std::collections::BTreeMap;
 
 /// 視線の遮蔽の判定で、箱を各辺から縮める長さ [m]。内部の判定の許容（`SURFACE_TOLERANCE`）と同じ。
@@ -41,6 +45,8 @@ pub struct CavitySurface {
     pub cavity: usize,
     /// 空洞の中を向く面（壁は内向きに反転済み）
     pub face: BoxFace,
+    /// 升に分けた板の面なら、升の長方形（升の通し番号の順）。そうでなければ `None`
+    pub cells: Option<Vec<FaceCell>>,
 }
 
 /// 互いを見る面の組（`a < b`）の `A_a F_ab`（対称）。
@@ -54,6 +60,17 @@ pub struct FacePair {
     pub blocked: bool,
 }
 
+/// 升に分けた面を含む面の組の、升の組ごとの `A_c F_cc'`（升に分けない端は面全体で 1 つの「升」）。
+#[derive(Debug, Clone, PartialEq)]
+pub struct CellExchange {
+    /// 面 `a` の升の数（分けなければ 1）
+    pub na: usize,
+    /// 面 `b` の升の数（分けなければ 1）
+    pub nb: usize,
+    /// `A_c F_cc'` [m²]。添字は `ca * nb + cb`（升の通し番号）
+    pub exchange: Vec<f64>,
+}
+
 /// 空洞の面どうしの形態係数。
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct CavityViews {
@@ -64,6 +81,8 @@ pub struct CavityViews {
     pub pairs: Vec<FacePair>,
     /// 面ごとの `Σ_j F_ij`（`surfaces` と同じ順。接触の組と数えなかった分は含まれない）
     pub row_sums: Vec<f64>,
+    /// 升に分けた面を含む面の組（`FacePair` の `(a, b)`）の、升の組ごとの値
+    pub cell_pairs: BTreeMap<(usize, usize), CellExchange>,
     /// 接していて、放射でなく伝導とする面の組の数
     pub contact_pairs: usize,
     /// 空洞に入らない部品（面も遮蔽もない。ID の昇順）
@@ -72,6 +91,14 @@ pub struct CavityViews {
 
 /// 箱から空洞の面どうしの形態係数を出す。内部の部品が 1 つも無ければ（空洞が無ければ）`None`。
 pub fn cavity_views(boxes: &[InterferenceBox]) -> Option<CavityViews> {
+    cavity_views_split(boxes, &BTreeMap::new())
+}
+
+/// [`cavity_views`] に、升に分けた板（部品の ID → 升の数 (u, v)）を加える（升の組の値は `CavityViews::cell_pairs`）。
+pub fn cavity_views_split(
+    boxes: &[InterferenceBox],
+    plates: &BTreeMap<String, [usize; 2]>,
+) -> Option<CavityViews> {
     let geometry = ExternalGeometry::from_boxes(boxes)?;
     let parts = geometry.parts();
     let mut cavities: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
@@ -89,7 +116,14 @@ pub fn cavity_views(boxes: &[InterferenceBox]) -> Option<CavityViews> {
         inside[container] = true;
         views.containers.push(parts[container].id.clone());
         let start = views.surfaces.len();
-        add_surfaces(&mut views.surfaces, cavity, container, members, parts);
+        add_surfaces(
+            &mut views.surfaces,
+            cavity,
+            container,
+            members,
+            parts,
+            plates,
+        );
         for &m in members {
             inside[m] = true;
         }
@@ -113,14 +147,22 @@ fn add_surfaces(
     container: usize,
     members: &[usize],
     parts: &[PartBox],
+    plates: &BTreeMap<String, [usize; 2]>,
 ) {
+    let cells = |part: &PartBox, face: &BoxFace| {
+        plates
+            .get(&part.id)
+            .and_then(|split| face_cells(&part.shape, face, *split))
+    };
     for face in parts[container].shape.faces() {
+        let face = face.flipped();
         out.push(CavitySurface {
             part: parts[container].id.clone(),
             owner: container,
             wall: true,
             cavity,
-            face: face.flipped(),
+            cells: cells(&parts[container], &face),
+            face,
         });
     }
     for &m in members {
@@ -130,6 +172,7 @@ fn add_surfaces(
                 owner: m,
                 wall: false,
                 cavity,
+                cells: cells(&parts[m], &face),
                 face,
             });
         }
@@ -202,6 +245,13 @@ fn integrate(views: &mut CavityViews, start: usize, occluders: &[Occluder]) {
                 views.row_sums[i] += exchange.value / fa.area();
                 views.row_sums[j] += exchange.value / fb.area();
             }
+            if exchange.value > 0.0 {
+                let (ca, cb) = (&views.surfaces[i].cells, &views.surfaces[j].cells);
+                if ca.is_some() || cb.is_some() {
+                    let split = cell_exchange(&fa, &fb, [ca, cb], occluders, [oi, oj]);
+                    views.cell_pairs.insert((i, j), split);
+                }
+            }
             if exchange.value > 0.0 || exchange.blocked {
                 views.pairs.push(FacePair {
                     a: i,
@@ -221,8 +271,25 @@ struct Exchange {
 
 /// 面の組の `A_a F_ab`。2 つの面の外接の範囲にかかる箱だけを、視線の遮蔽に使う。
 fn pair_exchange(fa: &BoxFace, fb: &BoxFace, occluders: &[Occluder], skip: [usize; 2]) -> Exchange {
+    let near = near_occluders(fa, fb, occluders, skip);
+    let (ra, rb) = (fa.rect(), fb.rect());
+    let value = exchange_between(&ra, &rb, &near);
+    // 遮蔽がなければ正の値だったか（すべて遮られた組は壁越しに見えない組として数える）
+    let blocked = !near.is_empty()
+        && value <= 0.0
+        && rect_view_factor(&ra, &rb, None, Quadrature::DEFAULT) > 0.0;
+    Exchange { value, blocked }
+}
+
+/// 2 つの面の外接の範囲にかかる、視線を遮る箱（面の両端の部品 `skip` を除く）。
+fn near_occluders<'a>(
+    fa: &BoxFace,
+    fb: &BoxFace,
+    occluders: &'a [Occluder],
+    skip: [usize; 2],
+) -> Vec<&'a SegmentBox> {
     let (lo, hi) = bounds(&[fa.corners(), fb.corners()].concat());
-    let near: Vec<&SegmentBox> = occluders
+    occluders
         .iter()
         .filter(|o| !skip.contains(&o.index))
         .filter(|o| {
@@ -234,21 +301,50 @@ fn pair_exchange(fa: &BoxFace, fb: &BoxFace, occluders: &[Occluder], skip: [usiz
                 && o.hi.z >= lo.z
         })
         .map(|o| &o.slab)
-        .collect();
-    let (ra, rb) = (fa.rect(), fb.rect());
-    let clear = near.is_empty();
+        .collect()
+}
+
+/// 2 つの長方形の `A_a F_ab`（遮蔽する箱 `near`。無ければ遮蔽なし）。
+fn exchange_between(ra: &Rect, rb: &Rect, near: &[&SegmentBox]) -> f64 {
     let visible = |p: Vec3, q: Vec3| !near.iter().any(|s| s.blocks(p, q));
     let f = rect_view_factor(
-        &ra,
-        &rb,
-        if clear { None } else { Some(&visible) },
+        ra,
+        rb,
+        if near.is_empty() {
+            None
+        } else {
+            Some(&visible)
+        },
         Quadrature::DEFAULT,
     );
-    let value = fa.area() * f;
-    // 遮蔽がなければ正の値だったか（すべて遮られた組は壁越しに見えない組として数える）
-    let blocked =
-        !clear && value <= 0.0 && rect_view_factor(&ra, &rb, None, Quadrature::DEFAULT) > 0.0;
-    Exchange { value, blocked }
+    ra.area() * f
+}
+
+/// 升に分けた面を含む組の、升の組ごとの `A_c F_cc'`（分けない端は面全体で 1 つ）。
+fn cell_exchange(
+    fa: &BoxFace,
+    fb: &BoxFace,
+    cells: [&Option<Vec<FaceCell>>; 2],
+    occluders: &[Occluder],
+    skip: [usize; 2],
+) -> CellExchange {
+    let near = near_occluders(fa, fb, occluders, skip);
+    let rects = |face: &BoxFace, cells: &Option<Vec<FaceCell>>| -> Vec<Rect> {
+        match cells {
+            Some(c) => c.iter().map(|c| c.rect(face)).collect(),
+            None => vec![face.rect()],
+        }
+    };
+    let (ra, rb) = (rects(fa, cells[0]), rects(fb, cells[1]));
+    let exchange = ra
+        .iter()
+        .flat_map(|a| rb.iter().map(|b| exchange_between(a, b, &near)))
+        .collect();
+    CellExchange {
+        na: ra.len(),
+        nb: rb.len(),
+        exchange,
+    }
 }
 
 #[cfg(test)]
