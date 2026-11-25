@@ -12,9 +12,9 @@ import { type DetailRoute, useDetailRoute } from "@/kit/list-detail/use-detail-r
 import { PageTabs } from "@/kit/selection/PageTabs";
 import { nodeLabel, systemTitle } from "@/lib/design";
 import { paths, SEARCH } from "@/lib/nav";
+import { AddPartDialog } from "@/ops/add-part/AddPartDialog";
 import { PageHeader } from "@/shell/PageHeader";
 import { Button } from "@/ui/button";
-import { AddPartDialog } from "./AddPartDialog";
 import { PartDetail } from "./detail/PartDetail";
 import { PartsOverview } from "./list/PartsOverview";
 import { PartsTable } from "./list/PartsTable";

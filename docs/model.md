@@ -546,10 +546,22 @@ pub trait Project<I> {
 (`case set`, `maneuver set`, `requirement set`, `source set`, `harness set`, `phase set` for its heading fields, `configuration set`, `net replace`, `sequence set`, the attribute and kind replacements)
 reports the keys it removed from an existing file: the CLI prints `Removed from cases/hot.toml: beta, orbits (not given to set)` as a warning (`Would remove from …` before the diff of a `--dry-run`),
 `POST /ops` returns them as `removed: [{ path, keys }]` (also with `dry_run`), and the GUI preview shows them. Nested keys are dotted (`target.altitude`); a key that a later Op of the same batch writes back is not reported.
-To change one field and keep the rest, use the generic path: `fune set cases.<ID>.<field> <value>` and `fune unset cases.<ID>.<field>` (HTTP `POST /ops/from_text` and `/ops/unset_from_text` with the same `path`),
-where `<field>` is any of `label`, `description`, `mode`, `phase`, `side` (`nominal`/`min`/`max`), `thermal_case`, `beta` (`"60 deg"`), `orbits` (an integer), `sun_distance` (`"0.7 AU"`) and `epoch` (ISO 8601).
-They make the Op `SetCaseField` (one field of the case; the case must exist), except `phase` and `epoch`, which make `SetCasePhase` and `SetCaseEpoch` (the same as `fune case set-phase` / `set-epoch`).
-There is no one-field path yet for maneuvers, requirements, sources, harness segments and the heading fields of a phase; those commands list what they drop.
+To change one field and keep the rest, use the generic path `fune set <collection>.<ID>.<field> <value>` and `fune unset <collection>.<ID>.<field>`
+(HTTP `POST /ops/from_text` and `/ops/unset_from_text` with the same `path`). They make one Op, `SetRecordField` (`{ "op": "set_record_field", "record": "cases", "id": "hot", "field": "beta", "value": { "type": "quantity", "value": … } }`; no `value` removes the field): the record must exist, the other fields stay as they are, a new key lands in its canonical position, and the result is validated like any other edit.
+The collections and their fields (a field of a nested table is written with a dot, as in `constraint.value`):
+
+| Collection | Fields (value type) |
+|---|---|
+| `cases` | `label`, `description`, `mode`, `phase`, `side` (`nominal`/`min`/`max`), `thermal_case`, `beta` (`"60 deg"`), `orbits` (integer), `sun_distance` (`"0.7 AU"`), `epoch` (ISO 8601) |
+| `maneuvers` | `label`, `category`, `method`, `thruster`, `after`, `via_altitude`, `delta_v`, `target.body`, `target.altitude`, `target.perigee_altitude`, `target.apogee_altitude`, `target.inclination`, `constraints.sunlit_only` (`true`/`false`), `constraints.mode`, `constraints.duty` (number), `constraints.steering`, `transfer.departure`, `transfer.arrival`, `transfer.departure_by` |
+| `requirements` | `label`, `statement`, `statement_en`, `quantity`, `source`, `input`, `constraint.kind`, `constraint.value`, `constraint.tolerance`, `constraint.min`, `constraint.max`, `quantify.all_cases`, `quantify.cases` (comma-separated), `verify.analysis`, `verify.check`, `verify.budget` |
+| `harness` | `label`, `from`, `to`, `nets` (comma-separated), `wire`, `cores` (integer), `length` |
+| `sources` | `kind`, `label`, `ref`, `revision`, `retrieved`, `sha256`, `distribution`, `date`, `by`, `note` |
+| `phases` | the heading fields `label`, `order` (integer), `start`, `end`, `duration`, `modes` (comma-separated), `configuration` (the `[orbit]` and `[law.*]` tables are written by `fune phase set-field`) |
+
+The service reads the typed value from the declared type of the field (a quantity needs a unit, an enumeration must be one of its spellings, a count must be a non-negative integer); a field that does not exist is refused with the list of valid fields, and removing a required field (`requirements.<ID>.statement`) or writing a value the record cannot hold is refused before anything is written.
+`maneuvers.<ID>.transfer.flybys` is not covered (use `fune maneuver set`). `phase` and `epoch` of a case make `SetCasePhase` and `SetCaseEpoch` (the same as `fune case set-phase` / `set-epoch`, which validates the time). The whole-record commands (`fune maneuver set`, `fune requirement set`, …) still replace the record and list what they drop.
+A path is read as a record field only when it has at least three segments and its first segment is a collection name **and the design has no part (or group) with that ID**: an existing part wins, so `harness.mass` (two segments, always a part path) and `harness.power.on` (a part named `harness`) keep their usual meaning. When no such part exists, `harness.<ID>.<field>` is the record field. `cases` follows the same rule.
 
 ### 5.1 Condition selection for analysis cases
 
@@ -2305,6 +2317,10 @@ Writing rules enforced by `fune fmt` and `fune check`.
      (`[attr.power.on]` would be three levels, so it is not used). Cells with no source stay as the current one-liners and sit in the same table.
    - A heading table is placed after the value rows of its parent table (a TOML rule). If no value rows remain in the parent table, the parent's heading (`[attr]`) is not written.
    - The `=` signs are aligned per table, including the dotted-key rows.
+   - A heading table with value rows comes before its sub-tables: the value rows of `[attr]` (the attributes without a source) are written first, then the `[attr.<name>]` tables.
+     A file with `[attr]` after `[attr.<name>]` is valid TOML but not canonical; `fune fmt` moves it and `fmt --check` reports it.
+   - Order of attributes: a file written from scratch lists attributes in ID order. An attribute added to an existing file goes right after its predecessor in ID order
+     (the first one if there is none); the attributes already in the file are never reordered, so a hand-ordered file stays as it is. Rows without a source and `[attr.<name>]` tables are ordered separately.
    - Reading gives the same value from either form (the old one-line inline table, or heading tables and dotted keys). `fune fmt` rewrites to the current form.
 
    ```toml

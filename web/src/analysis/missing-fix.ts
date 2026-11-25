@@ -6,15 +6,18 @@ export type ValueFix = Extract<Fix, { kind: "set_value" }>;
 /** 別のもの（部品・カタログ品・通信の回線）を選ぶ候補（その場のダイアログ） */
 export type PickFix = Extract<Fix, { kind: "pick_ref" }>;
 
+/** 役割のどれかの部品を選んで、値を入れるか種別を替える候補（その場のダイアログ） */
+export type PartFix = Extract<Fix, { kind: "set_value_on_part" | "assign_part" }>;
+/** 役割の部品を足す候補（部品の追加ダイアログを絞って開く） */
+export type AddPartFix = Extract<Fix, { kind: "add_part" }>;
+
 /** 候補が開く画面（その場のダイアログを持たない候補は、既存のページへ行く。候補の種類で決め、文字列は読まない） */
 export type RowAction =
   | { kind: "value"; fix: ValueFix }
   | { kind: "pick"; fix: PickFix }
-  | {
-      kind: "link";
-      label: "setOnPart" | "addPart" | "assignPart" | { addItem: ListKind };
-      to: string;
-    };
+  | { kind: "part"; fix: PartFix }
+  | { kind: "add_part"; fix: AddPartFix }
+  | { kind: "link"; label: { addItem: ListKind }; to: string };
 
 /** 一覧への追加の画面（一覧の種類 → 既存のページ） */
 function listPage(list: ListKind): string {
@@ -40,11 +43,10 @@ function actionOf(fix: Fix): RowAction {
     case "pick_ref":
       return { kind: "pick", fix };
     case "set_value_on_part":
-      return { kind: "link", label: "setOnPart", to: paths.components() };
-    case "add_part":
-      return { kind: "link", label: "addPart", to: paths.addComponent() };
     case "assign_part":
-      return { kind: "link", label: "assignPart", to: paths.components() };
+      return { kind: "part", fix };
+    case "add_part":
+      return { kind: "add_part", fix };
     case "add_list_item":
       return { kind: "link", label: { addItem: fix.list }, to: listPage(fix.list) };
   }
@@ -66,6 +68,26 @@ export function valueSetText(fix: ValueFix, scope: ValueScope, value: string): S
   return {
     item: into?.item ?? null,
     path: into?.path ?? fix.path,
+    value: text,
+    source: null,
+    at: null,
+    note: null,
+    min: null,
+    max: null,
+    ops: [],
+  };
+}
+
+/**
+ * 選んだ部品に書く編集（`fune set <部品>.<属性> <値>` と `fune set <部品>.kind <種別>` と同じ文字列。解釈は service）。
+ * 値の綴りは、値を入れる候補は打った値、種別を替える候補は選んだ種別。部品か値が空なら null
+ */
+export function partSetText(fix: PartFix, part: string, value: string): SetText | null {
+  const text = value.trim();
+  if (!part || !text) return null;
+  return {
+    item: null,
+    path: `${part}.${fix.kind === "assign_part" ? "kind" : fix.attr}`,
     value: text,
     source: null,
     at: null,
