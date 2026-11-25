@@ -430,6 +430,30 @@ and monthly predictions beyond that). Because it is updated every day, it is put
   Values outside the table's range or blank fall back to the solar activity presets (the long-term values of ECSS-E-ST-10-04C Table 6-3), and the source of each value and the version of the table used
   (fetch time, SHA-256, and the last day of observation and prediction) are returned. The analysis keeps this version in its result. If F10.7 and Ap are given by hand (`AtmosphereModel::Nrlmsise00`), they take precedence.
 
+### 6.7 Geomagnetic field coefficients (format of the distribution file)
+
+`sat_astro::geomag::GaussModel` holds an internal-origin field as Gauss coefficients (Schmidt quasi-normalised, nT) at an epoch, with a secular variation. It is read from bytes by
+`GaussModel::from_text_bytes` (and written back by `to_text`), so sat-astro does no file I/O; the coefficient sets will arrive later as fetched data. The text format is our own, one file per model:
+
+```text
+# comment (everything after # on a line is ignored; blank lines are ignored)
+name: free text
+epoch: 2025-01-01T00:00:00Z      # ISO 8601, required: the epoch of g and h
+radius_km: 6371.2                # required: reference radius a
+# n m g h [g_dot h_dot]          # nT, and nT/year; the two secular columns may be omitted (0)
+1 0 -29350.0 0.0 12.0 0.0
+1 1 -1410.0 4545.0 8.0 -20.0
+```
+
+Header lines are `key: value` (`name`, `epoch`, `radius_km`); every other line is one coefficient. There is no maximum-degree line: the degree is the largest `n` present (up to 50), and missing terms are 0.
+The same `(n, m)` twice, `m > n`, `h` other than 0 for `m = 0`, and non-finite numbers are errors. The potential is `V = a Σ (a/r)^(n+1) (g cos mφ + h sin mφ) P_n^m(cos θ)` and `B = −∇V`;
+the coefficients at time `t` are `g + ġ (t − epoch)` with the elapsed time in Julian years (extrapolation is the same linear rule).
+
+`FieldSnapshot::l_shell` returns McIlwain's L and B/B₀ (`geomag::lshell`). L is in units of the reference radius, from the second invariant I along the field line through the point and
+`L³B/M = F(I³B/M)`, where F is solved from its definition (the centred dipole), not from a published polynomial. M is the model's own degree-1 moment by default (`MomentConvention::ModelDipole`,
+so a centred dipole gives L = r_eq/a exactly); a fixed equatorial strength can be given (`MomentConvention::Fixed`) when L must match maps built with a fixed moment. A line that does not close within
+`max_radius_ref` (default 12) reference radii gives a typed `NoL`, not a number.
+
 ## 7. Mechanical checks
 
 `cargo xtask check` (`crates/xtask`) checks the structural rules and fails if there is a violation.
