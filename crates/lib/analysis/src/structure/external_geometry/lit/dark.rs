@@ -1,7 +1,7 @@
 //! 面の暗い範囲の多角形（影・接地面・覆い）から日照割合を出す。面全体も升の長方形も同じ関数（`FaceOccluders` が多角形を作り、ここが面積に直す）。
 
 use super::super::cells::FaceCell;
-use sat_astro::math::planar::{ConvexPolygon, union_measure};
+use sat_astro::math::planar::{ConvexPolygon, StaticUnion, union_measure};
 
 // 日照割合を 0 か 1 に丸める相対の幅は親の `LIT_SNAP`
 use super::LIT_SNAP;
@@ -76,14 +76,75 @@ impl DarkShapes {
         } else {
             (union_measure(&all).area - union_measure(&fb).area + union_measure(&b).area).max(0.0)
         };
-        let lit = 1.0 - covered / area;
-        if lit <= LIT_SNAP {
-            0.0
-        } else if lit >= 1.0 - LIT_SNAP {
-            1.0
+        lit_of(covered, area)
+    }
+}
+
+/// 暗い面積 `covered` から日照割合を出す（1e-12 以内は 0 か 1 に丸める）。
+fn lit_of(covered: f64, area: f64) -> f64 {
+    let lit = 1.0 - covered / area;
+    if lit <= LIT_SNAP {
+        0.0
+    } else if lit >= 1.0 - LIT_SNAP {
+        1.0
+    } else {
+        lit
+    }
+}
+
+/// 面全体の日照割合のうち、向きによらない部分（接地面 `f` と覆い）を 1 度だけ前処理したもの。
+/// 面全体の暗い面積 |M ∪ B ∪ F| − |F ∪ B| + |B|（M は面に載る部品の影、B は [そのほかの影, 覆い] の順）のうち、
+/// 接地面 F と覆いは向きによらない。並びは `[M, F, 影, 覆い]` なので、F と覆いの前処理を使い回す（[`DarkShapes::lit`] と同じ値）。
+#[derive(Debug, Clone)]
+pub(super) struct FixedDark {
+    /// 並びの前の固定を接地面、後ろの固定を覆いとした前処理
+    with_footprint: StaticUnion,
+    /// 覆いだけの前処理（|B| 用）
+    covers: StaticUnion,
+    /// 影が無いときの |F ∪ B|
+    fb_area: f64,
+    /// 影が無いときの |B|
+    b_area: f64,
+    /// 面に面積を持つ影が無いときの日照割合
+    unshadowed: f64,
+    area: f64,
+}
+
+impl FixedDark {
+    pub(super) fn new(f: &[ConvexPolygon], covers: &[ConvexPolygon], area: f64) -> Self {
+        let with_footprint = StaticUnion::new(f, covers);
+        let covers_only = StaticUnion::new(&[], covers);
+        let fb_area = with_footprint.measure(&[], &[]).area;
+        let b_area = covers_only.measure(&[], &[]).area;
+        let mut this = Self {
+            with_footprint,
+            covers: covers_only,
+            fb_area,
+            b_area,
+            unshadowed: 0.0,
+            area,
+        };
+        this.unshadowed = this.lit(&[], &[]);
+        this
+    }
+
+    /// 面に載る部品の影 `m` と、そのほかの影 `plain`（どちらも面に面積を持つものだけ）を加えた日照割合。
+    pub(super) fn lit(&self, m: &[ConvexPolygon], plain: &[ConvexPolygon]) -> f64 {
+        let all = self.with_footprint.measure(m, plain).area;
+        let (fb, b) = if plain.is_empty() {
+            (self.fb_area, self.b_area)
         } else {
-            lit
-        }
+            (
+                self.with_footprint.measure(&[], plain).area,
+                self.covers.measure(plain, &[]).area,
+            )
+        };
+        lit_of((all - fb + b).max(0.0), self.area)
+    }
+
+    /// 面に面積を持つ影が無いときの日照割合。
+    pub(super) fn unshadowed(&self) -> f64 {
+        self.unshadowed
     }
 }
 

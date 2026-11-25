@@ -177,3 +177,25 @@ fn a_third_part_still_shades_the_area_under_a_mounted_cell() {
         1.0
     );
 }
+
+/// `lit_fraction`（接地面と覆いの前処理を使い回し、面に届かない影の凸包を省く）は、`lit_fraction_among`（毎回すべての多角形を組む）と
+/// 同じ値（ビットまで）を返す。覆い・面に載る部品・離れた箱・影を落とす箱が全部ある面を、いろいろな向きで比べる。
+#[test]
+fn the_lit_fraction_is_bit_identical_to_the_unprepared_one() {
+    let others = vec![
+        part("COVER", [0.25, 0.0, TOP + 0.05], [0.5, 1.0, 0.1]),
+        part("MOUNTED", [-0.3, 0.2, TOP + 0.03], [0.2, 0.2, 0.06]),
+        part("TALL", [0.4, -0.3, TOP + 0.5], [0.1, 0.1, 0.2]),
+        part("FAR", [5.0, 5.0, TOP + 0.2], [0.3, 0.3, 0.3]),
+    ];
+    let occ = occluders(others, &[false, true, false, false]);
+    for k in 0..40 {
+        let a = 0.17 * f64::from(k);
+        let d = unit(a.cos(), (1.3 * a).sin(), 0.3 + 0.02 * f64::from(k));
+        assert_eq!(
+            occ.lit_fraction(d).to_bits(),
+            occ.lit_fraction_among(d, &|_| true).to_bits(),
+            "direction {k}"
+        );
+    }
+}

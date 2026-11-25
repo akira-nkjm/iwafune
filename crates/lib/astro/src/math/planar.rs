@@ -16,7 +16,8 @@
 //!
 //! 入力の順に結果は依存しない（和の順序による丸め誤差の違いだけ）。
 
-use std::cmp::Ordering;
+mod sweep;
+pub use sweep::StaticUnion;
 
 /// 平面の点 `[x, y]`。
 pub type Point2 = [f64; 2];
@@ -101,20 +102,7 @@ pub struct UnionMeasure {
 
 /// 凸多角形の和集合の面積と図心（帯の掃引。上のモジュールの説明を参照）。
 pub fn union_measure(polygons: &[ConvexPolygon]) -> UnionMeasure {
-    let live: Vec<&ConvexPolygon> = polygons.iter().filter(|p| p.area() > 0.0).collect();
-    let cuts = cut_ordinates(&live);
-    let mut total = Moments::default();
-    for slab in cuts.windows(2) {
-        let (y0, y1) = (slab[0], slab[1]);
-        let intervals = slab_intervals(&live, y0, y1);
-        for merged in merge(intervals) {
-            total.add(&merged, y0, y1);
-        }
-    }
-    UnionMeasure {
-        area: total.area,
-        centroid: (total.area > 0.0).then(|| [total.mx / total.area, total.my / total.area]),
-    }
+    StaticUnion::new(&[], &[]).measure(polygons, &[])
 }
 
 /// 外積 `a × b`（z 成分）。
@@ -196,158 +184,6 @@ fn clip_by_edge(subject: &[Point2], a: Point2, b: Point2) -> Vec<Point2> {
         }
     }
     out
-}
-
-/// 全多角形の頂点の縦座標と、異なる多角形の辺どうしの交点の縦座標（昇順・近いものは 1 つ）。
-fn cut_ordinates(polys: &[&ConvexPolygon]) -> Vec<f64> {
-    let mut ys: Vec<f64> = polys
-        .iter()
-        .flat_map(|p| p.vertices.iter().map(|v| v[1]))
-        .collect();
-    let spans: Vec<(f64, f64)> = polys.iter().map(|p| y_span(p)).collect();
-    for i in 0..polys.len() {
-        for j in (i + 1)..polys.len() {
-            // 縦の範囲が重ならない組は辺が交わらない
-            if spans[i].1 < spans[j].0 || spans[j].1 < spans[i].0 {
-                continue;
-            }
-            for (a, b) in edges(polys[i]) {
-                for (c, d) in edges(polys[j]) {
-                    if let Some(y) = crossing_ordinate(a, b, c, d) {
-                        ys.push(y);
-                    }
-                }
-            }
-        }
-    }
-    ys.sort_by(f64::total_cmp);
-    let scale = ys
-        .iter()
-        .fold(0.0_f64, |m, y| m.max(y.abs()))
-        .max(f64::MIN_POSITIVE);
-    let tol = CUT_MERGE_RELATIVE * scale;
-    let mut merged: Vec<f64> = Vec::with_capacity(ys.len());
-    for y in ys {
-        if merged.last().is_none_or(|last| y - last > tol) {
-            merged.push(y);
-        }
-    }
-    merged
-}
-
-/// 多角形の縦座標の範囲。
-fn y_span(p: &ConvexPolygon) -> (f64, f64) {
-    p.vertices
-        .iter()
-        .fold((f64::INFINITY, f64::NEG_INFINITY), |(lo, hi), v| {
-            (lo.min(v[1]), hi.max(v[1]))
-        })
-}
-
-/// 多角形の辺（頂点の組、反時計回り）。
-fn edges(p: &ConvexPolygon) -> impl Iterator<Item = (Point2, Point2)> + '_ {
-    let n = p.vertices.len();
-    (0..n).map(move |i| (p.vertices[i], p.vertices[(i + 1) % n]))
-}
-
-/// 線分 `a–b` と `c–d` の交点の縦座標（平行なら `None`、線分の外なら `None`）。
-fn crossing_ordinate(a: Point2, b: Point2, c: Point2, d: Point2) -> Option<f64> {
-    let r = [b[0] - a[0], b[1] - a[1]];
-    let s = [d[0] - c[0], d[1] - c[1]];
-    let denom = cross2(r, s);
-    let norms = (r[0].hypot(r[1])) * (s[0].hypot(s[1]));
-    if denom.abs() <= PARALLEL_RELATIVE * norms {
-        return None;
-    }
-    let ca = [c[0] - a[0], c[1] - a[1]];
-    let t = cross2(ca, s) / denom;
-    let u = cross2(ca, r) / denom;
-    let inside = |v: f64| (-SEGMENT_SLACK..=1.0 + SEGMENT_SLACK).contains(&v);
-    (inside(t) && inside(u)).then(|| a[1] + t.clamp(0.0, 1.0) * r[1])
-}
-
-/// 帯の中の、多角形 1 つの区間。左右の辺の直線を、帯の下端・中央・上端での x で持つ。
-#[derive(Debug, Clone, Copy)]
-struct Interval {
-    left: [f64; 3],
-    right: [f64; 3],
-}
-
-/// 帯 `[y0, y1]` を縦に覆う多角形の区間（中央の縦座標で左右の辺を選ぶ）。
-fn slab_intervals(polys: &[&ConvexPolygon], y0: f64, y1: f64) -> Vec<Interval> {
-    let ym = 0.5 * (y0 + y1);
-    if y1 - y0 <= 0.0 {
-        return Vec::new();
-    }
-    let mut out = Vec::new();
-    for p in polys {
-        let (lo, hi) = y_span(p);
-        if !(lo < ym && ym < hi) {
-            continue;
-        }
-        let mut left: Option<[f64; 3]> = None;
-        let mut right: Option<[f64; 3]> = None;
-        for (a, b) in edges(p) {
-            if (a[1] < ym) == (b[1] < ym) || a[1] == b[1] {
-                continue;
-            }
-            let at = |y: f64| a[0] + (y - a[1]) / (b[1] - a[1]) * (b[0] - a[0]);
-            let line = [at(y0), at(ym), at(y1)];
-            if left.is_none_or(|l| line[1] < l[1]) {
-                left = Some(line);
-            }
-            if right.is_none_or(|r| line[1] > r[1]) {
-                right = Some(line);
-            }
-        }
-        if let (Some(left), Some(right)) = (left, right) {
-            out.push(Interval { left, right });
-        }
-    }
-    out
-}
-
-/// 区間の和集合（中央での左端の順。重なる・接する区間は 1 つにし、右端は大きいほうの辺）。
-fn merge(mut intervals: Vec<Interval>) -> Vec<Interval> {
-    intervals.sort_by(|a, b| {
-        a.left[1]
-            .total_cmp(&b.left[1])
-            .then_with(|| a.right[1].total_cmp(&b.right[1]))
-    });
-    let mut out: Vec<Interval> = Vec::new();
-    for next in intervals {
-        match out.last_mut() {
-            Some(cur) if next.left[1].partial_cmp(&cur.right[1]) != Some(Ordering::Greater) => {
-                if next.right[1] > cur.right[1] {
-                    cur.right = next.right;
-                }
-            }
-            _ => out.push(next),
-        }
-    }
-    out
-}
-
-/// 面積と 1 次モーメントの和。
-#[derive(Debug, Default)]
-struct Moments {
-    area: f64,
-    mx: f64,
-    my: f64,
-}
-
-impl Moments {
-    /// 帯 `[y0, y1]` の中の、左右が直線の区間を足す（台形の面積と、Simpson の公式による厳密な 1 次モーメント）。
-    fn add(&mut self, iv: &Interval, y0: f64, y1: f64) {
-        let h = y1 - y0;
-        let ys = [y0, 0.5 * (y0 + y1), y1];
-        let width = |k: usize| iv.right[k] - iv.left[k];
-        let mx = |k: usize| 0.5 * (iv.right[k].powi(2) - iv.left[k].powi(2));
-        let my = |k: usize| ys[k] * width(k);
-        self.area += 0.5 * h * (width(0) + width(2));
-        self.mx += h / 6.0 * (mx(0) + 4.0 * mx(1) + mx(2));
-        self.my += h / 6.0 * (my(0) + 4.0 * my(1) + my(2));
-    }
 }
 
 #[cfg(test)]

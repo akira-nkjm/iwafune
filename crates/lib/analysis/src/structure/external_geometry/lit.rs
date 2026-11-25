@@ -35,14 +35,16 @@ use super::geometry::{ExternalGeometry, SURFACE_TOLERANCE};
 use sat_astro::math::Vec3;
 use sat_astro::math::planar::{ConvexPolygon, union_measure};
 use serde::{Deserialize, Serialize};
+use std::cell::OnceCell;
 
 mod covers;
 mod dark;
 mod regions;
+mod shadows;
 mod surfaces;
 use super::cells::FaceCell;
 use covers::{Cover, Facing, covers_of, facing_of};
-use dark::DarkShapes;
+use dark::{DarkShapes, FixedDark};
 pub use surfaces::{LitSurfaces, PartLit, ShadowLoss, ShadowingReport};
 
 /// 面に載る部品（面の平面に接する・横切る箱と、面の部品に取り付けられた部品）の接地面を、面の日照にどう数えるか。
@@ -59,6 +61,8 @@ pub const FACE_MATCH_COS: f64 = 0.999;
 /// 面が光を受けるとみなす `n·d` の下限。これ以下（面にほぼ平行な光）は影の長さが `h / (n·d)` で発散して幾何が数値的に不安定になり、
 /// 受ける光も `n·d` に比例して 0 に近いので、受けない（日照割合 0）ものとして扱う。
 pub const GRAZING_COS: f64 = 1e-9;
+/// 影が面の長方形から離れているとみなす幅 [m]（`shadow` が凸包を省く。丸め誤差よりずっと大きい）。
+const SHADOW_MISS_MARGIN_M: f64 = 1e-9;
 /// 日照割合を 0 か 1 に丸める相対の幅。
 const LIT_SNAP: f64 = 1e-12;
 
@@ -117,6 +121,8 @@ pub struct FaceOccluders {
     covers: Vec<Cover>,
     /// 面の前に平行に向き合う、接していない箱（`with_covers` が調べる）
     facing: Vec<Facing>,
+    /// 接地面と覆い（向きによらない）の前処理。`lit_fraction` が最初に要るときに作る
+    fixed_dark: OnceCell<FixedDark>,
 }
 
 impl FaceOccluders {
@@ -157,6 +163,7 @@ impl FaceOccluders {
             occluders,
             covers: Vec::new(),
             facing: Vec::new(),
+            fixed_dark: OnceCell::new(),
         }
     }
 
@@ -228,12 +235,34 @@ impl FaceOccluders {
     }
 
     /// 遮る箱 `o` の影（面の長方形で切る）。`shift` は `(d·u, d·v) / (n·d)`。
+    /// 影の頂点（ずらした点）の外接の長方形が、面の長方形から離れていれば、切り取った後は空（面積 0）なので凸包を作らない
+    /// （面の長方形は軸に平行で、切り取りは 1 辺の外側に全部の頂点があれば空になる。離れの幅 [`SHADOW_MISS_MARGIN_M`] は丸めを十分に超える）。
     fn shadow(&self, o: &Occluder, shift: (f64, f64)) -> ConvexPolygon {
-        let shifted: Vec<[f64; 2]> = o
-            .points
-            .iter()
-            .map(|(p, h)| [p[0] - shift.0 * h, p[1] - shift.1 * h])
-            .collect();
+        let moved = |(p, h): &([f64; 2], f64)| [p[0] - shift.0 * h, p[1] - shift.1 * h];
+        let (lo, hi) = (self.rectangle.vertices()[0], self.rectangle.vertices()[2]);
+        let mut reach = [
+            f64::INFINITY,
+            f64::INFINITY,
+            f64::NEG_INFINITY,
+            f64::NEG_INFINITY,
+        ];
+        for q in o.points.iter().map(moved) {
+            reach = [
+                reach[0].min(q[0]),
+                reach[1].min(q[1]),
+                reach[2].max(q[0]),
+                reach[3].max(q[1]),
+            ];
+        }
+        let m = SHADOW_MISS_MARGIN_M;
+        if reach[2] < lo[0] - m
+            || reach[0] > hi[0] + m
+            || reach[3] < lo[1] - m
+            || reach[1] > hi[1] + m
+        {
+            return ConvexPolygon::hull(&[]);
+        }
+        let shifted: Vec<[f64; 2]> = o.points.iter().map(moved).collect();
         ConvexPolygon::hull(&shifted).intersection(&self.rectangle)
     }
 
@@ -273,7 +302,7 @@ impl FaceOccluders {
 
     /// 光源の向き `direction`（機体座標系。長さは問わない）での日照割合。向きが零か非有限なら 0。
     pub fn lit_fraction(&self, direction: Vec3) -> f64 {
-        self.lit_fraction_among(direction, &|_| true)
+        self.lit_fraction_all(direction)
     }
 
     /// [`FaceOccluders::lit_fraction`] を、`keep(箱の番号)` が真の箱（影を作る箱と、覆う箱）だけについて求める
@@ -285,32 +314,8 @@ impl FaceOccluders {
 
     /// 暗い範囲の多角形（面の長方形で切ったもの）。面が光を受けなければ `None`（日照割合 0）。
     fn dark_shapes(&self, direction: Vec3, keep: &dyn Fn(usize) -> bool) -> Option<DarkShapes> {
-        let d = direction.normalized().filter(|d| d.x.is_finite())?;
-        let cos = self.normal.dot(d);
-        if cos <= GRAZING_COS {
-            return None;
-        }
-        let shift = (d.dot(self.u) / cos, d.dot(self.v) / cos);
-        // 暗い範囲は、面に載る部品（接地面あり）自身の影から接地面（真下）を除いたもの M \ F と、そのほかの影・覆いの範囲 B の和集合。
-        // 接地面は「載る部品が自分の持ち主を遮らない」ことだけを意味し、ほかの部品の影（B）は接地面の下にも落ちる。
-        let (mut m, mut f, mut b) = (Vec::new(), Vec::new(), Vec::new());
-        for o in self.occluders.iter().filter(|o| keep(o.part)) {
-            let shadow = self.shadow(o, shift);
-            match &o.footprint {
-                Some(fp) => {
-                    m.push(shadow);
-                    f.push(fp.clone());
-                }
-                None => b.push(shadow),
-            }
-        }
-        b.extend(
-            self.covers
-                .iter()
-                .filter(|c| keep(c.part))
-                .map(|c| c.region.clone()),
-        );
-        Some(DarkShapes::new(m, f, b))
+        let shift = self.light_shift(direction)?;
+        Some(self.dark_from(self.shadows(shift, keep), keep))
     }
 }
 
