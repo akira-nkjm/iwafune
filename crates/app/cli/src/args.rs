@@ -235,7 +235,7 @@ pub enum Command {
     /// Report export: tables and figures for a Typst design document
     #[command(subcommand)]
     Report(ReportCmd),
-    /// External data (DE440 ephemeris)
+    /// External data (DE440 ephemeris, space weather)
     #[command(subcommand)]
     Data(DataCmd),
     /// Replace this fune binary with the latest release (or a given version)

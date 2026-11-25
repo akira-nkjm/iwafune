@@ -26,6 +26,8 @@ export const overviewEn: typeof overviewJa = {
     limitFrom: (id: string) => `Limit from requirement ${id} (edit it there)`,
     budgetDry: "Dry",
     budgetWet: "Wet",
+    budgetTank: (id: string) => `Tank ${id}`,
+    budgetTankMargin: (m: string) => `Volume margin ${m}`,
     budgetPropellant: "Propellant",
     propellantNone:
       "No propulsion system (maneuvers or propulsion parts), so propellant is not counted",

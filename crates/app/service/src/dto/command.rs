@@ -250,6 +250,10 @@ pub struct AttrAddText {
     pub unit_vector: bool,
     /// 視野の半角のとき、どの方向の属性のまわりの視野か
     pub fov_axis: Option<String>,
+    /// 文字列の値が指す先（`part`）。あれば画面は候補から選ばせる
+    pub references: Option<String>,
+    /// `references = "part"` の候補を絞る部品の役割（CLI は `--reference-roles a,b` を分けたもの）
+    pub reference_roles: Vec<String>,
     /// 画面で並べる系（`basic`・`mass`・`power`・…）
     pub section: Option<String>,
 }

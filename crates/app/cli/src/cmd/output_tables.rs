@@ -57,6 +57,16 @@ const TABLES: &[Table] = &[
             ("wet_mass", "Wet"),
         ],
     ),
+    (
+        "propulsion.propellant",
+        "/tanks",
+        &[
+            ("id", "Tank"),
+            ("loaded", "Loaded"),
+            ("capacity", "Capacity"),
+            ("volume_margin", "Volume margin"),
+        ],
+    ),
 ];
 
 /// 結果の 1 つの値の文字列（語彙の表示名・整形した量・文字列・一覧）。

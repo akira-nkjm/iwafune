@@ -39,15 +39,18 @@ it("候補のある行は操作を出し、候補の無い行は出さない", (
             choices: [],
             catalog: null,
           },
-          { kind: "add_list_item", list: "mode", command: "" },
+          { kind: "add_list_item", list: "mode", id: null, command: "" },
+          { kind: "add_list_item", list: "case", id: "HOT", command: "" },
         ]),
         { ...withFixes([]), path: "other", reason: "no fix" },
       ]}
     />,
   );
   expect(html).toContain(`>${t.enterValue}</button>`);
-  expect(html).toContain(`>${t.addItem.mode}</a>`);
-  expect(html.match(/<button/g)).toHaveLength(1);
+  // ダイアログのある一覧（モード）はボタン、無い一覧（ケース）はページへのリンク
+  expect(html).toContain(`>${t.addItem.mode}</button>`);
+  expect(html).toContain(`>${t.addItem.case}</a>`);
+  expect(html.match(/<button/g)).toHaveLength(2);
 });
 
 it("カタログ品を指す欄の行は、カタログ品を選ぶ操作を出す", () => {

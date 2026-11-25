@@ -10,6 +10,7 @@
 //! | `display` | 解析表示の葉の型（名前・時系列） |
 //! | `power_modes` | 電源のモードごとの電力の行き先・判定・グラフの表示定義 |
 //! | `design` | 設計データの表示（プロジェクト・部品・モード表・ネット・定義・設定） |
+//! | `attr_input` | 属性の値の入力の形（量・選択・参照・文字列・直せない理由） |
 //! | `catalog` | カタログ品の表示（値・パス・使っている部品） |
 //! | `shared_catalog` | 共有カタログの取得・更新の入出力（lock の commit・変わった品と値） |
 //! | `source` | 出典の台帳の表示（リンク・ファイル） |
@@ -38,6 +39,7 @@ mod check;
 pub use check::CheckView;
 mod display;
 pub use display::{AnalysisLabel, DisplayChannel, DisplaySeries};
+mod attr_input;
 mod budget;
 mod catalog;
 mod command;
@@ -95,8 +97,10 @@ pub use analysis::{
     AnalysisCaseSource, AnalysisEntry, AnalysisInputSource, AnalysisRunResult, AnalysisRunStatus,
     FindingState, PartFinding, PartHeat, RunAnalysisRequest,
 };
+pub use attr_input::{AttrInput, AttrReadOnlyReason};
 pub use budget::{
-    BudgetPropellant, BudgetRequest, BudgetRow, BudgetTotal, BudgetUncounted, BudgetView,
+    BudgetPropellant, BudgetPropellantTank, BudgetRequest, BudgetRow, BudgetTotal, BudgetUncounted,
+    BudgetView,
 };
 pub use catalog::{CatalogItemView, CatalogSourceView};
 pub use command::{

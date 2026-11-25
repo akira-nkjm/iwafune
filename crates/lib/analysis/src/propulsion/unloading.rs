@@ -14,8 +14,10 @@ use super::input::{UnloadingInput, UnloadingLeg, UnloadingNote};
 use crate::aocs::RwUnloading;
 use crate::spec::{Analysis, AnalysisError, Check, Verdict};
 use sat_astro::constants::SECONDS_PER_DAY;
+use sat_astro::rocket::{exhaust_velocity, mass_flow_kg_s};
 use sat_units::typed::{AngularMomentum, Mass, Qty, Time, Velocity};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 /// 区間 1 つのアンロード。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -105,6 +107,48 @@ fn leg(l: &UnloadingLeg) -> Result<Option<(DvUnloadingLeg, Option<Check>)>, Anal
         },
         None,
     )))
+}
+
+/// アンロードの推薬を、噴射するスラスタが取るタンクごとに分ける（タンクの部品の ID → 推薬 [kg]。マージン・残る分は含めない）。
+/// 区間の推薬（足した区間と同じ: 期間があり、捨てる向きにスラスタがある区間）を、同時に同じ時間だけ噴射するスラスタの推薬の流量
+/// （`sat_astro::rocket::mass_flow_kg_s`）の比で分ける。`tanks` に載っていないスラスタの分はどのタンクにも入れない（タンクを書かなければ
+/// RCS の推薬はどのタンクにも数えない）。
+pub(super) fn propellant_by_tank(
+    u: &UnloadingInput,
+    tanks: &BTreeMap<String, String>,
+) -> Result<BTreeMap<String, f64>, AnalysisError> {
+    let mut out = BTreeMap::new();
+    for l in &u.legs {
+        let (Some(duration), Some(input)) = (l.duration, &l.rw_unloading.rcs) else {
+            continue;
+        };
+        let Some(rcs) = RwUnloading::run(&l.rw_unloading)?.rcs_unloading else {
+            continue;
+        };
+        let Some(per_day) = rcs.per_day.propellant else {
+            continue;
+        };
+        let leg_kg = per_day.value() * duration.value() / SECONDS_PER_DAY;
+        let flows: Vec<(&str, f64)> = input
+            .thrusters
+            .iter()
+            .filter(|t| rcs.per_day.thrusters.contains(&t.id))
+            .map(|t| {
+                let flow = mass_flow_kg_s(t.thrust.value(), exhaust_velocity(t.isp.value()));
+                (t.id.as_str(), flow)
+            })
+            .collect();
+        let total: f64 = flows.iter().map(|(_, f)| f).sum();
+        if total <= 0.0 {
+            continue;
+        }
+        for (id, flow) in flows {
+            if let Some(tank) = tanks.get(id) {
+                *out.entry(tank.clone()).or_insert(0.0) += leg_kg * flow / total;
+            }
+        }
+    }
+    Ok(out)
 }
 
 /// 区間ごとに求めて足す。

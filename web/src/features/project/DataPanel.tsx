@@ -19,9 +19,9 @@ export function DataPanel() {
         title={words.title}
         caption={status.data ? words.ephemeris[status.data.ephemeris] : undefined}
       />
-      <ul className="space-y-1.5">
+      <ul className="space-y-2">
         {status.data?.items.map((item) => (
-          <li key={item.id} className="flex items-center gap-3 text-xs">
+          <li key={item.id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
             <span>
               <span className="font-mono">{item.id}</span>: {stateText(item, words)}{" "}
               {item.size?.display}
@@ -44,6 +44,10 @@ export function DataPanel() {
                 {item.install_error}
               </span>
             )}
+            <span className="basis-full text-ink-3">
+              {item.used_by}
+              {item.license && ` — ${item.license}`}
+            </span>
           </li>
         ))}
       </ul>

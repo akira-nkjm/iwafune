@@ -10,6 +10,7 @@ use sat_units::typed::{
     Angle, Force, Fraction, Impulse, Length, Mass, MassDensity, Power, Qty, Time, Velocity, Volume,
 };
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 /// ΔV のマージンの既定値（合計 ΔV に対する割合）。概念設計の ΔV の内訳表に 5〜10 % の余裕を見込む
 /// 概念設計の慣例の保守側。`analysis.propulsion.dv_margin` で変える。
@@ -320,6 +321,11 @@ pub struct PropulsionInput {
     pub dry_mass: Qty<Mass>,
     pub thrusters: Vec<PropulsionThruster>,
     pub tanks: Vec<PropellantTank>,
+    /// スラスタが推薬を取るタンク（スラスタの部品の ID → タンクの部品の ID。マヌーバのスラスタも、RCS でのアンロードで噴射する
+    /// スラスタも同じ表を引く）。載っていないスラスタは、同じ推薬のタンクから取る（書かなければこれまでと同じ結果）
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    #[cfg_attr(feature = "ts", ts(optional, as = "Option<BTreeMap<String, String>>"))]
+    pub thruster_tanks: BTreeMap<String, String>,
     /// 実行の順に並べたマヌーバ
     pub maneuvers: Vec<ManeuverInput>,
     /// ΔV のマージン（既定 [`DEFAULT_DV_MARGIN`]）

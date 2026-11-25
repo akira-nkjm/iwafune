@@ -12,7 +12,7 @@ use fune_report::model::{Align, Cell, Column, Row, RowStyle, Table};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-pub(super) fn build(ctx: &Ctx<'_>, out: &mut Out) -> Result<()> {
+pub(super) fn build(ctx: &Ctx, out: &mut Out) -> Result<()> {
     let caption = t(ctx.lang, Text::PowerCaption).to_owned();
     let result = run(ctx, "power.mode_load", None)?;
     super::values::kpis(ctx, out, &result, None);
@@ -56,7 +56,7 @@ pub(super) fn build(ctx: &Ctx<'_>, out: &mut Out) -> Result<()> {
     Ok(())
 }
 
-fn columns(ctx: &Ctx<'_>, modes: &[Value], unit: &str) -> Vec<Column> {
+fn columns(ctx: &Ctx, modes: &[Value], unit: &str) -> Vec<Column> {
     let mut cols = vec![Column {
         header: t(ctx.lang, Text::Component).to_owned(),
         unit: None,
@@ -76,7 +76,7 @@ fn columns(ctx: &Ctx<'_>, modes: &[Value], unit: &str) -> Vec<Column> {
 }
 
 /// 機器の行（系ごとの見出しつき）。機器はモード順の最初に出た順に並べ、系は ID 順。
-fn part_rows(ctx: &Ctx<'_>, modes: &[Value], unit: &str) -> Vec<Row> {
+fn part_rows(ctx: &Ctx, modes: &[Value], unit: &str) -> Vec<Row> {
     let mut groups: BTreeMap<String, Vec<(String, &Value)>> = BTreeMap::new();
     for p in modes.iter().flat_map(|m| list(m, "parts")) {
         let id = text(p, "part").unwrap_or_default().to_owned();
@@ -152,7 +152,7 @@ fn state_text(lang: ReportLang, states: &[Value]) -> String {
 }
 
 /// モードの合計の行（余裕なしと成長余裕込み。蝕中が日照中と違うときは蝕中も）とピーク。
-fn total_rows(ctx: &Ctx<'_>, modes: &[Value], unit: &str) -> Vec<Row> {
+fn total_rows(ctx: &Ctx, modes: &[Value], unit: &str) -> Vec<Row> {
     let differs = |a: &str, b: &str| {
         modes
             .iter()

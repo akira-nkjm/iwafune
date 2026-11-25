@@ -37,6 +37,9 @@ impl Snapshot {
             .chain(fune_projection::maneuver_dates::check(&design))
             .chain(fune_projection::outline::check(&design, &resolved))
             .chain(fune_projection::thermal::check(&design, &resolved))
+            .chain(fune_projection::propulsion::tank_refs::check(
+                &design, &resolved,
+            ))
             .chain(crate::stale_acknowledgements::stale(&design, &resolved))
             .map(|d| with_excerpt(d, &files))
             .collect();
@@ -50,7 +53,7 @@ impl Snapshot {
 }
 
 impl Workspace {
-    /// `dir` かその親から fune.toml を探して開く。外部データの初期化は data::install_cached_ephemeris が担当する。
+    /// `dir` かその親から fune.toml を探して開く。外部データの初期化は data::install_cached_datasets が担当する。
     pub fn open(dir: impl AsRef<Path>) -> Result<Self> {
         let dir = dir.as_ref();
         let root = fune_store::project::find_root(dir)

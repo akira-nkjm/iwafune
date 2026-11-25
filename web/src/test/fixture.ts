@@ -348,6 +348,7 @@ export const fixture: DesignView = {
           fov_axis: null,
           builtin: true,
           description: null,
+          input: { kind: "quantity", dimension: null, by_state: false },
         }),
       )
       .concat(
@@ -373,6 +374,9 @@ export const fixture: DesignView = {
             fov_axis: typeof fovAxis === "string" ? fovAxis : null,
             builtin: true,
             description: null,
+            input: unitVector
+              ? { kind: "read_only", reason: "vector" }
+              : { kind: "quantity", dimension: null, by_state: false },
           }),
         ),
       ),

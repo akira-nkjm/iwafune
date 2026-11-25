@@ -2,10 +2,11 @@
 
 use fune_model::path::{ParamPath, SettingPath};
 use fune_model::role::Role;
-use fune_model::{Design, Target, resolve};
+use fune_model::{Design, Target};
 use fune_service::dto::{
     AnalysisInputSource, AnalysisRunResult, Choice, Fix, ListKind, MissingInput, RefKind,
 };
+use fune_service::workspace::Snapshot;
 use fune_service::{Workspace, analysis, fixes};
 use serde_json::{Value, json};
 use std::path::Path;
@@ -33,7 +34,12 @@ fn values(choices: &[Choice]) -> Vec<&str> {
 
 /// 対象だけを与えた不足入力の候補（設計は `design`）。
 fn fixes_of(design: &Design, target: Target) -> Vec<Fix> {
-    let resolved = resolve(design);
+    let files = demo().snapshot().expect("snapshot").files;
+    fixes_in(&Snapshot::of(design.clone(), files), target)
+}
+
+/// 対象だけを与えた不足入力の候補（スナップショットは設計とファイルが揃っているもの）。
+fn fixes_in(snapshot: &Snapshot, target: Target) -> Vec<Fix> {
     let m = MissingInput {
         part: target.part().map(str::to_owned),
         path: target.to_string(),
@@ -41,7 +47,7 @@ fn fixes_of(design: &Design, target: Target) -> Vec<Fix> {
         reason: String::new(),
         fixes: Vec::new(),
     };
-    fixes::fixes_for(design, &resolved, &m)
+    fixes::fixes_for(snapshot, &m)
 }
 
 /// 部品の属性の値がカタログ品にも無い: 部品の上書きと、品の側の書き先の両方を出す。解析の結果の不足にも付く。
@@ -124,6 +130,7 @@ fn setting_value_carries_its_dimension() {
 }
 
 /// 役割の部品が 1 つも無い: 部品を足す（その役割の種別とカタログ品）か、既にある部品の種別を替える。
+/// 替える候補は、その種別に替えて検査が通る部品だけ（カタログ品を選んだ部品などは出ない）。
 #[test]
 fn missing_role_offers_add_and_assign() {
     let ws = demo();
@@ -149,8 +156,45 @@ fn missing_role_offers_add_and_assign() {
     assert_eq!(kinds, &["battery"]);
     assert!(catalog_items.iter().any(|c| c == "local/bat_2s2p"));
     assert_eq!(command, "fune part add <ID> --kind battery");
-    assert!(parts.iter().any(|p| p == "OBC") && !parts.iter().any(|p| p == "BAT"));
+    assert!(parts.iter().any(|p| p == "BUS_FRAME") && !parts.iter().any(|p| p == "BAT"));
+    // カタログ品を選んだ部品（種別が品と食い違う）と、状態ごとの値を持つ部品は、替えると検査が落ちるので出さない
+    assert!(!parts.iter().any(|p| p == "OBC" || p == "EPT"), "{parts:?}");
     assert_eq!(assign, "fune set <part>.kind battery");
+}
+
+/// 替えられる部品が 1 つも無ければ、種別を替える候補は出さない（部品を足す候補だけが残る）。
+#[test]
+fn assign_is_not_offered_when_no_part_can_take_the_kind() {
+    let ws = demo();
+    let mut design = ws.snapshot().unwrap().design;
+    design.parts.remove("BAT");
+    // 替えて通る部品（カタログ品も状態ごとの値も持たないもの）を設計から外す
+    let all = fixes_of(&design, Target::any_of_roles(&[Role::Battery], None));
+    let Some(Fix::AssignPart { parts, .. }) = all.get(1) else {
+        panic!("{all:?}");
+    };
+    for p in parts.clone() {
+        design.parts.remove(p.as_str());
+    }
+    let fix = fixes_of(&design, Target::any_of_roles(&[Role::Battery], None));
+    assert!(matches!(fix.as_slice(), [Fix::AddPart { .. }]), "{fix:?}");
+}
+
+/// 一覧の追加の候補は、足りない入力が名指しした ID を案として持つ（地上局・ケース）。名指しが無ければ空。
+#[test]
+fn add_list_item_carries_the_named_id() {
+    let ws = demo();
+    let design = ws.snapshot().unwrap().design;
+    let id = |target: Target| match fixes_of(&design, target).as_slice() {
+        [Fix::AddListItem { id, .. }] => id.clone(),
+        other => panic!("{other:?}"),
+    };
+    assert_eq!(id(Target::Modes), None);
+    assert_eq!(id(Target::case("HOT", None)), Some("HOT".into()));
+    let station = fune_model::path::SettingPath::conditions(&["ground", "SVALBARD_GS"]);
+    assert_eq!(id(station.into()), Some("SVALBARD_GS".into()));
+    let any = fune_model::path::SettingPath::conditions(&["ground"]);
+    assert_eq!(id(any.into()), None);
 }
 
 /// 役割の部品が有るなら、役割の不足には足さない（部品ごとの不足として出る）。有って値だけ無いなら、値を入れる部品を選ぶ。
@@ -236,7 +280,7 @@ fn empty_lists_offer_adding_an_item() {
     let ws = demo();
     let design = ws.snapshot().unwrap().design;
     let list = |target: Target| match fixes_of(&design, target).as_slice() {
-        [Fix::AddListItem { list, command }] => (*list, command.clone()),
+        [Fix::AddListItem { list, command, .. }] => (*list, command.clone()),
         other => panic!("{other:?}"),
     };
     assert_eq!(
@@ -580,4 +624,142 @@ fn state_orbit_vectors_carry_a_three_component_example() {
     assert!(velocity.expect("an example").split(' ').count() >= 4);
     let (span, _) = example("span");
     assert_eq!(span.expect("an example").split(' ').count(), 2);
+}
+
+/// 属性の入力の形（`fixes::attr_input`。`GET /defs` の `input` と同じもの）は、定義の型・語彙・参照先から決まる
+/// （量は次元と状態ごとか、語彙のある列挙・真偽は選べる値、語彙の無い列挙・文字列は自由入力、
+/// `references` のある文字列は設計の部品から絞った候補、構造のある型は直せない理由つき）。
+#[test]
+fn attribute_input_follows_the_definition() {
+    use fune_service::dto::{AttrInput, AttrReadOnlyReason};
+    let ws = demo();
+    let mut design = ws.snapshot().unwrap().design;
+    let def = |value: Value| -> fune_model::design::AttributeDef {
+        let mut v = json!({ "label": "x" });
+        v.as_object_mut()
+            .unwrap()
+            .extend(value.as_object().unwrap().clone());
+        serde_json::from_value(v).unwrap()
+    };
+    for (id, d) in [
+        ("sel", json!({ "type": "enum", "symbols": ["a", "b"] })),
+        ("flag", json!({ "type": "bool" })),
+        ("note", json!({ "type": "text" })),
+        (
+            "tank_of",
+            json!({ "type": "text", "references": "part", "reference_roles": ["propellant_tank"] }),
+        ),
+        ("any_part", json!({ "type": "text", "references": "part" })),
+        (
+            "dir",
+            json!({ "type": "vec3", "dimension": "Length", "units": ["m"] }),
+        ),
+    ] {
+        design.attributes.insert(id.into(), def(d));
+    }
+    let input = |attr: &str| fixes::attr_input(&design, attr).expect(attr);
+    // 量: 次元と状態ごとの旗（定義の `dimension`・`by_state`）
+    assert_eq!(
+        input("mass"),
+        AttrInput::Quantity {
+            dimension: Some("Mass".into()),
+            by_state: false
+        }
+    );
+    assert!(matches!(
+        input("power"),
+        AttrInput::Quantity { by_state: true, .. }
+    ));
+    // 選ぶ: 語彙のある列挙と真偽
+    let AttrInput::Choice { choices } = input("sel") else {
+        panic!()
+    };
+    assert_eq!(values(&choices), ["a", "b"]);
+    let AttrInput::Choice { choices } = input("flag") else {
+        panic!()
+    };
+    assert_eq!(values(&choices), ["true", "false"]);
+    // 自由入力: 語彙の無い列挙（組み込みの `propellant`）・文字列
+    assert_eq!(input("propellant"), AttrInput::Text);
+    assert_eq!(input("note"), AttrInput::Text);
+    // 参照: 役割で絞った部品。役割を書かなければ全部品。表示名は部品の label
+    let AttrInput::Reference {
+        what,
+        roles,
+        choices,
+        add_command,
+    } = input("tank_of")
+    else {
+        panic!()
+    };
+    assert_eq!((what, roles), (RefKind::Part, vec![Role::PropellantTank]));
+    assert_eq!(values(&choices), ["XE_TANK"]);
+    assert_eq!(choices[0].label, "Xenon tank (demo)");
+    assert!(add_command.is_some());
+    let AttrInput::Reference { choices, .. } = input("any_part") else {
+        panic!()
+    };
+    assert_eq!(choices.len(), design.parts.len());
+    // 直せない: 値の型が理由
+    assert_eq!(
+        input("dir"),
+        AttrInput::ReadOnly {
+            reason: AttrReadOnlyReason::Vector
+        }
+    );
+    // 定義の無い属性は None
+    assert!(fixes::attr_input(&design, "no_such_attribute").is_none());
+}
+
+/// 設計の部品を指す属性が足りないときの候補は、値を打つ候補ではなく部品を選ぶ候補（書き先は `fune set` と同じパス）。
+#[test]
+fn missing_part_reference_attribute_offers_a_part_pick() {
+    let ws = demo();
+    let mut design = ws.snapshot().unwrap().design;
+    design.attributes.insert(
+        "tank_of".into(),
+        serde_json::from_value(json!({
+            "label": "Tank", "type": "text", "references": "part", "reference_roles": ["propellant_tank"]
+        }))
+        .unwrap(),
+    );
+    match fixes_of(&design, Target::attr("EPT", "tank_of")).as_slice() {
+        [
+            Fix::PickRef {
+                what,
+                roles,
+                choices,
+                path,
+                command,
+                ..
+            },
+        ] => {
+            assert_eq!(*what, RefKind::Part);
+            assert_eq!(roles, &[Role::PropellantTank]);
+            assert_eq!(values(choices), ["XE_TANK"]);
+            assert_eq!(path, "EPT.tank_of");
+            assert!(command.contains("EPT.tank_of"), "{command}");
+        }
+        other => panic!("{other:?}"),
+    }
+}
+
+/// `GET /defs` の各属性の `input` は `attr_input` と同じ（Web が型で分けず、API の記述を使う）。
+#[test]
+fn defs_carry_the_input_of_every_attribute() {
+    use fune_service::dto::AttrInput;
+    let ws = demo();
+    let design = ws.snapshot().unwrap().design;
+    let defs = fune_service::query::defs_view(&ws).unwrap();
+    for a in &defs.attributes {
+        assert_eq!(
+            Some(&a.input),
+            fixes::attr_input(&design, &a.id).as_ref(),
+            "{}",
+            a.id
+        );
+    }
+    let get = |id: &str| &defs.attributes.iter().find(|a| a.id == id).unwrap().input;
+    assert!(matches!(get("mass"), AttrInput::Quantity { .. }));
+    assert_eq!(get("material"), &AttrInput::Text);
 }

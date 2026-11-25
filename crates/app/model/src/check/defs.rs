@@ -61,6 +61,15 @@ pub fn attribute_def_problems(def: &AttributeDef) -> Vec<(&'static str, String)>
             "A field-of-view axis can only be given to a scalar (the half angle)".to_string(),
         ));
     }
+    if (def.references.is_some() && def.value_type != ValueType::Text)
+        || (def.references.is_none() && !def.reference_roles.is_empty())
+    {
+        out.push((
+            "def.references",
+            "`references` can only be given to a text attribute, and `reference_roles` needs `references`"
+                .to_string(),
+        ));
+    }
     match &def.dimension {
         Some(dim) => {
             if parse_dimension_name(dim).is_err() {
@@ -289,6 +298,34 @@ mod tests {
         vec.value_type = ValueType::Vec3;
         vec.fov_axis = Some(Id::new("boresight"));
         assert_eq!(attribute_def_problems(&vec)[0].0, "def.fov_axis");
+    }
+
+    /// 参照先（`references`）は文字列の属性だけ、役割の絞り込みは参照先とともにだけ書ける。
+    #[test]
+    fn references_belong_to_text_attributes() {
+        use crate::design::AttrReference;
+        // 文字列の属性（次元・単位なし）
+        let text = |id: &str| {
+            let mut d = def(id);
+            d.value_type = ValueType::Text;
+            d.dimension = None;
+            d.units.clear();
+            d.display_unit = None;
+            d.min = None;
+            d.max = None;
+            d.default = None;
+            d
+        };
+        let mut ok = text("tank_of");
+        ok.references = Some(AttrReference::Part);
+        ok.reference_roles = vec![crate::role::Role::PropellantTank];
+        assert!(attribute_def_problems(&ok).is_empty());
+        let mut scalar = def("tank_of");
+        scalar.references = Some(AttrReference::Part);
+        assert_eq!(attribute_def_problems(&scalar)[0].0, "def.references");
+        let mut roles_only = text("tank_of");
+        roles_only.reference_roles = vec![crate::role::Role::Battery];
+        assert_eq!(attribute_def_problems(&roles_only)[0].0, "def.references");
     }
 
     /// 部品・カタログ品のフィールド名と同じ属性 ID は error（対象は属性定義）。大文字小文字を変えても同じ。

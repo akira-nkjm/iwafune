@@ -42,6 +42,8 @@ fn attr_text(a: &AttrAddArgs) -> AttrAddText {
         budget: a.budget.clone(),
         unit_vector: a.unit_vector,
         fov_axis: a.fov_axis.clone(),
+        references: a.references.clone(),
+        reference_roles: list(&a.reference_roles),
         section: a.section.clone(),
     }
 }

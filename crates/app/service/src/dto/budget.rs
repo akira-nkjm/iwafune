@@ -115,6 +115,10 @@ pub enum BudgetPropellant {
         loaded: QuantityView,
         /// 推薬込み（wet）の合計・余裕・判定・塗りの比
         wet: Box<BudgetTotal>,
+        /// タンクごとの積む推薬と容積の余裕（`propulsion.propellant` の `tanks`。入力のタンクの順。タンクが無ければ省略。合計は `loaded`）
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        #[ts(optional, as = "Option<Vec<BudgetPropellantTank>>")]
+        tanks: Vec<BudgetPropellantTank>,
     },
     /// 推進系が無い（マヌーバも推進系の部品も無い）ので数えない
     NoPropulsion,
@@ -125,6 +129,21 @@ pub enum BudgetPropellant {
         /// 解析の誤りの文
         message: String,
     },
+}
+
+/// 質量のバジェットの推薬のうちタンク 1 つの分（`BudgetPropellant::Counted.tanks`）。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct BudgetPropellantTank {
+    /// タンクの部品の ID
+    pub id: String,
+    /// 推薬の名前
+    pub propellant: Option<String>,
+    /// このタンクに積む推薬（マヌーバとアンロードの分）
+    pub loaded: QuantityView,
+    /// タンクに入れられる推薬の質量（容積 × 密度。密度が無ければ null）
+    pub capacity: Option<QuantityView>,
+    /// 容積の余裕（比。`display` は `"10.0 %"`。判定できなければ null）
+    pub margin: Option<QuantityView>,
 }
 
 /// 合計と上限の比較（推薬込みの合計など）。

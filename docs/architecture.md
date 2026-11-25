@@ -364,7 +364,7 @@ Every analysis implements `sat_analysis::spec::Analysis`.
 
 An analysis runs as follows (`fune_service::analysis::run_analysis`. `fune analyze <ID>` and `POST /analyses/{id}` call it).
 
-1. Load the design and build Resolved (if there are `ops`, apply them without writing).
+1. Load the design and build Resolved (if there are `ops`, apply them without writing). A request that runs several analyses or budgets (the requirement compliance table, the report export, the Power mode view) loads and checks the design once in a `fune_service::session::Session`, which keeps the result of each analysis and budget per case and reuses it; a single analysis opens a session of its own.
 2. fune-projection builds that analysis's `Input` from a context that includes the analysis case (`cases/<ID>.toml`; the default if omitted).
    The correspondence between analysis IDs and projections is in one place, `fune_projection::dispatch`.
 3. If any input is missing, it returns `missing_inputs` without calling the analysis. `missing_inputs` expresses what is missing as a parameter path (`RW_X.max_momentum`, `conditions.orbit.altitude`) and a reason,
@@ -406,7 +406,9 @@ The physics and mathematics building blocks that analyses use are in sat-astro, 
 The input specifications (`OrbitSpec`, `GroundStation`, etc.) take typed quantities, and internal functions pass f64 SI values.
 The orbit propagation that the design data passes to analyses is either two-body plus the secular term of J2 (the default) or two-body only.
 
-### 6.5 External data (DE440)
+### 6.5 External data (release datasets: DE440)
+
+Data that is too large or too restricted for git or the binary is placed in this repository's releases and fetched on demand. **A dataset is one row of a single typed table** (`RELEASE_DATASETS` in `fune_service::data`; the row type is `release::Dataset`): id, cache file name (= release asset name), repository and tag, expected SHA-256 and size, what uses it, the source/licence text shown to the user, and the installer (a function that receives the bytes and registers them with the consumer, for example sat-astro). Status, fetch, and the registration at CLI/server startup (`install_cached_datasets`) are all driven by that table, so adding a dataset is one row plus its installer. The space-weather table (§6.6) is fetched differently (daily updates, no fixed hash) and is listed after the table's rows in `fune data status`. DE440 is the first row:
 
 The DE440 ephemeris (`de440.bin`, about 20.7 MB. JPL DE440 converted into a format that sat-astro reads) is not put in git and is placed in this repository's release (tag `data-de440-v1`).
 
@@ -429,6 +431,30 @@ and monthly predictions beyond that). Because it is updated every day, it is put
   F10.7 is the previous day's observed value, the 81-day average is the centered average for that day, and Ap is the daily mean of that day (and, if the 3-hour values are complete, also the 3-hour Ap history of NRLMSISE-00).
   Values outside the table's range or blank fall back to the solar activity presets (the long-term values of ECSS-E-ST-10-04C Table 6-3), and the source of each value and the version of the table used
   (fetch time, SHA-256, and the last day of observation and prediction) are returned. The analysis keeps this version in its result. If F10.7 and Ap are given by hand (`AtmosphereModel::Nrlmsise00`), they take precedence.
+
+### 6.7 Geomagnetic field coefficients (format of the distribution file)
+
+`sat_astro::geomag::GaussModel` holds an internal-origin field as Gauss coefficients (Schmidt quasi-normalised, nT) at an epoch, with a secular variation. It is read from bytes by
+`GaussModel::from_text_bytes` (and written back by `to_text`), so sat-astro does no file I/O; the coefficient sets will arrive later as fetched data. The text format is our own, one file per model:
+
+```text
+# comment (everything after # on a line is ignored; blank lines are ignored)
+name: free text
+epoch: 2025-01-01T00:00:00Z      # ISO 8601, required: the epoch of g and h
+radius_km: 6371.2                # required: reference radius a
+# n m g h [g_dot h_dot]          # nT, and nT/year; the two secular columns may be omitted (0)
+1 0 -29350.0 0.0 12.0 0.0
+1 1 -1410.0 4545.0 8.0 -20.0
+```
+
+Header lines are `key: value` (`name`, `epoch`, `radius_km`); every other line is one coefficient. There is no maximum-degree line: the degree is the largest `n` present (up to 50), and missing terms are 0.
+The same `(n, m)` twice, `m > n`, `h` other than 0 for `m = 0`, and non-finite numbers are errors. The potential is `V = a Σ (a/r)^(n+1) (g cos mφ + h sin mφ) P_n^m(cos θ)` and `B = −∇V`;
+the coefficients at time `t` are `g + ġ (t − epoch)` with the elapsed time in Julian years (extrapolation is the same linear rule).
+
+`FieldSnapshot::l_shell` returns McIlwain's L and B/B₀ (`geomag::lshell`). L is in units of the reference radius, from the second invariant I along the field line through the point and
+`L³B/M = F(I³B/M)`, where F is solved from its definition (the centred dipole), not from a published polynomial. M is the model's own degree-1 moment by default (`MomentConvention::ModelDipole`,
+so a centred dipole gives L = r_eq/a exactly); a fixed equatorial strength can be given (`MomentConvention::Fixed`) when L must match maps built with a fixed moment. A line that does not close within
+`max_radius_ref` (default 12) reference radii gives a typed `NoL`, not a number.
 
 ## 7. Mechanical checks
 

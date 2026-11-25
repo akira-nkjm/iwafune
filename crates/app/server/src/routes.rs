@@ -45,7 +45,7 @@ pub fn router(workspace: Arc<Workspace>) -> Router {
 
 /// Host の許可リストを指定したルーター（`fune gui --host 0.0.0.0 --allow-host …` 用）。
 pub fn router_with(workspace: Arc<Workspace>, hosts: HostPolicy) -> Router {
-    fune_service::data::install_cached_ephemeris();
+    fune_service::data::install_cached_datasets();
     let hosts = Arc::new(hosts);
     let api = Router::new()
         .route("/project", get(design::project))
