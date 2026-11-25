@@ -5,7 +5,7 @@
 //!   KPI と判定（`sap_margin`・`battery_margin`・`mode_checks`）はこちらで行う（`basis`）。判定できなければ SMAD で行う。
 use super::battery::EnergyBalanceBattery;
 use super::energy_balance::{EnergyBalanceSegment, ModeTiming, SequenceTiming};
-use super::mode_load::{ModeLoad, ModeLoadInput};
+use super::mode_load::{ModeLoad, ModeLoadInput, ModeLoadOutput};
 use super::solar::{SolarArray, SolarPanel};
 use crate::orbit::{
     EclipseSeason, EclipseSeasonInput, EclipseSeasonPoint, sun_distance_extremes_over,
@@ -305,7 +305,8 @@ impl Analysis for Sizing {
         let mismatch = combined.mismatch_check();
         let battery = combined.battery;
         let used = used(input, &battery)?;
-        let loads = loads(input)?;
+        // モードの負荷は 1 回の実行で 1 度だけ求める（SMAD の逆算も時系列の逆算も同じ出力を使う）
+        let (loads, mode_loads) = loads(input)?;
         let mut checks: Vec<Check> = mismatch.into_iter().collect();
         let season = EclipseSeason::run(&input.season)?;
         let (period, te) = (
@@ -324,6 +325,7 @@ impl Analysis for Sizing {
                 design_area: design_area.value(),
                 longest: &season.longest,
                 loads: &loads,
+                mode_loads: &mode_loads,
                 smad: &modes,
             },
         )?;

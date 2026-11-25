@@ -138,14 +138,18 @@ pub(super) struct ModeLoads {
     pub eclipse: f64,
 }
 
-/// 逆算の対象モードの負荷。値が不足するモードがあれば入力エラー（判定は出さない）。
-pub(super) fn loads(input: &SizingInput) -> Result<Vec<ModeLoads>, AnalysisError> {
+/// 逆算の対象モードの負荷と、全モードの負荷の内訳（`power.mode_load` の出力。時系列の逆算も使う）。
+/// 値が不足するモードがあれば入力エラー（判定は出さない）。
+pub(super) fn loads(
+    input: &SizingInput,
+) -> Result<(Vec<ModeLoads>, ModeLoadOutput), AnalysisError> {
     if input.loads.parts.is_empty() {
         return Err(AnalysisError::InvalidInput("No load parts".into()));
     }
-    let modes = ModeLoad::run(&input.loads)?.modes;
+    let output = ModeLoad::run(&input.loads)?;
     let mut loads = Vec::new();
-    for m in modes
+    for m in output
+        .modes
         .iter()
         .filter(|m| input.mode.as_ref().is_none_or(|id| *id == m.id))
     {
@@ -167,7 +171,7 @@ pub(super) fn loads(input: &SizingInput) -> Result<Vec<ModeLoads>, AnalysisError
     if loads.is_empty() {
         return Err(AnalysisError::InvalidInput("No target modes".into()));
     }
-    Ok(loads)
+    Ok((loads, output))
 }
 
 /// 設計の SAP 面積と、逆算に使う SAP。

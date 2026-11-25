@@ -4,13 +4,14 @@
 //! 電池の積分・周回の収支・最長継続時間の最悪の開始・並びの切り替えは、電力収支の評価（`case`・`duration`・`sequence`）を
 //! そのまま通す。判定に使う運用（[`EnergyBalanceEvaluation`]）も電力収支と同じ規則で決まる。
 
-use super::context::{Context, LawGeneration, law_generation, profile, with_law};
+use super::context::{Context, LawGeneration, Profiles, law_generation};
 use super::{
     EnergyBalanceBattery, EnergyBalanceEvaluation, EnergyBalanceInput, SolarProfile, case,
     duration, sequence,
 };
 use crate::spec::AnalysisError;
 use sat_astro::orbit::Cycle;
+use std::rc::Rc;
 
 /// 倍率をかけたときの、判定に使う運用での値。
 #[derive(Debug, Clone)]
@@ -30,9 +31,11 @@ pub struct ScaledBalance<'a> {
     battery: EnergyBalanceBattery,
     cycle: Cycle,
     /// 上段の姿勢則（`timeline.attitude`）での時系列
-    main: SolarProfile,
+    main: Rc<SolarProfile>,
     /// ケースごとの姿勢則での時系列（ケースが姿勢則を替えるときだけ）
-    own: Vec<Option<SolarProfile>>,
+    own: Vec<Option<Rc<SolarProfile>>>,
+    /// 姿勢則ごとの時系列の作り置き（`main`・`own` と同じもの）
+    profiles: Profiles<'a>,
     /// 基本のモードと並びのモードの姿勢則での発電（倍率をかける前）
     laws: LawGeneration,
 }
@@ -44,15 +47,11 @@ impl<'a> ScaledBalance<'a> {
         input.array.validate()?;
         crate::power::mode_load::validate(&input.loads)?;
         sequence::validate(input)?;
+        let profiles = Profiles::new(input);
         let own = input
             .cases
             .iter()
-            .map(|c| {
-                c.attitude
-                    .as_ref()
-                    .map(|law| profile(input, &with_law(input, law)))
-                    .transpose()
-            })
+            .map(|c| c.attitude.as_ref().map(|law| profiles.get(law)).transpose())
             .collect::<Result<_, _>>()?;
         let mut laws = LawGeneration::new();
         let base = input
@@ -61,14 +60,15 @@ impl<'a> ScaledBalance<'a> {
             .chain(input.sequence.first().map(|s| &s.mode));
         for mode in base.chain(input.sequence.iter().map(|s| &s.mode)) {
             if !laws.contains_key(mode)
-                && let Some(g) = law_generation(input, mode)?
+                && let Some(g) = law_generation(&profiles, mode)?
             {
                 laws.insert(mode.clone(), g);
             }
         }
         Ok(Self {
             cycle: input.timeline.orbit().cycle(),
-            main: profile(input, &input.timeline)?,
+            main: profiles.main()?,
+            profiles,
             input,
             battery,
             own,
@@ -127,6 +127,13 @@ impl<'a> ScaledBalance<'a> {
     }
 
     fn context<'s>(&'s self, profile: &'s SolarProfile, scale: f64) -> Context<'s> {
-        Context::new(self.input, &self.battery, profile, self.cycle).scaled(scale, &self.laws)
+        Context::new(
+            self.input,
+            &self.battery,
+            profile,
+            &self.profiles,
+            self.cycle,
+        )
+        .scaled(scale, &self.laws)
     }
 }
