@@ -1,0 +1,7 @@
+[
+  { "id": "CHARGE", "label": "Charge", "shows_name": true },
+  { "id": "CHARGE", "label": null, "shows_name": false },
+  { "id": "CHARGE", "label": "", "shows_name": false },
+  { "id": "CHARGE", "label": "   ", "shows_name": false },
+  { "id": "CHARGE", "label": "CHARGE", "shows_name": false }
+]

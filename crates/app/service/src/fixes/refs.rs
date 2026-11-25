@@ -97,7 +97,7 @@ pub(super) fn catalog_item(design: &Design, s: &SettingPath) -> Option<Fix> {
         .filter(|c| design.is_launch_kind_of(c.kind.as_str(), which))
         .map(|c| Choice {
             value: c.id.to_string(),
-            label: c.label.clone().unwrap_or_else(|| c.id.to_string()),
+            label: fune_model::display_name::name_or_id(c.label.as_deref(), c.id.as_str()),
             label_en: c.label_en.clone(),
         })
         .collect();
@@ -190,7 +190,7 @@ fn configuration(design: &Design, site: Site<'_>, command: String) -> Fix {
         .values()
         .map(|c| Choice {
             value: c.id.to_string(),
-            label: c.label.clone().unwrap_or_else(|| c.id.to_string()),
+            label: fune_model::display_name::name_or_id(c.label.as_deref(), c.id.as_str()),
             label_en: c.label_en.clone(),
         })
         .collect();
@@ -219,7 +219,7 @@ pub(super) fn orbit_maneuver(
         .filter(|m| m.transfer.is_some())
         .map(|m| Choice {
             value: m.id.to_string(),
-            label: m.label.clone().unwrap_or_else(|| m.id.to_string()),
+            label: fune_model::display_name::name_or_id(m.label.as_deref(), m.id.as_str()),
             label_en: None,
         })
         .collect();

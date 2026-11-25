@@ -110,7 +110,7 @@ fn show(ws: &Workspace, id: &str, out: &Out) -> Handled {
 }
 
 fn print_phase(p: &PhaseView, out: &Out) {
-    out.heading(&format!("{} ({})", p.label, p.id));
+    out.heading(&query::name_with_id(Some(&p.label), &p.id));
     let line = |key: &str, value: String| {
         if !value.is_empty() {
             println!("  {:<10} {value}", out.dim(key));

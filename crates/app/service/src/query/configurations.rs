@@ -17,7 +17,7 @@ fn view(design: &Design, c: &Configuration) -> ConfigurationView {
     let id = c.id.as_str();
     ConfigurationView {
         id: id.to_owned(),
-        label: c.label.clone().unwrap_or_else(|| id.to_owned()),
+        label: fune_model::display_name::name_or_id(c.label.as_deref(), id),
         label_en: c.label_en.clone(),
         description: c.description.clone(),
         overridden: c.pose.keys().map(ToString::to_string).collect(),
