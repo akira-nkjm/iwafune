@@ -40,6 +40,7 @@ export function AddPartDialog({
   onDone,
   initialGroup,
   initialCatalog,
+  narrow,
 }: {
   design: DesignView;
   open: boolean;
@@ -49,17 +50,26 @@ export function AddPartDialog({
   initialGroup?: string | null;
   /** 選んだ状態で開くカタログの品の ID */
   initialCatalog?: string | null;
+  /** 選べる種別とカタログの品を絞る（足りない入力の直しの「その役割の部品を足す」。API が候補を返す。両方空なら絞らない） */
+  narrow?: { kinds: readonly string[]; catalogItems: readonly string[] };
 }) {
   const t = useT();
   const ta = t.components.addPart;
   const [id, setId] = useState("");
   const groups = parentOptions(design);
-  const options = pickOptions(design);
+  const allowCatalog = narrow?.catalogItems ?? [];
+  const allowKinds = narrow?.kinds ?? [];
+  const options = pickOptions(design).filter(
+    (o) => allowCatalog.length === 0 || allowCatalog.includes(o.id),
+  );
+  const kindOptions = design.defs.kinds.filter(
+    (k) => allowKinds.length === 0 || allowKinds.includes(k.id),
+  );
   const init = initialAddPart(design, groups, initialCatalog, initialGroup);
   const [group, setGroup] = useState(init.group);
   // 置き場を人が選んだら、品を選び直しても上書きしない
   const [groupTouched, setGroupTouched] = useState(false);
-  const [by, setBy] = useState<DefBy>(init.by);
+  const [by, setBy] = useState<DefBy>(options.length === 0 ? "kind" : init.by);
   const [catalog, setCatalog] = useState(init.catalog);
   const [kind, setKind] = useState("");
   const pickCatalog = (next: string) => {
@@ -145,7 +155,7 @@ export function AddPartDialog({
             value={kind}
             onChange={(e) => setKind(e.target.value)}
             placeholder={ta.pickKind}
-            options={design.defs.kinds.map((k) => ({ value: k.id, label: defWithId(k) }))}
+            options={kindOptions.map((k) => ({ value: k.id, label: defWithId(k) }))}
           />
         )}
       </div>

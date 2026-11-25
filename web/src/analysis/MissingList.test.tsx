@@ -79,3 +79,43 @@ it("カタログ品を指す欄の行は、カタログ品を選ぶ操作を出�
   );
   expect(html).toContain(`>${t.pick.action.catalog_item}</button>`);
 });
+
+it("役割の部品を足す・割り当てる・部品に値を入れる候補は、その場のダイアログを開くボタンにする", () => {
+  const t = getT().fixes;
+  const html = render(
+    <MissingList
+      design={undefined}
+      missing={[
+        withFixes([
+          {
+            kind: "add_part",
+            roles: ["battery"],
+            kinds: ["battery"],
+            catalog_items: [],
+            command: "",
+          },
+          {
+            kind: "assign_part",
+            roles: ["battery"],
+            kinds: ["battery"],
+            parts: ["OBC"],
+            command: "",
+          },
+          {
+            kind: "set_value_on_part",
+            attr: "capacity",
+            dimension: null,
+            example: null,
+            choices: [],
+            parts: ["BAT"],
+            command: "",
+          },
+        ]),
+      ]}
+    />,
+  );
+  expect(html).toContain(`>${t.addPart}</button>`);
+  expect(html).toContain(`>${t.assignPart}</button>`);
+  expect(html).toContain(`>${t.setOnPart}</button>`);
+  expect(html).not.toContain("<a ");
+});

@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 import type { DesignView, Fix, ManeuverView, MissingInput } from "@/api/types";
 import { fixture } from "@/test/fixture";
 import { choiceLabel } from "./MissingPickDialog";
-import { pickEdit, rowActions, valueSetText } from "./missing-fix";
+import { type PartFix, partSetText, pickEdit, rowActions, valueSetText } from "./missing-fix";
 
 const valueFix: Extract<Fix, { kind: "set_value" }> = {
   kind: "set_value",
@@ -57,14 +57,9 @@ it("候補の種類ごとに、その場の編集か既存のページへの道�
       { kind: "add_list_item", list: "mode", command: "fune mode add <ID>" },
     ]),
   );
-  expect(actions.map((a) => a.kind)).toEqual(["value", "pick", "link", "link", "link", "link"]);
+  expect(actions.map((a) => a.kind)).toEqual(["value", "pick", "add_part", "part", "part", "link"]);
   const links = actions.flatMap((a) => (a.kind === "link" ? [a.to] : []));
-  expect(links).toEqual([
-    "/design/components?new=1",
-    "/design/components",
-    "/design/components",
-    "/design/modes",
-  ]);
+  expect(links).toEqual(["/design/modes"]);
   expect(rowActions(missing([]))).toEqual([]);
 });
 
@@ -158,4 +153,35 @@ it("カタログ品を選ぶと、欄のパスにカタログの参照を `from_
 
 it("選べるものの表示は、表示名があれば値を添え、無ければ値だけ", () => {
   expect(launcherFix.choices.map(choiceLabel)).toEqual(["Alpha (local/lv_alpha)", "local/lv_beta"]);
+});
+
+it("部品を選んで書く編集: 値を入れる候補は <部品>.<属性>、割り当てる候補は <部品>.kind に送る", () => {
+  const set: PartFix = {
+    kind: "set_value_on_part",
+    attr: "max_momentum",
+    dimension: "AngularMomentum",
+    example: null,
+    choices: [],
+    parts: ["RW_X"],
+    command: "",
+  };
+  const assign: PartFix = {
+    kind: "assign_part",
+    roles: ["battery"],
+    kinds: ["battery"],
+    parts: ["OBC"],
+    command: "",
+  };
+  expect(partSetText(set, "RW_X", " 10 mN*m*s ")).toMatchObject({
+    item: null,
+    path: "RW_X.max_momentum",
+    value: "10 mN*m*s",
+  });
+  expect(partSetText(assign, "OBC", "battery")).toMatchObject({
+    path: "OBC.kind",
+    value: "battery",
+  });
+  // 部品か値が空なら何も送らない
+  expect(partSetText(set, "", "1")).toBeNull();
+  expect(partSetText(assign, "OBC", "")).toBeNull();
 });
