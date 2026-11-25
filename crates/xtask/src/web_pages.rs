@@ -48,11 +48,6 @@ const FEATURE_EDGES: &[(&str, &str, &str)] = &[
         "the attribute creation arguments (`attrAddCommand`) are shared with adding a part parameter",
     ),
     (
-        "catalog",
-        "components/AddPartDialog",
-        "the catalog item detail adds that item to the design with the same dialog as the parts page (the dialog is used from two pages, but it is a part-creation form, so it stays with the parts)",
-    ),
-    (
         "diagram",
         "components/detail/PartDetail",
         "the system diagram detail shows the part detail",
