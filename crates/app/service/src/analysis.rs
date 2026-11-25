@@ -249,11 +249,7 @@ fn run_inner(
                 Err(ProjectionError::Missing(m)) => {
                     return Ok(Outcome {
                         status: AnalysisRunStatus::MissingInputs,
-                        missing: crate::fixes::complete(
-                            &snapshot.design,
-                            &snapshot.resolved,
-                            m.into_vec(),
-                        ),
+                        missing: crate::fixes::complete(snapshot, m.into_vec()),
                         error: None,
                         configuration,
                         ..Outcome::failed(String::new())

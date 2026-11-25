@@ -26,6 +26,8 @@ export function MissingPartDialog({
   const [value, setValue] = useState(assign && fix.kinds.length === 1 ? (fix.kinds[0] ?? "") : "");
   const onChange = useCallback((text: string) => setValue(text), []);
   const made = useTextOp(partSetText(fix, part, value));
+  // 単位付きの入力欄（QuantityInput）は id を自分で持ち、aria-label で名前を持つので、ラベルの `for` は付けない（ほかのダイアログと同じ）
+  const quantityInput = !assign && fix.choices.length === 0 && fix.dimension !== null;
   const choice = (v: string) => ({ value: v, label: v });
   return (
     <OpDialog
@@ -61,7 +63,7 @@ export function MissingPartDialog({
       {!assign && (
         <Field
           label={t.value}
-          htmlFor="missing-part-value"
+          htmlFor={quantityInput ? undefined : "missing-part-value"}
           hint={fix.example ? t.example(fix.example) : undefined}
         >
           {fix.choices.length > 0 ? (

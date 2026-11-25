@@ -28,9 +28,7 @@ pub fn budget(ws: &Workspace, kind: BudgetKind, req: &BudgetRequest) -> Result<B
     let mut view = header(&s.design, kind, req.case.clone());
     match count(&s, kind, req.case.as_deref()) {
         Ok(counted) => fill(&s.design, &mut view, counted)?,
-        Err(Uncounted::Missing(m)) => {
-            view.missing = crate::fixes::complete(&s.design, &s.resolved, m.into_vec())
-        }
+        Err(Uncounted::Missing(m)) => view.missing = crate::fixes::complete(&s, m.into_vec()),
         Err(Uncounted::Failed(e)) => return Err(e),
     }
     Ok(view)
@@ -124,7 +122,7 @@ fn count(s: &Snapshot, kind: BudgetKind, case: Option<&str>) -> Result<Counted, 
     };
     Ok(match kind {
         BudgetKind::Mass => Counted {
-            propellant: Some(propellant::load(&ctx)),
+            propellant: Some(propellant::load(s, &ctx)),
             ..plain(mass_items(&ctx), uncounted::mass(s))
         },
         BudgetKind::Power => {
