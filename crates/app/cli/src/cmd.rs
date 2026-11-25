@@ -59,7 +59,7 @@ use fune_service::Workspace;
 
 /// コマンドを実行して終了コードを返す。
 pub fn run(cli: &Cli, out: &Out) -> anyhow::Result<u8> {
-    fune_service::data::install_cached_ephemeris();
+    fune_service::data::install_cached_datasets();
     let g = &cli.global;
     match &cli.command {
         Command::Units(c) => units::run(c, out),
