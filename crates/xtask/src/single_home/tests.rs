@@ -217,6 +217,28 @@ fn roles_and_off_state_have_one_home() {
     );
 }
 
+/// 読み直し中に中身を薄くする class（`opacity-55`）は kit/feedback だけが持つ。
+#[test]
+fn refresh_dimming_comes_from_kit_feedback() {
+    let rule = WEB_RULES.iter().find(|r| r.0 == "opacity-55").unwrap();
+    let line = "item.updating && \"opacity-55\",";
+    let mut errors = Vec::new();
+    check_rule(
+        "web/src/kit/feedback/Refreshable.tsx",
+        line,
+        rule,
+        &mut errors,
+    );
+    assert!(errors.is_empty());
+    check_rule(
+        "web/src/analysis/AnalysisTable.tsx",
+        line,
+        rule,
+        &mut errors,
+    );
+    assert_eq!(errors.len(), 1);
+}
+
 /// 待ちを示す動くロゴ（`MarkLoader`・`mark-glow`）は kit/feedback の部品だけが使い、画面は `Working` などを通す。
 #[test]
 fn animated_logo_comes_from_kit_feedback() {
