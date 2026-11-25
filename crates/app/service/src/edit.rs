@@ -17,6 +17,7 @@
 //! | `phase` | `fune phase add\|set\|set-field` と `fune case set-phase` の引数（[`phase_op`]・[`phase_field_op`]・[`case_phase_op`]。逆の向きは `query::phases`） |
 //! | `ground` | `fune ground add` の引数（[`ground_add_op`]） |
 //! | `link` | `fune link add` の引数（[`link_add_op`]） |
+//! | `case` | `fune case set` の引数（[`case_set_op`]。ケースを丸ごと書く `SetCase`） |
 //! | `project` | `fune project set\|unset` の引数（[`project_field_op`]） |
 //! | `group` | `fune part mv|add` の置き先 `aocs/RW`（[`group_target`]。ID の列に読む） |
 //! | `thermal` | 熱の結合・表面材・面の割合の下書き（[`thermal_set_ops`]。`fune set|unset analysis.thermal.…` と同じ `SetSetting` の列） |
@@ -31,6 +32,7 @@ use fune_ops::{ApplyOptions, Op};
 use fune_store::FileSet;
 use std::path::{Component, Path, PathBuf};
 
+mod case;
 mod catalog;
 mod command;
 mod configuration;
@@ -53,6 +55,7 @@ mod text;
 mod thermal;
 mod window;
 
+pub use case::case_set_op;
 pub use catalog::{catalog_local_add_op, catalog_source_add_op};
 pub use command::{
     command_ops, duty_from_text, mode_duration_op, mode_move_op, mode_set_op, mode_timing_op,

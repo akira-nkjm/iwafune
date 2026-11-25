@@ -6,8 +6,8 @@ use crate::args::{
     ManeuverArgs, ManeuverCmd, SourceArgs, SourceCmd,
 };
 use fune_service::dto::{
-    Case, CatalogLocalAddText, CatalogSourceAddText, GroundAddText, Harness, ManeuverText, Op,
-    Source,
+    Case, CaseSetText, CatalogLocalAddText, CatalogSourceAddText, GroundAddText, Harness,
+    ManeuverText, Op, Source,
 };
 use fune_service::edit;
 
@@ -42,30 +42,24 @@ pub fn case(c: &CaseCmd) -> Built<'_> {
     })
 }
 
+/// `fune case set` の引数 → `SetCase`（旗の読み方は service の `case_set_op`。GUI の欄も同じ関数を通る）。
 fn case_of(a: &CaseArgs) -> anyhow::Result<Case> {
-    let value = serde_json::json!({
-        "label": a.label,
-        "description": a.description,
-        "mode": a.mode,
-        "phase": a.phase,
-        "side": a.side,
-        "thermal_case": a.thermal_case,
-        "orbits": a.orbits,
-        "epoch": a.epoch,
-    });
-    let mut case: Case = serde_json::from_value(value)
-        .map_err(|e| anyhow::anyhow!("Cannot create the analysis case: {e}"))?;
-    case.id = a.id.as_str().into();
-    case.beta = a
-        .beta
-        .as_deref()
-        .map(edit::quantity_from_text)
-        .transpose()?;
-    case.sun_distance = a
-        .sun_distance
-        .as_deref()
-        .map(edit::quantity_from_text)
-        .transpose()?;
+    let Op::SetCase { case } = edit::case_set_op(&CaseSetText {
+        id: a.id.clone(),
+        label: a.label.clone(),
+        description: a.description.clone(),
+        mode: a.mode.clone(),
+        phase: a.phase.clone(),
+        side: a.side.clone(),
+        thermal_case: a.thermal_case.clone(),
+        beta: a.beta.clone(),
+        orbits: a.orbits.map(|n| n.to_string()),
+        sun_distance: a.sun_distance.clone(),
+        epoch: a.epoch.clone(),
+    })?
+    else {
+        anyhow::bail!("Cannot create the analysis case");
+    };
     Ok(case)
 }
 
