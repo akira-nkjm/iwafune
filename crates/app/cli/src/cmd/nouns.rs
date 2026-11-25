@@ -274,10 +274,13 @@ pub fn setting<'a>(ws: &Workspace, c: &'a SettingCmd) -> Built<'a> {
             (edit::set_op(ws, &text)?, e)
         }
         SettingCmd::Unset { key, edit } => (
-            edit::unset_op(&UnsetText {
-                item: None,
-                path: key.clone(),
-            })?,
+            edit::unset_op(
+                ws,
+                &UnsetText {
+                    item: None,
+                    path: key.clone(),
+                },
+            )?,
             edit,
         ),
         SettingCmd::Ls => return Ok(None),

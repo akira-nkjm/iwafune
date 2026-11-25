@@ -130,8 +130,8 @@ pub use fune_model::design::{
     Source, SourceKind, StartFrom, StartRef, UncertaintySide,
 };
 pub use fune_model::design::{BudgetKind, SharedCatalogState, SharedCatalogStatus, StateAssign};
-pub use fune_model::design::{CaseField, PartField};
 pub use fune_model::design::{FindingKind, LinkDirection, ProjectField};
+pub use fune_model::design::{PartField, RecordKind, RecordValue};
 pub use fune_model::design::{ViewEdge, ViewLayout, ViewNode, ViewPortSide};
 pub use fune_model::path::PortRef;
 pub use fune_model::resolve::{Evidence, Origin};

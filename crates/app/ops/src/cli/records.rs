@@ -2,7 +2,7 @@
 
 use super::text::Cmd;
 use crate::op::Op;
-use fune_model::design::{Case, Harness, Maneuver, Pose, Source};
+use fune_model::design::{Case, Harness, Maneuver, Pose, RecordValue, Source};
 use fune_model::value::{list_to_text, quantity_to_text, quaternion_to_text, vector_to_text};
 
 /// 取付点・ケース・出典・ハーネスの Op のコマンド。該当しなければ None。
@@ -10,6 +10,12 @@ pub(super) fn record_op(op: &Op) -> Option<Vec<String>> {
     Some(vec![match op {
         Op::SetMountPoint { part, point, pose } => mount_point(part, point, pose.as_ref()),
         Op::SetCase { case } => case_cmd(case),
+        Op::SetRecordField {
+            record,
+            id,
+            field,
+            value,
+        } => record_field_cmd(record.as_str(), id, field, value.as_ref()),
         Op::RemoveCase { id } => Cmd::new(&["fune", "case", "rm", id]).done(),
         Op::SetSource { source, dir } => source_cmd(source, dir.as_deref()),
         Op::RemoveSource { id } => Cmd::new(&["fune", "source", "rm", id]).done(),
@@ -28,6 +34,20 @@ pub(super) fn record_op(op: &Op) -> Option<Vec<String>> {
         Op::RenameKind { id, to } => Cmd::new(&["fune", "kind", "rename", id, to]).done(),
         _ => return None,
     }])
+}
+
+/// 欄を 1 つ書くコマンド（`fune set <集まり>.<ID>.<欄> <値>`。外すなら `fune unset`）。
+fn record_field_cmd(
+    collection: &str,
+    id: &str,
+    field: &str,
+    value: Option<&RecordValue>,
+) -> String {
+    let path = format!("{collection}.{id}.{field}");
+    match value {
+        Some(v) => Cmd::new(&["fune", "set", &path]).arg(&v.to_text()).done(),
+        None => Cmd::new(&["fune", "unset", &path]).done(),
+    }
 }
 
 /// `fune ground add <ID> [--label …] [--latitude …] [--longitude …] [--altitude …] [--min-elevation …]`

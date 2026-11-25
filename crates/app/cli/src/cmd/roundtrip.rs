@@ -155,7 +155,7 @@ fn covers(op: &Op) -> &'static str {
         Op::UnsetPhaseLaw { .. } => "UnsetPhaseLaw",
         Op::SetCasePhase { .. } => "SetCasePhase",
         Op::SetCaseEpoch { .. } => "SetCaseEpoch",
-        Op::SetCaseField { .. } => "SetCaseField",
+        Op::SetRecordField { .. } => "SetRecordField",
         Op::CreateConfiguration { .. } => "CreateConfiguration",
         Op::SetConfiguration { .. } => "SetConfiguration",
         Op::RemoveConfiguration { .. } => "RemoveConfiguration",
