@@ -4,14 +4,16 @@
 //! - 格子は `plate_grid::PlateGrid`（粗い有限要素と共有）。法線は箱の最も薄い軸で、面内の (u, v) は法線から巡回順。
 //! - 升の節点の ID は `<部品>[i,j]`（0 始まり、u が先）。設計に書く名前は部品のまま（結合・発熱の場所・要求の key）。
 //! - 面内の伝導は隣り合う升の間に `G = k · t · (共有する辺の長さ) / (中心間の距離)`（k は材料の熱伝導率、t は板厚 = 最も薄い辺）。
-//! - 升の熱容量 = 部品の質量 × 升の面積の割合 × 員数 × 比熱。外面（入熱・宇宙への放射）と内部発熱は升の面積の割合で配る。
-//! - 部品全体への結合（明示・外殻・取付の既定値）は、解いた対ごとの値を升に配る。明示の結合と放射は升の面積の割合、取付の伝導は
+//! - 升の熱容量 = 部品の質量 × 升の面積の割合 × 員数 × 比熱。外面（入熱・宇宙への放射）と内部発熱は升の面積の割合で配る。ただし板の面（法線が板の法線の面）の
+//!   日照・覆い・向き合いは升の長方形ごとに求める（`structure::external_geometry::lit`。#456）ので、升の入熱は面積の割合のままではない。
+//! - 部品全体への結合（明示・外殻・取付の既定値）は、解いた対ごとの値を升に配る。明示の結合と放射は升の面積の割合（形態係数から出した放射は、升と相手の面の形態係数の割合。`spread_radiation`）、取付の伝導は
 //!   相手の箱と各升の接触面積の割合（`OrientedBox::contact_area` を升の箱に当てる。箱が許容差の外で接していなければ、相手の箱を板の面に
 //!   射影した形と升の重なりの面積）。どちらも決められない対は升の面積の割合で配り、
 //!   出力の `spread_by_area` に残す。配った合計は元の値と同じ（保存）。
 //! - 板に置けないものは入力の誤り: 板でない箱（最も薄い辺が次に薄い辺の 1/4 を超える）、[`MAX_CELLS`] を超える升の数、
 //!   部品が節点にまとめられている、固定温度の節点、熱伝導率が正でない。サーモスタット付きのヒータは単一の節点にしか置けない。
 
+use super::view_factors::CellMatrix;
 use super::{ThermalNode, ThermalNodePart};
 use crate::plate_grid::PlateGrid;
 use crate::spec::AnalysisError;
@@ -169,6 +171,31 @@ impl Plan {
             for &(j, y) in &wb {
                 let value = v * x * y;
                 if value != 0.0 || (wa.len() == 1 && wb.len() == 1) {
+                    out.push((i, j, value));
+                }
+            }
+        }
+        Ok(out)
+    }
+
+    /// 形態係数から出した放射の対 `a`–`b` の値 `v` を升の対に配る。`cells`（[`CellMatrix`]。板を升に分けた端があるときの、
+    /// 升の組ごとの割合）があり、升の数が合えばその割合で、なければ [`Plan::spread`] の面積の割合で配る。配った合計は `v`。
+    pub fn spread_radiation(
+        &self,
+        (a, b): (&str, &str),
+        v: f64,
+        cells: Option<&CellMatrix>,
+        unlocated: &mut BTreeMap<String, BTreeSet<String>>,
+    ) -> Result<Vec<(usize, usize, f64)>, AnalysisError> {
+        let (wa, wb) = (self.slots(a)?, self.slots(b)?);
+        let Some(m) = cells.filter(|m| m.na == wa.len() && m.nb == wb.len()) else {
+            return self.spread((a, b), v, false, unlocated);
+        };
+        let mut out = Vec::with_capacity(m.weight.len());
+        for (ia, &(i, _)) in wa.iter().enumerate() {
+            for (ib, &(j, _)) in wb.iter().enumerate() {
+                let value = v * m.weight[ia * m.nb + ib];
+                if value != 0.0 {
                     out.push((i, j, value));
                 }
             }

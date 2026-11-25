@@ -179,3 +179,38 @@ fn parts_outside_do_not_block() {
     assert!(before > 0.0);
     assert_eq!(before, after);
 }
+
+/// 升に分けた板の面（#456）: 板 "P"（0.2 × 0.2 × 0.01 m）の上面を 4 × 1 の升（u = x。x の境は −0.05・0・0.05）に分け、
+/// 真上 0.1 m の箱 "Q"（x ∈ [0, 0.1]、幅 0.2 m）の下面と向き合わせる。Q の真下は升 2・3 で、升 2 と 3 は Q の中心（x = 0.05）に対して対称なので
+/// 同じ値。Q の端に隣り合う升 1 は、遠い升 0 より大きい。升の `A_c F_cc'` の和は面全体の `A F`（遮蔽なし）に、求積の誤差（相対 1e-3）の範囲で一致する。
+/// 升に分けない設計（`cavity_views`）の面全体の値は変わらない。
+#[test]
+fn a_subdivided_plate_face_gets_per_cell_exchange_that_sums_to_the_face() {
+    let boxes = [
+        frame(),
+        b("P", [0.0; 3], [0.2, 0.2, 0.01]),
+        b("Q", [0.05, 0.0, 0.1], [0.1, 0.2, 0.01]),
+    ];
+    let plates = BTreeMap::from([("P".to_owned(), [4, 1])]);
+    let split = cavity_views_split(&boxes, &plates).unwrap();
+    let plain = cavity_views(&boxes).unwrap();
+    let (p, q) = (
+        face_of(&split, "P", Vec3::Z),
+        face_of(&split, "Q", -Vec3::Z),
+    );
+    let face = pair_between(&split, p, q).unwrap();
+    assert_eq!(face, pair_between(&plain, p, q).unwrap());
+    assert!(plain.cell_pairs.is_empty());
+    let cells = split.cell_pairs.get(&(p.min(q), p.max(q))).unwrap();
+    // 面の組は添字の小さい方が a。P の面の添字が小さければ (na, nb) = (4, 1)
+    assert_eq!((cells.na, cells.nb), if p < q { (4, 1) } else { (1, 4) });
+    let e = &cells.exchange;
+    assert!((e[2] - e[3]).abs() < 1e-12 * e[2], "{e:?}");
+    assert!(e[2] > e[1] && e[1] > e[0] && e[0] > 0.0, "{e:?}");
+    let sum: f64 = e.iter().sum();
+    assert!(
+        (sum / face.exchange - 1.0).abs() < 1e-3,
+        "{sum} {}",
+        face.exchange
+    );
+}

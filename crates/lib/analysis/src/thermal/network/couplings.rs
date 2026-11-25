@@ -11,7 +11,7 @@
 use super::enclosure_faces::face_nodes;
 use super::mount_contact::{ThermalContactPair, ThermalContactUsed};
 use super::mounts::{MountConductance, MountLinks};
-use super::view_factors::{ThermalViewFactorPair, ThermalViewFactorsUsed};
+use super::view_factors::{CellMatrix, ThermalViewFactorPair, ThermalViewFactorsUsed};
 use super::{ThermalNetwork, ThermalRadiativeLink};
 use crate::spec::AnalysisError;
 use crate::thermal::enclosure::{ThermalEnclosure, box_exchange};
@@ -151,8 +151,16 @@ fn explicit<T>(
     Ok(out)
 }
 
-/// 優先順位に従って、使う結合を決める。
+/// 優先順位に従って、使う結合を決める（升への配り方を使わない呼び出し。試験用）。
+#[cfg(test)]
 pub(super) fn resolve(net: &ThermalNetwork) -> Result<ThermalCouplings, AnalysisError> {
+    Ok(resolve_with_cells(net)?.0)
+}
+
+/// [`resolve`] に、形態係数の値のまま残った放射の対のうち、板を升に分けた端がある対の升への配り方を加えたもの。
+pub(super) fn resolve_with_cells(
+    net: &ThermalNetwork,
+) -> Result<(ThermalCouplings, BTreeMap<Pair, CellMatrix>), AnalysisError> {
     let MountLinks {
         conductive: mount_cond,
         radiative: mount_rad,
@@ -167,7 +175,7 @@ pub(super) fn resolve(net: &ThermalNetwork) -> Result<ThermalCouplings, Analysis
     let mut rad = mounted(&mount_rad, |l: &ThermalRadiativeLink| {
         (&l.a, &l.b, l.exchange_area.value())
     });
-    let (view_factors, mut view_details) = apply_view_factors(net, &mut rad)?;
+    let (view_factors, mut view_details, mut view_cells) = apply_view_factors(net, &mut rad)?;
     let enclosure = match &net.enclosure {
         Some(e) => Some(apply_enclosure(net, e, &mut rad)?),
         None => None,
@@ -181,7 +189,12 @@ pub(super) fn resolve(net: &ThermalNetwork) -> Result<ThermalCouplings, Analysis
     for (p, v) in explicit_rad {
         rad.insert(p, (v, ThermalCouplingSource::Explicit));
     }
-    Ok(ThermalCouplings {
+    // 明示・外殻の値に置き換えられた対は、升への配り方も使わない
+    view_cells.retain(|p, _| {
+        rad.get(p)
+            .is_some_and(|(_, source)| *source == ThermalCouplingSource::ViewFactor)
+    });
+    let couplings = ThermalCouplings {
         conductive: cond
             .into_iter()
             .map(|((a, b), (v, source))| ThermalConductanceUsed {
@@ -197,25 +210,24 @@ pub(super) fn resolve(net: &ThermalNetwork) -> Result<ThermalCouplings, Analysis
         view_factors,
         mount_contact,
         plates: Vec::new(),
-    })
+    };
+    Ok((couplings, view_cells))
 }
 
 type Table = BTreeMap<Pair, (f64, ThermalCouplingSource)>;
 
-/// 形態係数の値を表へ入れる（値を出した対の取付の既定値を置き換える）。要約と、対ごとの内訳を返す。
-fn apply_view_factors(
-    net: &ThermalNetwork,
-    rad: &mut Table,
-) -> Result<
-    (
-        Option<ThermalViewFactorsUsed>,
-        BTreeMap<Pair, ThermalViewFactorPair>,
-    ),
-    AnalysisError,
-> {
-    let mut details = BTreeMap::new();
+/// 形態係数の値の要約・対ごとの内訳・板の升への配り方。
+type ViewApplied = (
+    Option<ThermalViewFactorsUsed>,
+    BTreeMap<Pair, ThermalViewFactorPair>,
+    BTreeMap<Pair, CellMatrix>,
+);
+
+/// 形態係数の値を表へ入れる（値を出した対の取付の既定値を置き換える）。要約と、対ごとの内訳と、板の升への配り方を返す。
+fn apply_view_factors(net: &ThermalNetwork, rad: &mut Table) -> Result<ViewApplied, AnalysisError> {
+    let (mut details, mut cells) = (BTreeMap::new(), BTreeMap::new());
     let Some(v) = &net.view_factors else {
-        return Ok((None, details));
+        return Ok((None, details, cells));
     };
     let found = super::view_factors::resolve(net, v)?;
     for (p, value) in found.pairs {
@@ -223,9 +235,12 @@ fn apply_view_factors(
             p.clone(),
             (value.exchange_m2, ThermalCouplingSource::ViewFactor),
         );
-        details.insert(p, value.detail);
+        details.insert(p.clone(), value.detail);
+        if let Some(c) = value.cells {
+            cells.insert(p, c);
+        }
     }
-    Ok((Some(found.used), details))
+    Ok((Some(found.used), details, cells))
 }
 
 /// 使った放射の一覧。形態係数の値のまま残った対にだけ内訳を付ける（外殻・明示が置き換えた対には付けない）。

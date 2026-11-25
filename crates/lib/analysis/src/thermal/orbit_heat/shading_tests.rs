@@ -158,11 +158,12 @@ fn intercepted_sunlight_of_a_part_without_a_surface_is_reported_and_warned() {
     assert!(off.shadowing.is_none());
 }
 
-/// 板を升に分けても影は面ごとに 1 つの日照割合で、升には面積の割合で配った直達日射にそのまま掛かる（#340 との合成）。
-/// 板を 2 × 1 に分けたときの直達日射の合計は、分けない面の影ありの値（0.5 · 0.9 · 1361 · 0.01 = 6.1245 W）と等しく（保存）、
-/// 2 つの升は半分ずつ。影を切れば分けた板も影なしの値（12.249 W）。分けても影の報告は面ごとに 1 つ。
+/// 板を升に分けると影は升ごとに求める（#456）。箱 "A" の影は板の x ∈ [0, 0.5]（板の半分）に落ちる。板を 2 × 1（u = x）に分けると、
+/// x ∈ [−0.5, 0] の升 0 は全部日照で直達日射は 0.9 · 1361 · 0.005 = 6.1245 W、x ∈ [0, 0.5] の升 1 は全部日陰で 0 W。
+/// 合計は分けない面の影ありの値（0.5 · 0.9 · 1361 · 0.01 = 6.1245 W）と等しい（保存）。影を切れば分けた板も影なしの値（12.249 W）で、
+/// 升は半分ずつ。分けても影の報告は面ごとに 1 つ。
 #[test]
-fn shadowing_composes_with_plate_subdivision_by_area() {
+fn shadowing_is_resolved_per_cell_of_a_subdivided_plate() {
     let env = ThermalEnvironment::default();
     let exposure = ThermalExposure::Fixed {
         sun_dir_body: Some(Vec3::Z),
@@ -179,12 +180,14 @@ fn shadowing_composes_with_plate_subdivision_by_area() {
     let total: f64 = split.q.iter().sum();
     assert!((total - whole.q[0]).abs() < 1e-12);
     assert!((total - 0.5 * 0.9 * 1361.0 * 0.01).abs() < 1e-9);
-    assert!((split.q[0] - split.q[1]).abs() < 1e-12);
+    assert!((split.q[0] - 0.9 * 1361.0 * 0.005).abs() < 1e-9);
+    assert_eq!(split.q[1], 0.0);
     // 影を切る: 分けた板も分けない板も影なしの値
     let (off_whole, off_split) = (heat(Some(false), None), heat(Some(false), Some([2, 1])));
     let off_total: f64 = off_split.q.iter().sum();
     assert!((off_total - off_whole.q[0]).abs() < 1e-12);
     assert!((off_total - 0.9 * 1361.0 * 0.01).abs() < 1e-9);
+    assert_eq!(off_split.q[0], off_split.q[1]);
     assert_eq!(split.shadowing.unwrap().parts.len(), 1);
 }
 
