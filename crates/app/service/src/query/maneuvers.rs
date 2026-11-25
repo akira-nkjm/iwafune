@@ -49,7 +49,7 @@ fn view(design: &Design, m: &Maneuver, order: u32) -> ManeuverView {
     ManeuverView {
         id: id.to_owned(),
         order,
-        label: m.label.clone().unwrap_or_else(|| id.to_owned()),
+        label: fune_model::display_name::name_or_id(m.label.as_deref(), id),
         category: m.category,
         method: m.method,
         thruster: m.thruster.as_ref().map(ToString::to_string),

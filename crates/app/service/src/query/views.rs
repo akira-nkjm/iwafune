@@ -64,7 +64,7 @@ pub(crate) fn tree(design: &Design) -> Vec<TreeNode> {
     let parts = design.parts.values().map(|p| TreeNode {
         id: p.id.to_string(),
         node: TreeNodeKind::Part,
-        label: p.label.clone().unwrap_or_else(|| p.id.to_string()),
+        label: fune_model::display_name::name_or_id(p.label.as_deref(), p.id.as_str()),
         label_en: None,
         system: design
             .system_of(p.id.as_str())
@@ -108,7 +108,7 @@ pub(crate) fn mode_table(design: &Design) -> ModeTable {
             when: m.when,
             start: m.start.as_ref().map(start_view),
             id: m.id.to_string(),
-            label: m.label.clone().unwrap_or_else(|| m.id.to_string()),
+            label: fune_model::display_name::name_or_id(m.label.as_deref(), m.id.as_str()),
             description: m.description.clone(),
             file: file_of(design, EntityKey::Mode(m.id.to_string())),
         })
@@ -218,7 +218,7 @@ pub(crate) fn nets(design: &Design, resolved: &Resolved) -> Vec<NetView> {
                 is_return: n.is_return(),
                 power_class: net_class::power_class(n, &members, net_class::roles(resolved)),
                 hub: net_class::hub(n, &members, net_class::roles(resolved)),
-                label: n.label.clone().unwrap_or_else(|| n.id.to_string()),
+                label: fune_model::display_name::name_or_id(n.label.as_deref(), n.id.as_str()),
                 source: n.source.clone(),
                 rail: n
                     .rail
@@ -249,7 +249,7 @@ pub(crate) fn harnesses(design: &Design) -> Vec<HarnessView> {
         .values()
         .map(|h| HarnessView {
             id: h.id.to_string(),
-            label: h.label.clone().unwrap_or_else(|| h.id.to_string()),
+            label: fune_model::display_name::name_or_id(h.label.as_deref(), h.id.as_str()),
             from: h.from.clone(),
             to: h.to.clone(),
             nets: h.nets.iter().map(ToString::to_string).collect(),
@@ -325,7 +325,7 @@ pub(crate) fn cases(design: &Design) -> Vec<CaseView> {
         .values()
         .map(|c| CaseView {
             id: c.id.to_string(),
-            label: c.label.clone().unwrap_or_else(|| c.id.to_string()),
+            label: fune_model::display_name::name_or_id(c.label.as_deref(), c.id.as_str()),
             description: c.description.clone(),
             modes: c.mode.iter().map(ToString::to_string).collect(),
             phase: c.phase.as_ref().map(ToString::to_string),

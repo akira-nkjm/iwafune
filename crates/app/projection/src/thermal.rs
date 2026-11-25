@@ -213,7 +213,7 @@ pub fn steady(ctx: &Context<'_>) -> Result<ThermalSteadyInput, MissingInputs> {
         }
         cases.push(ThermalSteadyCase {
             id: id.clone(),
-            label: c.label.clone().unwrap_or_else(|| id.clone()),
+            label: fune_model::display_name::name_or_id(c.label.as_deref(), id),
             environment: environment(id, c, Some(t.orbit().central()), &mut m),
             exposure: ThermalExposure::OrbitAverage { timeline: t },
             loads: Vec::new(),

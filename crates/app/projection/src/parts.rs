@@ -155,7 +155,7 @@ pub fn state_values<D: Dimension>(
 
 /// 表示名（無ければ ID）。
 pub fn label(p: &ResolvedPart) -> String {
-    p.label.clone().unwrap_or_else(|| p.id.clone())
+    fune_model::display_name::name_or_id(p.label.as_deref(), &p.id)
 }
 
 /// 員数を掛けた質量 [kg]。
