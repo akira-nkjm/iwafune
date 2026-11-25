@@ -30,6 +30,8 @@ fn attr_def(id: &str, dimension: &str, units: &[&str]) -> AttributeDef {
         default: None,
         unit_vector: false,
         fov_axis: None,
+        references: None,
+        reference_roles: Vec::new(),
         section: Some("aocs".into()),
     }
 }

@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import type { DesignView, Fix, ManeuverView, MissingInput } from "@/api/types";
+import { choiceLabel } from "@/kit/forms/choice-label";
 import { fixture } from "@/test/fixture";
-import { choiceLabel } from "./MissingPickDialog";
 import { type PartFix, partSetText, pickEdit, rowActions, valueSetText } from "./missing-fix";
 
 const valueFix: Extract<Fix, { kind: "set_value" }> = {

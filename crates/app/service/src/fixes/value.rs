@@ -1,11 +1,10 @@
 //! 値を入れる候補（`Fix::SetValue`）の組み立て。書く先の次元・入力の例・選べる値（列挙・真偽）・カタログ品の側の書き先。
 //! 次元の名前と入力の例は `sat_units`、列挙の語彙は属性定義（`AttributeDef::symbols`・`value_type`）から引き、表をここに持たない。
 
+use super::input::{attr_dimension, choices_of_attr};
 use super::{Design, Fix, MissingInput, ParamPath, quote};
 use fune_model::path::{SettingPath, SettingScope};
-use fune_model::value::ValueType;
-use fune_model::value::units::unit_dimension;
-use fune_projection::{CatalogFix, Choice};
+use fune_projection::CatalogFix;
 
 /// 置き換え欄（値）。コマンドの中では `"<value>"` と引用して書く。
 pub(super) const VALUE: &str = "\"<value>\"";
@@ -45,26 +44,6 @@ pub(super) fn vector_example(quantity: &str) -> Option<String> {
     Some(format!("{value} 0 0 {unit}"))
 }
 
-/// 属性の選べる値: 列挙で語彙（`symbols`）が決まっていればその値、真偽なら `true`・`false`。自由入力なら空。
-pub(super) fn choices_of_attr(design: &Design, attr: &str) -> Vec<Choice> {
-    let Some(def) = design.attribute(attr) else {
-        return Vec::new();
-    };
-    let words: Vec<&str> = match def.value_type {
-        ValueType::Enum => def.symbols.iter().map(String::as_str).collect(),
-        ValueType::Bool => vec!["true", "false"],
-        _ => Vec::new(),
-    };
-    words
-        .into_iter()
-        .map(|w| Choice {
-            value: w.to_owned(),
-            label: w.to_owned(),
-            label_en: None,
-        })
-        .collect()
-}
-
 /// `conditions.launch.<キー>` の欄で、キーが列挙の属性（拘束の種類・面）と同じ名前のもの。選べる値は属性定義の語彙
 /// （カタログの品に書く値と同じ。語彙の表を持たない）。そうでなければ None。
 pub(super) fn launch_enum(design: &Design, m: &MissingInput, s: &SettingPath) -> Option<Fix> {
@@ -83,14 +62,6 @@ pub(super) fn launch_enum(design: &Design, m: &MissingInput, s: &SettingPath) ->
         *c = choices;
     }
     Some(fix)
-}
-
-/// 属性の次元名（定義の `dimension`、無ければ `units` の先頭の単位の次元）。
-pub(super) fn attr_dimension(design: &Design, attr: &str) -> Option<String> {
-    let def = design.attribute(attr)?;
-    def.dimension
-        .clone()
-        .or_else(|| def.units.first().and_then(|u| unit_dimension(u).ok()))
 }
 
 /// 部品の属性に値を入れる候補。部品がカタログ品を選んでいれば、品の側へ書く代わりの書き先も付ける。

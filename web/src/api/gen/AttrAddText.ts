@@ -45,6 +45,14 @@ unit_vector: boolean,
  */
 fov_axis?: string | null, 
 /**
+ * 文字列の値が指す先（`part`）。あれば画面は候補から選ばせる
+ */
+references?: string | null, 
+/**
+ * `references = "part"` の候補を絞る部品の役割（CLI は `--reference-roles a,b` を分けたもの）
+ */
+reference_roles: Array<string>, 
+/**
  * 画面で並べる系（`basic`・`mass`・`power`・…）
  */
 section?: string | null, };

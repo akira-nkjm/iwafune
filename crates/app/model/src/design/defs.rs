@@ -53,6 +53,14 @@ impl NetKind {
     }
 }
 
+enum_text! {
+    /// 文字列の属性の値が指す先の種類（`AttributeDef::references`）。今は設計の部品だけ。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
+    pub enum AttrReference: "attribute reference" {
+        Part = "part",
+    }
+}
+
 /// 属性定義（quantity kind）。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -105,6 +113,12 @@ pub struct AttributeDef {
     /// 3D はこの対応から視野の円錐を描く（Web は属性の ID を知らない）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fov_axis: Option<Id<AttributeDef>>,
+    /// 文字列（`text`）の値が指す先。あれば値は設計にあるものの ID で、画面は候補から選ばせる（候補は service が決める）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub references: Option<AttrReference>,
+    /// `references = "part"` の候補を絞る部品の役割（空なら全部品）
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub reference_roles: Vec<Role>,
     /// 画面で並べる系（`basic`・`mass`・`aocs`・`cdh`・`comm`・`payload`・`power`・`propulsion`・`structure`・`thermal`）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub section: Option<String>,

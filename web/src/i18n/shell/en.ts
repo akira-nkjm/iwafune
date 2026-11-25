@@ -91,6 +91,17 @@ export const shellEn: typeof shellJa = {
     noText: "No display text returned",
     setSummary: (path: string, text: string) => `${path} = ${text}`,
     byState: "by state",
+    unsetChoice: "— (unset)",
+    noCandidates: "No candidates",
+    // 欄では直せない値の型ごとの説明（`AttrReadOnlyReason`）
+    readOnly: {
+      vector: "A 3-component vector. Edit it with `fune set` or in TOML.",
+      quaternion: "A quaternion. Edit it with `fune set` or in TOML.",
+      tensor: "A 3x3 tensor. Edit it with `fune set --json` or in TOML.",
+      range: "A range. Edit it with `fune set` or in TOML.",
+      curve: "A curve. Edit it with `fune set` or in TOML.",
+      table: "A reference to a table. Edit it with `fune set` or in TOML.",
+    },
   },
   verdict: { ok: "OK", warning: "Caution", violation: "Violation" },
 };
