@@ -175,3 +175,21 @@ pub fn cli_json(root: &Path, args: &[&str]) -> serde_json::Value {
     );
     serde_json::from_slice(&out.stdout).unwrap()
 }
+
+/// 判定に違反があっても（終了コード 1）CLI の JSON を読む。形態や入力を確かめるテストで、判定そのものは見ないときに使う。
+pub fn cli_json_any_verdict(root: &Path, args: &[&str]) -> serde_json::Value {
+    let out = fune()
+        .arg("-C")
+        .arg(root)
+        .arg("--json")
+        .args(args)
+        .output()
+        .unwrap();
+    assert!(
+        matches!(out.status.code(), Some(0 | 1)),
+        "{args:?}: {}\n{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    serde_json::from_slice(&out.stdout).unwrap()
+}

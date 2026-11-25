@@ -2,7 +2,9 @@
 
 mod common;
 
-use common::{cli_json, demo_copy, fune, post_json, post_json_response, run_cli};
+use common::{
+    cli_json, cli_json_any_verdict, demo_copy, fune, post_json, post_json_response, run_cli,
+};
 use serde_json::{Value, json};
 use std::path::Path;
 
@@ -198,7 +200,8 @@ fn energy_balance_uses_the_runs_configuration_with_attitude_cases() {
     let phased = cli_json(&root, &["analyze", id, "--case", "hot_imaging"]);
     assert_eq!(phased["configuration_source"], "phase");
     assert_vector(&normal(&phased), [0.0, -1.0, 0.0]);
-    let explicit = cli_json(&root, &["analyze", id, "--configuration", "PACKED"]);
+    // 畳んだ形態では発電が減り、電力収支の判定は違反になりうる。ここで見るのはパネルの向きだけ。
+    let explicit = cli_json_any_verdict(&root, &["analyze", id, "--configuration", "PACKED"]);
     assert_eq!(explicit["configuration_source"], "explicit");
     assert_vector(&normal(&explicit), [0.0, -1.0, 0.0]);
 }
