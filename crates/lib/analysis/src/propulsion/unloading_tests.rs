@@ -214,3 +214,103 @@ fn dv_budget_total_and_margin_include_the_computed_unloading() {
     );
     assert!(out.unloading_note.is_none());
 }
+
+/// アンロードの推薬をタンクに入れる: 100 日の推薬 `m = 8.64 / (0.1 · 200 · g₀)`（上と同じ手計算）を、噴射する 2 本（同じ推力・Isp なので
+/// 流量が等しい）が名指した別々のタンクへ半分ずつ。残る推薬 3 % を見込んで積む量は `m/2 · 1.03` ずつ。RCS がタンクを名指さなければ、
+/// アンロードの推薬はどのタンクにも入らない（これまでと同じ）。
+#[test]
+fn unloading_propellant_goes_to_the_tanks_the_firing_thrusters_name() {
+    let mut i = input(vec![maneuver(
+        "KEEP",
+        DvCategory::Unloading,
+        TransferMethod::Impulsive,
+        550.0,
+    )]);
+    i.tanks[0].id = "MAIN".to_owned();
+    let mut second = i.tanks[0].clone();
+    second.id = "RCS_B".to_owned();
+    let mut first = i.tanks[0].clone();
+    first.id = "RCS_A".to_owned();
+    i.tanks.extend([first, second]);
+    // 各軸のスラスタを 2 本ずつにする（同じ向きの 2 本が同時に噴射する。推薬は本数によらず `ΔH / (腕 · Isp · g₀)`）
+    let doubled: Vec<Thruster> = six_axis_rcs()
+        .into_iter()
+        .flat_map(|t| {
+            let twin = Thruster {
+                id: format!("{}B", t.id),
+                ..t.clone()
+            };
+            [t, twin]
+        })
+        .collect();
+    i.unloading = Some(UnloadingInput {
+        legs: vec![leg("CRUISE", Some(100.0), Some(doubled.clone()))],
+    });
+    i.unloading_note = None;
+    let without = Propellant::run(&i).unwrap();
+    assert_eq!(without.unloading_propellant.value(), 0.0);
+    assert!(
+        without
+            .tanks
+            .iter()
+            .all(|t| t.unloading_propellant.value() == 0.0)
+    );
+    // 噴射する 2 本の ID
+    let firing = crate::aocs::RwUnloading::run(&rw_input(Some(doubled)))
+        .unwrap()
+        .rcs_unloading
+        .unwrap()
+        .per_day
+        .thrusters;
+    assert_eq!(firing.len(), 2);
+    i.thruster_tanks = [
+        (firing[0].clone(), "RCS_A".to_owned()),
+        (firing[1].clone(), "RCS_B".to_owned()),
+    ]
+    .into_iter()
+    .collect();
+    let out = Propellant::run(&i).unwrap();
+    let m = 8.64 / (0.1 * 200.0 * G0);
+    let each = m / 2.0 * 1.03;
+    for id in ["RCS_A", "RCS_B"] {
+        let t = out.tanks.iter().find(|t| t.id == id).unwrap();
+        close(t.unloading_propellant.value(), each, 1e-6);
+        close(t.loaded.value(), each, 1e-6);
+        assert_eq!(t.thrusters.len(), 1);
+    }
+    close(out.unloading_propellant.value(), m * 1.03, 1e-6);
+    // 総量: マヌーバの分は変わらず、アンロードの積む分が足される
+    let added = out.unloading_propellant.value();
+    close(
+        out.loaded_propellant.value(),
+        without.loaded_propellant.value() + added,
+        1e-12,
+    );
+    close(
+        out.wet_mass.value(),
+        without.wet_mass.value() + added,
+        1e-12,
+    );
+    // 主タンクはマヌーバの推薬だけ（RCS のタンクが名指されているので、名指さないスラスタは主タンクから取る）
+    let main = out.tanks.iter().find(|t| t.id == "MAIN").unwrap();
+    assert_eq!(main.unloading_propellant.value(), 0.0);
+}
+
+/// RCS のスラスタがタンクを名指しているのに、アンロードの入力が無ければ、推薬は数えず警告する。
+#[test]
+fn a_named_tank_without_unloading_inputs_is_warned() {
+    let mut i = input(vec![maneuver(
+        "KEEP",
+        DvCategory::Unloading,
+        TransferMethod::Impulsive,
+        550.0,
+    )]);
+    i.thruster_tanks = [("XP".to_owned(), "TANK".to_owned())].into();
+    let out = Propellant::run(&i).unwrap();
+    assert_eq!(out.unloading_propellant.value(), 0.0);
+    assert!(
+        out.checks
+            .iter()
+            .any(|c| c.key == "unloading_tank" && c.verdict == Verdict::Warning)
+    );
+}

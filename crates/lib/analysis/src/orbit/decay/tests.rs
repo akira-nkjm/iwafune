@@ -211,6 +211,7 @@ pub(super) fn propulsion(orbit: &OrbitSpec, dry_kg: f64) -> PropulsionInput {
             propellant: None,
             density: Some(Qty::from_raw(1000.0)),
         }],
+        thruster_tanks: Default::default(),
         maneuvers: vec![ManeuverInput {
             id: "RAISE".into(),
             category: DvCategory::Insertion,

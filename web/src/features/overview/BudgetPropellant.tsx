@@ -53,13 +53,30 @@ export function PropellantRow({
   const t = useT().overview;
   if (p.status === "counted")
     return (
-      <li className="grid grid-cols-[110px_minmax(0,1fr)_auto] items-center gap-3 text-xs">
-        <span className="truncate font-mono" title={p.analysis}>
-          {t.budgetPropellant}
-        </span>
-        <TickBar ticks={36} ratio={null} label={`${t.budgetPropellant}: ${p.loaded.display}`} />
-        <span className="num whitespace-nowrap text-right text-ink-2">{p.loaded.display}</span>
-      </li>
+      <>
+        <li className="grid grid-cols-[110px_minmax(0,1fr)_auto] items-center gap-3 text-xs">
+          <span className="truncate font-mono" title={p.analysis}>
+            {t.budgetPropellant}
+          </span>
+          <TickBar ticks={36} ratio={null} label={`${t.budgetPropellant}: ${p.loaded.display}`} />
+          <span className="num whitespace-nowrap text-right text-ink-2">{p.loaded.display}</span>
+        </li>
+        {(p.tanks ?? []).length > 1 &&
+          (p.tanks ?? []).map((k) => (
+            <li
+              key={k.id}
+              className="grid grid-cols-[110px_minmax(0,1fr)_auto] items-center gap-3 text-[11px] text-ink-3"
+            >
+              <span className="truncate pl-2 font-mono" title={k.id}>
+                {t.budgetTank(k.id)}
+              </span>
+              <span className="truncate">
+                {k.margin ? t.budgetTankMargin(k.margin.display) : ""}
+              </span>
+              <span className="num whitespace-nowrap text-right">{k.loaded.display}</span>
+            </li>
+          ))}
+      </>
     );
   return (
     <li className="space-y-1 text-[11px] text-ink-3">

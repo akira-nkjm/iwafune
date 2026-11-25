@@ -50,6 +50,34 @@ describe("質量のバジェットの推薬", () => {
     expect(row).toContain("67.2 g");
   });
 
+  it("タンクが 2 つ以上あれば、タンクごとの積む推薬と容積の余裕（API の表示文字列）を並べる", () => {
+    const main = {
+      id: "MAIN",
+      propellant: "hydrazine",
+      loaded: qty("40.0 g"),
+      capacity: null,
+      margin: qty("12 %"),
+    };
+    const rcs = {
+      id: "RCS_TANK",
+      propellant: "hydrazine",
+      loaded: qty("27.2 g"),
+      capacity: null,
+      margin: null,
+    };
+    const two: BudgetPropellant = { ...counted, tanks: [main, rcs] };
+    const row = render(<PropellantRow propellant={two} design={undefined} />);
+    expect(row).toContain(o.budgetTank("MAIN"));
+    expect(row).toContain("40.0 g");
+    expect(row).toContain(o.budgetTankMargin("12 %"));
+    expect(row).toContain(o.budgetTank("RCS_TANK"));
+    // 1 つだけなら総量と同じなので並べない
+    const one = render(
+      <PropellantRow propellant={{ ...counted, tanks: [main] }} design={undefined} />,
+    );
+    expect(one).not.toContain(o.budgetTank("MAIN"));
+  });
+
   it("数えなかったときは推薬込みを出さず、理由（API の構造）を i18n の文言で出す", () => {
     const none: BudgetPropellant = { status: "no_propulsion" };
     const totals = render(

@@ -310,15 +310,36 @@ fn print_uncounted(list: &[BudgetUncounted], out: &Out) {
 /// 推薬込みの合計か、推薬を数えなかった理由（文言はここで付ける）。
 fn print_propellant(p: &BudgetPropellant, out: &Out) {
     match p {
-        BudgetPropellant::Counted { analysis, wet, .. } => verdict_line(
-            wet.verdict,
-            format!(
-                "Total with propellant {}  margin {}  (propellant from {analysis})",
-                wet.total.display,
-                opt_text(&wet.margin)
-            ),
-            out,
-        ),
+        BudgetPropellant::Counted {
+            analysis,
+            wet,
+            tanks,
+            ..
+        } => {
+            verdict_line(
+                wet.verdict,
+                format!(
+                    "Total with propellant {}  margin {}  (propellant from {analysis})",
+                    wet.total.display,
+                    opt_text(&wet.margin)
+                ),
+                out,
+            );
+            // 複数のタンクがあるときは、タンクごとの積む推薬と容積の余裕
+            if tanks.len() > 1 {
+                for t in tanks {
+                    println!(
+                        "{}",
+                        out.dim(format!(
+                            "  Tank {}: loaded {}  volume margin {}",
+                            t.id,
+                            t.loaded.display,
+                            opt_text(&t.margin)
+                        ))
+                    );
+                }
+            }
+        }
         BudgetPropellant::NoPropulsion => {
             println!(
                 "{}",

@@ -9,11 +9,12 @@
 //! | 部品の属性・フィールド | `SetValue`（部品がカタログ品を選んでいれば品の側の書き先も。量には入力の例、列挙・真偽には選べる値） |
 //! | 設定 | `SetValue`（次元は `setting_dimension`。`conditions.launch` の欄が列挙の属性と同じ名前なら、選べる値は属性定義の語彙）。回線の部品・アンテナの欄は `PickRef`（部品）、打ち上げ機・ディスペンサーは `PickRef`（カタログ品）、`data_downlink` は `PickRef`（回線）、軌道の `maneuver` は `PickRef`（日付つきの遷移を持つマヌーバ）。軌道の `source` は候補なし（対象外の理由） |
 //! | 役割のどれかの部品 | その役割の部品が無ければ `AddPart` と `AssignPart`、有って値が無ければ `SetValueOnPart` |
-//! | マヌーバの `thruster` | `PickRef`（部品） |
+//! | マヌーバの `thruster`・スラスタの `tank`（推薬を取るタンク） | `PickRef`（部品。`tank` の候補は役割 `propellant_tank`） |
 //! | モード・マヌーバ・地上局・回線・ケースの一覧の空 | `AddListItem` |
 //!
 //! どの候補も既存の Op になる（新しい編集の道は作らない）。
 
+use fune_model::design::refs::TANK_ATTR;
 use fune_model::design::setting_dims::{
     ANY, pattern_matches, setting_curve_dimensions, setting_dimension,
 };
@@ -52,6 +53,9 @@ pub fn fixes_for(s: &Snapshot, m: &MissingInput) -> Vec<Fix> {
         return Vec::new();
     };
     match target {
+        Target::Param(ParamPath::Attr { attr, .. }) if attr.as_str() == TANK_ATTR => {
+            vec![tank_of_thruster(design, (target, m))]
+        }
         Target::Param(ParamPath::Attr { part, attr, state }) => {
             vec![set_attr(design, m, part, attr, state.as_deref())]
         }
@@ -177,6 +181,14 @@ fn maneuver_thruster(design: &Design, site: (&Target, &MissingInput), id: &str) 
         });
     let roles = [Role::PropulsionThruster, Role::Thruster];
     vec![pick_part(design, site, &roles, parts, command)]
+}
+
+/// スラスタが推薬を取るタンク（属性 `tank`）の候補: 役割 `propellant_tank` の部品。
+fn tank_of_thruster(design: &Design, site: (&Target, &MissingInput)) -> Fix {
+    let roles = [Role::PropellantTank];
+    let parts = parts_of_roles(design, &roles);
+    let command = format!("fune set {} <part>", quote(&site.1.path));
+    pick_part(design, site, &roles, parts, command)
 }
 
 /// 今のマヌーバのスラスタを置き換え欄にした `fune maneuver set` のコマンド（`fune_ops::to_cli` が書く）。

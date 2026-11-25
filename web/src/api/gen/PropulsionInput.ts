@@ -19,6 +19,11 @@ initial_orbit: OrbitSpec,
  */
 dry_mass: number, thrusters: Array<PropulsionThruster>, tanks: Array<PropellantTank>, 
 /**
+ * スラスタが推薬を取るタンク（スラスタの部品の ID → タンクの部品の ID。マヌーバのスラスタも、RCS でのアンロードで噴射する
+ * スラスタも同じ表を引く）。載っていないスラスタは、同じ推薬のタンクから取る（書かなければこれまでと同じ結果）
+ */
+thruster_tanks?: { [key in string]: string }, 
+/**
  * 実行の順に並べたマヌーバ
  */
 maneuvers: Array<ManeuverInput>, 

@@ -17,6 +17,7 @@
 //! | [`dv_budget`] | `propulsion.dv_budget` 区分ごとの ΔV の内訳・合計・マージン（RCS のアンロードの ΔV を含む） |
 //! | [`unloading`] | RCS でのアンロードの推薬と ΔV（フェーズごとに `aocs.rw_unloading` を評価して期間を掛け、`dv_budget` の区分 `unloading` に足す） |
 //! | [`propellant`] | `propulsion.propellant` 推薬の質量（ウェット・ドライ）とタンクの容積の余裕 |
+//! | [`tank_load`] | `propulsion.propellant` のタンクごとの内訳（スラスタが名指したタンクと、名指さないスラスタの同じ推薬のタンクへの振り分け。RCS のアンロードの推薬を含む） |
 //! | [`thruster_usage`] | `propulsion.thruster_usage` スラスタの総インパルス・累積噴射時間・噴射回数と定格の比較 |
 //!
 //! モデル化の既定値（ΔV のマージン・残る推薬の割合・余裕の警告の幅）はここ（[`input`]）が持つ。
@@ -34,6 +35,7 @@ pub mod orbit_history;
 mod plan;
 pub mod propellant;
 mod sequence;
+pub mod tank_load;
 pub mod thruster_usage;
 pub mod transfer_check;
 pub mod unloading;
@@ -57,6 +59,7 @@ pub use maneuvers::{ManeuverNote, ManeuverPropagation, Maneuvers, ManeuversOutpu
 pub use mass_properties::{PropellantMassInput, PropellantMassOutput, PropellantMassProperties};
 pub use orbit_history::{OrbitHistoryAnalysis, OrbitHistoryOutput, orbit_history};
 pub use propellant::{Propellant, PropellantOutput};
+pub use tank_load::PropellantTankRow;
 pub use thruster_usage::{ThrusterUsage, ThrusterUsageOutput};
 pub use transfer_check::{
     TransferCheck, TransferCheckNote, TransferCheckOutput, TransferCheckResult,
@@ -69,6 +72,8 @@ mod dated_tests;
 mod propagated_tests;
 #[cfg(test)]
 mod swing_by_tests;
+#[cfg(test)]
+mod tank_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

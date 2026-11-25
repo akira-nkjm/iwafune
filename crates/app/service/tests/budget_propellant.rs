@@ -57,12 +57,16 @@ fn demo_counts_loaded_propellant_and_compares_dry_and_wet() {
         analysis,
         loaded: shown,
         wet,
+        tanks,
     }) = &v.propellant
     else {
         panic!("{:?}", v.propellant);
     };
     assert_eq!(analysis, "propulsion.propellant");
     assert!((shown.si - loaded).abs() < 1e-15);
+    // タンクが 1 つのデモでは、その 1 つが積む推薬の全部（組の積む量 `group.required` は `loaded_propellant` と丸めの差だけ違う）
+    assert_eq!(tanks.len(), 1);
+    assert!((tanks[0].loaded.si - loaded).abs() < 1e-9);
     assert!((wet.total.si - (dry + loaded)).abs() < 1e-12);
     let allowed = 12.0 * (1.0 - 0.1);
     assert!((wet.margin.as_ref().unwrap().si - (allowed - dry - loaded)).abs() < 1e-12);
