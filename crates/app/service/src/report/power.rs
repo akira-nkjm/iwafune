@@ -6,6 +6,7 @@ use super::{Ctx, Out};
 use crate::dto::{ReportItem, ReportLang};
 use crate::error::Result;
 use crate::units::percent;
+use fune_model::display_name::{name_or_id, name_with_id};
 use fune_report::labels::{Text, t};
 use fune_report::model::{Align, Cell, Column, Row, RowStyle, Table};
 use sat_analysis::power::mode_load::{
@@ -66,7 +67,7 @@ fn columns(ctx: &Ctx, modes: &[ModeLoadMode], unit: &str) -> Vec<Column> {
         align: Align::Left,
     }];
     cols.extend(modes.iter().map(|m| Column {
-        header: m.label.clone(),
+        header: name_or_id(Some(&m.label), &m.id),
         unit: Some(label_of(unit)),
         align: Align::Right,
     }));
@@ -90,7 +91,7 @@ fn part_rows(ctx: &Ctx, modes: &[ModeLoadMode], unit: &str) -> Vec<Row> {
         });
         for first in parts {
             let id = &first.part;
-            let mut cells = vec![Cell::text(format!("{} ({id})", first.label))];
+            let mut cells = vec![Cell::text(name_with_id(Some(&first.label), id))];
             cells.extend(modes.iter().map(|m| part_cell(ctx.lang, m, id, unit)));
             rows.push(Row {
                 style: RowStyle::Body,

@@ -76,7 +76,7 @@ fn row(session: &Rc<Session>, r: &Requirement) -> ComplianceRow {
     let id = r.id.as_str();
     ComplianceRow {
         id: id.to_owned(),
-        label: r.label.clone().unwrap_or_else(|| id.to_owned()),
+        label: fune_model::display_name::name_or_id(r.label.as_deref(), id),
         statement: r.statement.clone(),
         statement_en: r.statement_en.clone(),
         quantity: r.quantity.clone(),

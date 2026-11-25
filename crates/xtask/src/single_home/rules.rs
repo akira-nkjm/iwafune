@@ -27,6 +27,22 @@ pub(super) const RUST_RULES: &[(&str, &[&str], &str)] = &[
         &["crates/app/model/src/role.rs"],
         "sensor roles (`Role`)",
     ),
+    // 表示名と ID の組み方（空の表示名は ID に替える。`fune_model::display_name`）
+    (
+        "fn name_or_id(",
+        &["crates/app/model/src/display_name.rs"],
+        "display name or ID (`display_name::name_or_id`)",
+    ),
+    (
+        "fn name_with_id(",
+        &["crates/app/model/src/display_name.rs"],
+        "display name with ID (`display_name::name_with_id`)",
+    ),
+    (
+        "label.clone().unwrap_or_else(|| ",
+        &[],
+        "falling back from a display name to the ID (use `display_name::name_or_id`; an empty label must give the ID)",
+    ),
     (
         "fn system_of(",
         &["crates/app/model/src/part_system.rs"],

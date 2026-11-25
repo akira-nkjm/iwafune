@@ -425,3 +425,63 @@ fn link_required_margin_row_shows_the_per_link_requirement() {
     assert_eq!(required("s_down@TOKYO_GS"), 7.0);
     assert_eq!(required("uhf_down@TOKYO_GS"), 3.0);
 }
+
+/// 表示名が空のとき、見出しは ID だけになる（前に空白のついた ` (ID)` や空の列見出しにならない）。
+#[test]
+fn empty_display_names_give_the_id_alone_in_headings() {
+    let (tmp, ws) = demo_copy();
+    let root = tmp.path().join("demo-6u");
+    let edit = |rel: &str, from: &str, to: &str| {
+        let path = root.join(rel);
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert!(text.contains(from), "{rel}");
+        std::fs::write(&path, text.replacen(from, to, 1)).unwrap();
+    };
+    edit(
+        "modes/NOMINAL.toml",
+        "label        = \"Nominal\"",
+        "label        = \"\"",
+    );
+    edit(
+        "cases/hot_imaging.toml",
+        "label        = \"Hot (imaging)\"",
+        "label        = \"  \"",
+    );
+    let gps = root.join("parts/aocs/GPS.toml");
+    let text = std::fs::read_to_string(&gps).unwrap();
+    std::fs::write(&gps, format!("label = \"\"\n{text}")).unwrap();
+
+    let r = export(
+        &ws,
+        &req(
+            &[
+                ReportItem::Mass,
+                ReportItem::ModePower,
+                ReportItem::ThermalResult,
+            ],
+            &["hot_imaging"],
+        ),
+    );
+    let d = data(&r);
+    let power = tables(&d, "mode-power")[0];
+    let heads: Vec<&str> = power["columns"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["header"].as_str().unwrap())
+        .collect();
+    assert_eq!(heads[1], "NOMINAL");
+    assert!(heads.iter().all(|h| !h.is_empty()));
+    for item in ["mode-power", "mass"] {
+        let rows: Vec<&str> = tables(&d, item)[0]["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| r["cells"][0]["text"].as_str().unwrap())
+            .collect();
+        assert!(rows.contains(&"GPS"), "{item}: {rows:?}");
+        assert!(rows.iter().all(|t| !t.starts_with(' ')), "{item}: {rows:?}");
+    }
+    let thermal = tables(&d, "thermal-result")[0];
+    assert_eq!(thermal["caption"], "Thermal analysis results (hot_imaging)");
+}

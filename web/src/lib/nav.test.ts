@@ -174,14 +174,14 @@ describe("isSystemItem", () => {
 
 describe("系統図の URL の表示状態", () => {
   it("指定なしは構造だけを隠す。未知の系を無視し API にない系を作らない", () => {
-    expect([...diagramHiddenSystems(new URLSearchParams(), fixture.defs.systems)]).toEqual([
-      "structure",
-    ]);
-    expect([...diagramHiddenSystems(new URLSearchParams(), ["thermal"])]).toEqual([]);
+    expect([...diagramHiddenSystems(new URLSearchParams(), fixture.defs)]).toEqual(["structure"]);
+    expect([
+      ...diagramHiddenSystems(new URLSearchParams(), { ...fixture.defs, systems: ["thermal"] }),
+    ]).toEqual([]);
     expect([
       ...diagramHiddenSystems(
         new URLSearchParams("hidden-system=unknown&hidden-system=thermal&hidden-system=thermal"),
-        fixture.defs.systems,
+        fixture.defs,
       ),
     ]).toEqual(["thermal"]);
   });
@@ -193,9 +193,9 @@ describe("系統図の URL の表示状態", () => {
     ]) {
       const original = new URLSearchParams("view=tree&other=keep");
       const next = withDiagramHiddenSystems(original, hidden);
-      expect(
-        diagramHiddenSystems(new URLSearchParams(next.toString()), fixture.defs.systems),
-      ).toEqual(hidden);
+      expect(diagramHiddenSystems(new URLSearchParams(next.toString()), fixture.defs)).toEqual(
+        hidden,
+      );
       expect(next.get("view")).toBe("tree");
       expect(next.get("other")).toBe("keep");
       expect(original.has(SEARCH.diagramHiddenSystem)).toBe(false);

@@ -3,29 +3,22 @@ import {
   Box,
   Boxes,
   ClipboardCheck,
-  Cpu,
   FileWarning,
-  Gauge,
-  Layers3,
   LayoutDashboard,
   Library,
   type LucideIcon,
   Milestone,
   Network,
   Orbit,
-  Radio,
-  Rocket,
   Ruler,
   Settings,
-  Sun,
   Table2,
-  Telescope,
-  Thermometer,
   Workflow,
 } from "lucide-react";
 import type { AnalysisArea, DefsView, System } from "@/api/types";
 import type { Dict } from "@/i18n";
 import { systemTitle } from "./design";
+import { isSystem, systemIcon } from "./systems";
 
 /**
  * URL の検索部分の名前。ページが読み（`useDetailRoute`・系のページ）、下の `paths` が書く。
@@ -125,18 +118,6 @@ export interface NavItem {
   system?: System;
 }
 
-/** 系のアイコンの対応。項目の一覧と順序は API が返す。 */
-const systemIcons: Record<System, LucideIcon> = {
-  aocs: Gauge,
-  cdh: Cpu,
-  comm: Radio,
-  payload: Telescope,
-  power: Sun,
-  propulsion: Rocket,
-  structure: Layers3,
-  thermal: Thermometer,
-};
-
 /** ナビの項目の表示名。系の語彙は API の labels.section から引く。 */
 export function navItemTitle(item: NavItem, dict: Dict, defs?: DefsView): string {
   return isSystemItem(item.key) ? systemTitle(item.key, defs) : dict.nav.items[item.key];
@@ -174,7 +155,7 @@ export const nav = (systems: readonly System[]): NavSection[] => [
     items: systems.map((system) => ({
       to: paths.system(system),
       key: system,
-      icon: systemIcons[system],
+      icon: systemIcon(system),
       system,
     })),
   },
@@ -200,21 +181,21 @@ export const nav = (systems: readonly System[]): NavSection[] => [
 ];
 
 /**
- * ナビのキーが系のページか。アイコンの対応で型を確かめ、先読みの計画が系の解析を読むのに使う
+ * ナビのキーが系のページか。系の対応（`lib/systems.ts`）で型を確かめ、先読みの計画が系の解析を読むのに使う
  */
 export function isSystemItem(key: NavItemKey): key is NavItemKey & System {
-  return Object.hasOwn(systemIcons, key);
+  return isSystem(key);
 }
 
-/** 系統図で隠す系。指定なしは構造を隠す。空の指定は全表示。未知の系は無視する。 */
+/** 系統図で隠す系。指定なしは API の既定（`DefsView.diagram_hidden_systems`）。空の指定は全表示。未知の系は無視する。 */
 export function diagramHiddenSystems(
   params: URLSearchParams,
-  systems: readonly System[],
+  defs: Pick<DefsView, "systems" | "diagram_hidden_systems">,
 ): ReadonlySet<System> {
   const values = params.has(SEARCH.diagramHiddenSystem)
     ? params.getAll(SEARCH.diagramHiddenSystem)
-    : ["structure"];
-  return new Set(systems.filter((system) => values.includes(system)));
+    : defs.diagram_hidden_systems;
+  return new Set(defs.systems.filter((system) => values.includes(system)));
 }
 
 /** 系統図の表示状態だけを書き換える。空の指定も残し、再読み込みで既定に戻らないようにする。 */

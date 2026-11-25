@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it } from "vitest";
 import { getLang, setLang } from "@/i18n";
 import { fixture } from "@/test/fixture";
@@ -43,6 +44,28 @@ describe("nodeName / idWithName", () => {
     expect(idWithName(mode, "ja")).toBe("CHARGE（充電）");
     expect(idWithName(mode, "en")).toBe("CHARGE");
     expect(idWithName({ id: "SAFE", label: "SAFE" }, "ja")).toBe("SAFE");
+  });
+});
+
+describe("表示名と ID（Rust の fune_model::display_name と共有する表）", () => {
+  const cases: { id: string; label: string | null; shows_name: boolean }[] = JSON.parse(
+    readFileSync(
+      new URL("../../../crates/app/model/testdata/display_name_cases.json", import.meta.url),
+      "utf8",
+    ),
+  );
+
+  it("表示名が使えるときだけ名前が出て、空・空白だけ・ID と同じなら ID だけ", () => {
+    for (const c of cases) {
+      const node = { id: c.id, label: c.label };
+      const shown = idWithName(node, "ja");
+      if (c.shows_name) {
+        expect(shown).toBe(`${c.id}（${c.label}）`);
+        expect(nodeName(node, "ja")).toBe(c.label);
+      } else {
+        expect(shown).toBe(c.id);
+      }
+    }
   });
 });
 

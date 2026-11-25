@@ -46,7 +46,7 @@ fn transfer_maneuvers(design: &Design) -> Vec<Choice> {
         .filter(|m| m.transfer.is_some())
         .map(|m| Choice {
             value: m.id.to_string(),
-            label: m.label.clone().unwrap_or_else(|| m.id.to_string()),
+            label: fune_model::display_name::name_or_id(m.label.as_deref(), m.id.as_str()),
             label_en: None,
         })
         .collect()

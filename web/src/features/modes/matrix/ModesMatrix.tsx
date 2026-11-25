@@ -34,7 +34,7 @@ export function ModesMatrix({
   const tm = t.modes;
   const [eclipse, setEclipse] = useState(false);
   const table = design.modes;
-  const computed = useModeDraftLoad(table, draft, system);
+  const computed = useModeDraftLoad(table, draft, design.defs, system);
   const count = draftCount(draft);
   return (
     <div className="flex min-h-0 flex-1 flex-col p-6">
