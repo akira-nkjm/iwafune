@@ -9,7 +9,7 @@ import { Segmented } from "@/kit/selection/Segmented";
 import { cn } from "@/lib/cn";
 import { attrDef, findParamPath, paramPath } from "@/lib/design";
 import { OpDialog } from "@/ops/OpDialog";
-import { attrEditMode } from "@/quantity/attr-mode";
+import { isQuantityInput } from "@/quantity/attr-mode";
 import { QuantityInput } from "@/quantity/QuantityInput";
 import { useDimensionLabel } from "@/quantity/use-dimension-label";
 import { AttributePicker } from "./AttributePicker";
@@ -56,7 +56,7 @@ export function AddParameterDialog({
   const attrId = mode === "standard" ? picked : fresh.id;
   const dimension = mode === "standard" ? (def?.dimension ?? null) : fresh.dimension || null;
   const byState = mode === "standard" ? (def?.by_state ?? false) : fresh.byState;
-  const editable = mode === "new" || !def || attrEditMode(def) !== "display";
+  const editable = mode === "new" || !def || isQuantityInput(def);
   const cell = byState ? state || null : null;
   // パスは API が返したものだけを使う: 定義のある属性は部品の paths、同じ編集で定義を作る属性（create は新しく
   // 定義するときだけ）は、その定義を書き込まずに当てた部品（POST /parts/{id}）の paths

@@ -38,15 +38,9 @@ fn pick(
     }
 }
 
-/// 部品を選ぶ候補。`parts` は選べる部品の ID（表示名は部品の `label`）。
-pub(super) fn pick_part(
-    design: &Design,
-    (target, m): (&Target, &MissingInput),
-    roles: &[Role],
-    parts: Vec<String>,
-    command: String,
-) -> Fix {
-    let choices = parts
+/// 部品の ID → 選べる値（表示名は部品の `label`、無ければ ID）。部品を指す欄の候補はこれで作る。
+pub(super) fn part_choices(design: &Design, parts: Vec<String>) -> Vec<Choice> {
+    parts
         .into_iter()
         .map(|id| Choice {
             label: design
@@ -57,7 +51,18 @@ pub(super) fn pick_part(
             label_en: None,
             value: id,
         })
-        .collect();
+        .collect()
+}
+
+/// 部品を選ぶ候補。`parts` は選べる部品の ID（表示名は部品の `label`）。
+pub(super) fn pick_part(
+    design: &Design,
+    (target, m): (&Target, &MissingInput),
+    roles: &[Role],
+    parts: Vec<String>,
+    command: String,
+) -> Fix {
+    let choices = part_choices(design, parts);
     let scope = Scope {
         roles: roles.to_vec(),
         kinds: Vec::new(),

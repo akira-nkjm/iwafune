@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
-import type { AttributeDefView, PartRow, QuantityView, ValueView } from "@/api/types";
+import type { AttrInput, AttributeDefView, PartRow, QuantityView, ValueView } from "@/api/types";
 import { useT } from "@/i18n";
 import { type PropertyLayout, PropertyRow } from "@/kit/detail/PropertyRow";
 import { paramPath } from "@/lib/design";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
-import { attrEditMode, cellValue } from "./attr-mode";
+import { InputField } from "./AttrInputFields";
+import { attrInput, cellValue } from "./attr-mode";
 import { EditableQuantity } from "./EditableQuantity";
 import { quantityInputText, scalarOf, valueText } from "./format";
 
@@ -45,8 +46,8 @@ interface CellProps extends Common {
 }
 
 /**
- * 属性の値の表示と編集（部品とカタログ品で共通）。スカラー・状態ごと・表示だけの分岐はここだけで行い、
- * 打った文字列はそのまま `onCommit` に渡す（呼び手は `api/ops.ts` の `useAttrEdit`）。
+ * 属性の値の表示と編集（部品とカタログ品で共通）。量・状態ごと・選ぶ・部品を選ぶ・打つ・表示だけの分岐は、API が返した
+ * 入力の形（`def.input`）でここだけが行い、選んだ・打った文字列はそのまま `onCommit` に渡す（呼び手は `api/ops.ts` の `useAttrEdit`）。
  */
 export function AttrValueEditor(props: RowProps | CellProps) {
   return props.layout === "row" ? <AttrRowEditor {...props} /> : <AttrCellEditor {...props} />;
@@ -92,7 +93,7 @@ function DisplayOnly({ value }: { value: ValueView | undefined }) {
 
 const unset = (v: ValueView | undefined) => !v || v.origin === "unset" || v.value.type === "unset";
 
-/** 属性全体の欄（スカラー、または状態ごとの属性にどの状態でも同じ値が書かれているとき） */
+/** 属性全体の量の欄（スカラー、または状態ごとの属性にどの状態でも同じ値が書かれているとき） */
 function WholeField(props: Common) {
   const { value } = props;
   return (
@@ -112,17 +113,38 @@ function StateField(props: Common & { state: string }) {
   return <QuantityField {...props} q={q} display={q ? q.display : "—"} muted={!q} />;
 }
 
+/** 状態ごとの量か（行・セルが状態ごとの子の欄に分ける） */
+const byStateQuantity = (input: AttrInput | null) => input?.kind === "quantity" && input.by_state;
+
+/**
+ * 属性全体の欄を入力の種類（API の `AttributeDefView.input`）から選ぶ。量は量の欄、ほかは `INPUT_FIELDS` の表の欄
+ * （種類を足したときの対応はその表が型で強いる）。定義の無い属性は表示だけ
+ */
+function WholeInput(props: Common & { input: AttrInput | null }) {
+  const { input, owner, attr, value, onCommit, disabled } = props;
+  if (!input) return <DisplayOnly value={value} />;
+  if (input.kind === "quantity") return <WholeField {...props} />;
+  return (
+    <InputField
+      input={input}
+      value={value}
+      label={paramPath(owner, attr)}
+      onCommit={(text) => onCommit(null, text)}
+      disabled={disabled}
+    />
+  );
+}
+
 function AttrRowEditor(props: RowProps) {
   const t = useT();
   const { owner, attr, def, value, rowLayout, label, source, action } = props;
-  const mode = attrEditMode(def);
+  const input = attrInput(def);
   const head = (children: ReactNode) => (
     <PropertyRow layout={rowLayout} label={label} title={attr} source={source} action={action}>
       {children}
     </PropertyRow>
   );
-  if (mode === "display") return head(<DisplayOnly value={value} />);
-  if (mode === "scalar") return head(<WholeField {...props} />);
+  if (!byStateQuantity(input)) return head(<WholeInput {...props} input={input} />);
   return (
     <div className="py-1">
       {head(
@@ -143,11 +165,11 @@ function AttrRowEditor(props: RowProps) {
 
 function AttrCellEditor(props: CellProps) {
   const { owner, attr, value, state } = props;
-  const mode = attrEditMode(props.def);
-  if (mode === "display" && state)
+  const input = attrInput(props.def);
+  const readOnly = !input || input.kind === "read_only";
+  if (readOnly && state)
     return <span className="font-mono text-[12px]">{cellValue(value, state)?.display ?? "—"}</span>;
-  if (mode === "display") return <DisplayOnly value={value} />;
-  if (mode === "scalar") return <WholeField {...props} />;
+  if (!byStateQuantity(input)) return <WholeInput {...props} input={input} />;
   if (state) return <StateField {...props} state={state} />;
   return (
     <Popover>

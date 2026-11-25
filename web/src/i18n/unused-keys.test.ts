@@ -28,6 +28,7 @@ function sources(dir: string, out: string[] = []): string[] {
 
 /** 実行時に API の値などから組み立てて引く辞書の枝（プレフィックス）と、その理由 */
 const DYNAMIC_PREFIXES: Record<string, string> = {
+  "quantity.readOnly.": "AttrInputFields が API の直せない理由（AttrReadOnlyReason）で引く",
   "catalog.groupings.": "CatalogPage が CATALOG_GROUPINGS の値で引く",
   "cli.change.": "OpPreview が API の変更の種別（created など）で引く",
   "fixes.pick.action.": "analysis/MissingFixActions が API の選ぶものの種類（RefKind）で引く",

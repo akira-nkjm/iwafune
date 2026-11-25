@@ -16,6 +16,8 @@ export function attrAddCommand(fresh: NewAttribute): CommandText | null {
     units: fresh.units,
     by_state: fresh.byState,
     symbols: [],
+    references: null,
+    reference_roles: [],
     unit_vector: false,
   };
 }

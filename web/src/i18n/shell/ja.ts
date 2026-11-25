@@ -91,6 +91,17 @@ export const shellJa = {
     /** 値を書き換えた編集の見出し（部品・カタログ品・設定で共通） */
     setSummary: (path: string, text: string) => `${path} = ${text}`,
     byState: "状態ごと",
+    unsetChoice: "— （未設定）",
+    noCandidates: "候補がありません",
+    // 欄では直せない値の型ごとの説明（`AttrReadOnlyReason`）
+    readOnly: {
+      vector: "3 成分のベクトルです。`fune set` か TOML で直してください。",
+      quaternion: "クォータニオンです。`fune set` か TOML で直してください。",
+      tensor: "3x3 のテンソルです。`fune set --json` か TOML で直してください。",
+      range: "範囲です。`fune set` か TOML で直してください。",
+      curve: "曲線です。`fune set` か TOML で直してください。",
+      table: "表への参照です。`fune set` か TOML で直してください。",
+    },
   },
   verdict: { ok: "OK", warning: "注意", violation: "違反" },
 };

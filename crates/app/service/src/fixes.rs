@@ -14,6 +14,7 @@
 //!
 //! どの候補も既存の Op になる（新しい編集の道は作らない）。
 
+use crate::dto::AttrInput;
 use fune_model::design::refs::TANK_ATTR;
 use fune_model::design::setting_dims::{
     ANY, pattern_matches, setting_curve_dimensions, setting_dimension,
@@ -26,14 +27,17 @@ use fune_model::{Id, Target};
 use fune_ops::{Op, cli::quote, to_cli};
 use fune_projection::{Fix, ListKind, MissingInput};
 
+mod input;
 use crate::workspace::Snapshot;
 
 mod assign;
 mod refs;
 mod value;
 
+pub use input::attr_input;
+use input::{attr_dimension, choices_of_attr};
 use refs::pick_part;
-use value::{VALUE, attr_dimension, example_of, set_attr, set_value};
+use value::{VALUE, example_of, set_attr, set_value};
 
 /// 不足入力の一覧に、設計を見て決めた直し方の候補を付ける。サービスが不足入力を返す所はすべてこれを通す。
 pub fn complete(s: &Snapshot, missing: Vec<MissingInput>) -> Vec<MissingInput> {
@@ -57,7 +61,7 @@ pub fn fixes_for(s: &Snapshot, m: &MissingInput) -> Vec<Fix> {
             vec![tank_of_thruster(design, (target, m))]
         }
         Target::Param(ParamPath::Attr { part, attr, state }) => {
-            vec![set_attr(design, m, part, attr, state.as_deref())]
+            vec![attr_fix(design, (target, m), part, attr, state.as_deref())]
         }
         Target::Param(p @ ParamPath::Field { .. }) => vec![set_value(m, p.clone(), None)],
         Target::Param(ParamPath::Setting(s)) => setting_fixes(design, (target, m), s),
@@ -85,6 +89,24 @@ pub fn fixes_for(s: &Snapshot, m: &MissingInput) -> Vec<Fix> {
         }
         _ => Vec::new(),
     }
+}
+
+/// 部品の属性が足りないときの候補。設計のものを指す属性（`AttrInput::Reference`）は選ぶ候補、それ以外は値を入れる候補。
+fn attr_fix(
+    design: &Design,
+    site: (&Target, &MissingInput),
+    part: &str,
+    attr: &str,
+    state: Option<&str>,
+) -> Fix {
+    if let (None, Some(AttrInput::Reference { roles, choices, .. })) =
+        (state, attr_input(design, attr))
+    {
+        let command = format!("fune set {} <part>", quote(&site.1.path));
+        let parts = choices.into_iter().map(|c| c.value).collect();
+        return pick_part(design, site, &roles, parts, command);
+    }
+    set_attr(design, site.1, part, attr, state)
 }
 
 /// 設定が足りないときの候補（部品を指す欄・一覧の空・量の値）。
@@ -238,7 +260,7 @@ fn any_part(s: &Snapshot, roles: &[Role], attr: Option<&str>) -> Vec<Fix> {
                 attr: attr.to_owned(),
                 dimension: attr_dimension(design, attr),
                 example: example_of(attr_dimension(design, attr).as_deref()),
-                choices: value::choices_of_attr(design, attr),
+                choices: choices_of_attr(design, attr),
                 parts: lacking,
                 command: format!("fune set <part>.{} {VALUE}", quote(attr)),
             }]

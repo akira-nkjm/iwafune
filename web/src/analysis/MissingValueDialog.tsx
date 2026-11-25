@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { useTextOp } from "@/api/ops";
 import { useT } from "@/i18n";
+import { choiceLabel } from "@/kit/forms/choice-label";
 import { Field } from "@/kit/forms/Field";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { TextInput } from "@/kit/forms/TextInput";
@@ -8,7 +9,6 @@ import { Segmented } from "@/kit/selection/Segmented";
 import { OpDialog } from "@/ops/OpDialog";
 import { QuantityInput } from "@/quantity/QuantityInput";
 import { useDimensionLabel } from "@/quantity/use-dimension-label";
-import { choiceLabel } from "./MissingPickDialog";
 import { type ValueFix, type ValueScope, valueSetText } from "./missing-fix";
 
 /** 入力欄の補足（次元と入力の例。例は service が次元から作る） */

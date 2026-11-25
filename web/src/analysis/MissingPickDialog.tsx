@@ -1,17 +1,12 @@
 import { useState } from "react";
 import { useCommandOps, useTextOp } from "@/api/ops";
-import type { Choice, DesignView, Op } from "@/api/types";
-import { localized, useT } from "@/i18n";
+import type { DesignView, Op } from "@/api/types";
+import { useT } from "@/i18n";
+import { choiceLabel } from "@/kit/forms/choice-label";
 import { Field } from "@/kit/forms/Field";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { OpDialog } from "@/ops/OpDialog";
 import { type PickFix, pickEdit } from "./missing-fix";
-
-/** 選べるもの 1 つの表示（表示名が値と違えば `表示名 (値)`） */
-export function choiceLabel(c: Choice): string {
-  const name = localized(c.label, c.label_en);
-  return name === c.value ? c.value : `${name} (${c.value})`;
-}
 
 /**
  * 別のもの（マヌーバのスラスタ・回線の送受信機とアンテナ・打ち上げ機・ディスペンサー・下りの回線）を指す欄に、設計にあるものから

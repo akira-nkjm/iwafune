@@ -345,6 +345,8 @@ pub struct AttributeDefView {
     /// 組み込み（`fune_model::builtin`）なら true、プロジェクト独自（`defs/`）なら false
     pub builtin: bool,
     pub description: Option<String>,
+    /// 値を欄で直すときの入力の形（量・選択・参照・文字列・直せない理由。決めるのは `fixes::attr_input`）
+    pub input: super::AttrInput,
 }
 
 /// 種別定義。

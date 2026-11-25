@@ -1,9 +1,9 @@
-import { choiceLabel } from "@/analysis/MissingPickDialog";
 import { type FieldEdit, useSettingEdit } from "@/api/field-edit";
 import type { SettingView } from "@/api/types";
 import { useT } from "@/i18n";
 import { Empty } from "@/kit/feedback/Empty";
 import { CommitInput } from "@/kit/forms/CommitInput";
+import { choiceLabel } from "@/kit/forms/choice-label";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { Switch } from "@/kit/selection/Switch";
 import { DataTable } from "@/kit/table/DataTable";

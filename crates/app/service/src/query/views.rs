@@ -1,7 +1,7 @@
 //! Design → 表示用の型（製品ツリー・モード表・ネット・ハーネス・定義・ケース）。解決済みの値を使わないもの。
 
 use crate::dto::{
-    AttributeDefView, CaseView, DefsView, HarnessView, KindDefView, ModeHeader, ModeRow,
+    AttrInput, AttributeDefView, CaseView, DefsView, HarnessView, KindDefView, ModeHeader, ModeRow,
     ModeSegmentView, ModeSequenceView, ModeStartView, ModeTable, NetView, QuantityView, TreeNode,
     TreeNodeKind,
 };
@@ -283,6 +283,7 @@ pub(crate) fn defs(design: &Design) -> DefsView {
             fov_axis: a.fov_axis.as_ref().map(ToString::to_string),
             builtin: !design.attributes.contains_key(id) && builtin::attributes().contains_key(id),
             description: a.description.clone(),
+            input: crate::fixes::attr_input(design, id).unwrap_or(AttrInput::Text),
         })
         .collect();
     let kinds = design

@@ -74,6 +74,12 @@ pub struct AttrAddArgs {
     /// For the half angle of a field of view: the direction attribute it is around (for example boresight)
     #[arg(long)]
     pub fov_axis: Option<String>,
+    /// For a text attribute whose value names something in the design: what it points at (part)
+    #[arg(long)]
+    pub references: Option<String>,
+    /// With `--references part`: the part roles offered as candidates (comma-separated; all parts if omitted)
+    #[arg(long)]
+    pub reference_roles: Option<String>,
     /// Subsystem it is listed under on screen (basic, mass, aocs, cdh, comm, payload, power, propulsion, structure, thermal)
     #[arg(long)]
     pub section: Option<String>,
