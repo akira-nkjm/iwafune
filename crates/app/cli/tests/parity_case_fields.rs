@@ -1,9 +1,10 @@
 //! パリティテスト（CI 必須）: 解析ケースの欄を 1 つずつ書く（`fune set|unset cases.<ID>.<欄>` と `POST /ops/from_text`・
-//! `/ops/unset_from_text`）と、ケースを丸ごと書く `fune case set` が落とした欄の知らせ（CLI の出力と `POST /ops` の結果の `removed`）。
+//! `/ops/unset_from_text`）と、ケースを丸ごと書く `fune case set` が落とした欄の知らせ（CLI の出力と `POST /ops` の結果の `removed`）、
+//! ケースを足す GUI の欄（`POST /ops/from_command` の `case_set`）。
 
 mod common;
 
-use common::{assert_same_files, demo_copy, fune, post_json, run_cli};
+use common::{assert_same_files, demo_copy, fune, post_json, run_cli, snapshot_files};
 use serde_json::json;
 
 /// 欄ごとの書き込みと消去。CLI と HTTP で書かれるファイルがバイト単位で一致し、ほかの欄は残る。
@@ -171,4 +172,75 @@ fn case_set_lists_the_fields_it_removes_on_both_surfaces() {
         .output()
         .unwrap();
     assert!(!String::from_utf8_lossy(&ok.stderr).contains("Removed"));
+}
+
+/// 解析ケースを足す（GUI の欄の前後の空白・空の欄は service が読む: `POST /ops/from_command` の `case_set`）。
+/// `fune case set` と書かれるファイルがバイト単位で一致し、正準の形（`fmt --check`）で `check` も通る。
+/// 読めない欄は CLI も HTTP も書かずに断る。
+#[test]
+fn case_add_matches_cli_and_refuses_bad_fields() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let (_t1, cli_root) = demo_copy();
+    let (_t2, http_root) = demo_copy();
+    run_cli(
+        &cli_root,
+        &[
+            "case",
+            "set",
+            "hot_eclipse",
+            "--label",
+            "Hot eclipse",
+            "--mode",
+            "SAFE",
+            "--side",
+            "max",
+            "--thermal-case",
+            "hot",
+            "--beta",
+            "-45 deg",
+            "--orbits",
+            "12",
+            "--epoch",
+            "2027-06-01T00:00:00Z",
+        ],
+    );
+    let ops = post_json(
+        &rt,
+        &http_root,
+        "/api/v1/ops/from_command",
+        json!({ "command": "case_set", "id": " hot_eclipse ", "label": "Hot eclipse ",
+            "description": "", "mode": " SAFE", "phase": "", "side": "max",
+            "thermal_case": "hot", "beta": " -45 deg", "orbits": "12", "sun_distance": null,
+            "epoch": "2027-06-01T00:00:00Z" }),
+    );
+    assert_eq!(ops[0]["op"], "set_case", "{ops}");
+    post_json(&rt, &http_root, "/api/v1/ops", json!({ "ops": ops }));
+    assert_same_files(&cli_root, &http_root, "case add");
+    run_cli(&cli_root, &["fmt", "--check"]);
+    run_cli(&cli_root, &["check"]);
+
+    // 読めない欄: CLI（終了コード 2 など失敗）も HTTP（4xx）も書かない
+    let before = snapshot_files(&http_root);
+    for (flag, field, value) in [
+        ("--orbits", "orbits", "1.5"),
+        ("--side", "side", "high"),
+        ("--beta", "beta", "sixty"),
+        ("--epoch", "epoch", "tuesday"),
+    ] {
+        let out = fune()
+            .arg("-C")
+            .arg(&cli_root)
+            .args(["case", "set", "bad_case", flag, value])
+            .output()
+            .unwrap();
+        assert!(!out.status.success(), "{flag}");
+        let (status, _) = common::post_json_response(
+            &rt,
+            &http_root,
+            "/api/v1/ops/from_command",
+            json!({ "command": "case_set", "id": "bad_case", field: value }),
+        );
+        assert_ne!(status, axum::http::StatusCode::OK, "{field}");
+    }
+    assert_eq!(snapshot_files(&http_root), before);
 }

@@ -1,5 +1,6 @@
 // Generated file. Do not edit by hand (regenerate with `cargo test -p fune-service export_ts`).
 export type * from "./Acknowledgement";
+export type * from "./AddChoices";
 export type * from "./AnalysisArea";
 export type * from "./AnalysisCase";
 export type * from "./AnalysisCaseSource";
@@ -59,6 +60,7 @@ export type * from "./CapabilityPoint";
 export type * from "./CaseFromEclipseRequest";
 export type * from "./CaseFromGeometryRequest";
 export type * from "./CaseFromSunDistanceRequest";
+export type * from "./CaseSetText";
 export type * from "./CaseView";
 export type * from "./CatalogFetchRequest";
 export type * from "./CatalogField";

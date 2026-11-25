@@ -16,6 +16,7 @@ import { paths } from "@/lib/nav";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 import { Button } from "@/ui/button";
+import { AddCaseButton } from "./AddCaseButton";
 import { CaseEpochDialog } from "./CaseEpochDialog";
 import { CasePhaseDialog } from "./CasePhaseDialog";
 import { CasesFromGeometryButton } from "./CasesFromGeometryDialog";
@@ -30,7 +31,12 @@ export function CasesPage() {
         eyebrow={m.eyebrow}
         title={m.cases}
         subtitle={m.casesSubtitle}
-        actions={<CasesFromGeometryButton design={design.data} />}
+        actions={
+          <>
+            <AddCaseButton design={design.data} />
+            <CasesFromGeometryButton design={design.data} />
+          </>
+        }
       />
       <PageBody>
         <QueryState query={design} skeleton={<SkeletonPanel lines={5} />}>

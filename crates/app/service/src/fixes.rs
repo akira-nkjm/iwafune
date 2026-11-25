@@ -231,7 +231,7 @@ fn kinds_of_roles(design: &Design, roles: &[Role]) -> Vec<String> {
 }
 
 /// 部品のうち、役割のどれかを持つものの ID（役割が空ならすべて）。
-fn parts_of_roles(design: &Design, roles: &[Role]) -> Vec<String> {
+pub(crate) fn parts_of_roles(design: &Design, roles: &[Role]) -> Vec<String> {
     design
         .parts
         .values()

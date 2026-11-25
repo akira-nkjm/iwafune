@@ -91,6 +91,7 @@ pub fn command_ops(t: &CommandText) -> Result<Vec<Op>> {
         CommandText::CatalogSourceAdd(t) => vec![super::catalog::catalog_source_add_op(t)],
         CommandText::CatalogLocalAdd(t) => vec![super::catalog::catalog_local_add_op(t)],
         CommandText::LinkAdd(t) => vec![super::link::link_add_op(t)?],
+        CommandText::CaseSet(t) => vec![super::case::case_set_op(t)?],
         CommandText::ProjectSet(t) => vec![super::project::project_field_op(t)?],
     })
 }

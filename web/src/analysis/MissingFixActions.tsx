@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Link } from "react-router";
 import type { DesignView, MissingInput } from "@/api/types";
 import { useT } from "@/i18n";
+import { AddCaseDialog } from "@/ops/add-case/AddCaseDialog";
+import { AddLinkDialog } from "@/ops/add-link/AddLinkDialog";
 import { AddModeDialog } from "@/ops/add-mode/AddModeDialog";
 import { AddPartDialog } from "@/ops/add-part/AddPartDialog";
 import { AddStationDialog } from "@/ops/add-station/AddStationDialog";
@@ -15,10 +16,7 @@ import { type RowAction, rowActions } from "./missing-fix";
 const ACTION = "text-accent-ink hover:underline";
 
 /** ダイアログを開く操作のボタンの文言（候補の種類で引く） */
-function actionLabel(
-  a: Exclude<RowAction, { kind: "link" }>,
-  t: ReturnType<typeof useT>["fixes"],
-): string {
+function actionLabel(a: RowAction, t: ReturnType<typeof useT>["fixes"]): string {
   switch (a.kind) {
     case "value":
       return t.enterValue;
@@ -36,8 +34,6 @@ function actionLabel(
 /** 操作の並びの key（候補の種類と、候補が持つコマンドか行き先で一意） */
 function keyOf(a: RowAction): string {
   switch (a.kind) {
-    case "link":
-      return `${a.to}-${a.label.addItem}`;
     case "add_item":
       return `${a.kind}-${a.command}`;
     default:
@@ -58,6 +54,18 @@ function AddItemDialog({
   switch (action.list) {
     case "ground_station":
       return <AddStationDialog initialId={action.id} onOpenChange={onOpenChange} />;
+    case "comm_link":
+      return (
+        design && (
+          <AddLinkDialog design={design} initialId={action.id} onOpenChange={onOpenChange} />
+        )
+      );
+    case "case":
+      return (
+        design && (
+          <AddCaseDialog design={design} initialId={action.id} onOpenChange={onOpenChange} />
+        )
+      );
     case "mode":
       return design && <AddModeDialog table={design.modes} open onOpenChange={onOpenChange} />;
     case "maneuver":
@@ -76,7 +84,7 @@ function AddItemDialog({
 
 /**
  * 足りない入力の行の操作。API が返した直し方の候補（`MissingInput.fixes`）ごとに、その場のダイアログ（値を入れる・選ぶ）か、
- * 部品の追加・割り当てのダイアログ、一覧の追加のダイアログ（モード・マヌーバ・地上局）、既存のページへのリンク（通信の回線・解析ケースの追加）を出す。対象の文字列は読まない。
+ * 部品の追加・割り当てのダイアログ、一覧の追加のダイアログ（モード・マヌーバ・地上局・通信の回線・解析ケース）を出す。対象の文字列は読まない。
  */
 export function MissingFixActions({
   input,
@@ -92,12 +100,6 @@ export function MissingFixActions({
     <>
       {rowActions(input).map((a) => {
         const key = keyOf(a);
-        if (a.kind === "link")
-          return (
-            <Link key={key} to={a.to} className={ACTION}>
-              {t.addItem[a.label.addItem]}
-            </Link>
-          );
         return (
           <button key={key} type="button" className={ACTION} onClick={() => setOpen(a)}>
             {actionLabel(a, t)}

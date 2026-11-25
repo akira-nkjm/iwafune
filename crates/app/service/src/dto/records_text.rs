@@ -1,5 +1,5 @@
-//! 通信の回線・ローカルのカタログ・プロジェクトの編集に打った引数（文字列のまま。`CommandText::{LinkAdd, CatalogLocalAdd, ProjectSet}`）。
-//! 読み方は `edit::{link, catalog, project}`（CLI の引数も GUI の欄もそこを通る）。
+//! 通信の回線・解析ケース・ローカルのカタログ・プロジェクトの編集に打った引数（文字列のまま。`CommandText::{LinkAdd, CaseSet, CatalogLocalAdd, ProjectSet}`）。
+//! 読み方は `edit::{link, case, catalog, project}`（CLI の引数も GUI の欄もそこを通る）。
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -37,4 +37,32 @@ pub struct CatalogLocalAddText {
 pub struct ProjectSetText {
     pub field: String,
     pub value: Option<String>,
+}
+
+/// `fune case set <ID> --label … --mode … --beta "60 deg" --orbits 5 …` の引数（`cases/<ID>.toml`。文字列のまま）。
+/// 書かなかった旗（省略・null・空の文字列）は書かない（ケースを丸ごと置き換えるので、書かない欄は無くなる）。
+/// 量・周回数・時刻・`side` の綴りを読むのは service（`edit::case`）。
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(default)]
+#[ts(optional_fields = nullable)]
+pub struct CaseSetText {
+    pub id: String,
+    pub label: Option<String>,
+    pub description: Option<String>,
+    /// 解析するモードの ID
+    pub mode: Option<String>,
+    /// フェーズの ID（`phases/<ID>.toml`）
+    pub phase: Option<String>,
+    /// 不確かさのどちら側を読むか（`nominal` / `min` / `max`）
+    pub side: Option<String>,
+    /// 熱の環境条件の名前（`analysis/thermal.toml` の `[case.<名前>]`）
+    pub thermal_case: Option<String>,
+    /// β 角（`"60 deg"`）
+    pub beta: Option<String>,
+    /// 時系列で回す周回数（正の整数）
+    pub orbits: Option<String>,
+    /// 太陽からの距離（`"0.7 AU"`）
+    pub sun_distance: Option<String>,
+    /// 解析を始める時刻（ISO 8601）
+    pub epoch: Option<String>,
 }
