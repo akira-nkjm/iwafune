@@ -39,7 +39,9 @@ fn the_demo_shows_every_verdict_and_every_unverified_state() {
     assert_eq!(verdict("R_LINK_S"), Some(Verdict::Ok));
     assert_eq!(verdict("R_LIFETIME"), Some(Verdict::Ok));
     assert_eq!(verdict("R_STT_SUN"), Some(Verdict::Warning));
-    assert_eq!(verdict("R_BAT_TEMP"), Some(Verdict::Violation));
+    // #472: パネルの上のセルの面積を二度数えなくなって機体が暖かくなり、冷たいケースの電池の最低温度が -1.64 → 11.6 °C（下限 0 °C）なので違反が ok になる。
+    // 違反の例は R_STORAGE が残る
+    assert_eq!(verdict("R_BAT_TEMP"), Some(Verdict::Ok));
     assert_eq!(verdict("R_STORAGE"), Some(Verdict::Violation));
     // 基準を要求が持つ判定と、解析の入力を与える要求
     for id in ["R_POWER", "R_LINK_MARGIN", "R_PFD", "R_SLEW"] {
@@ -64,7 +66,7 @@ fn the_demo_shows_every_verdict_and_every_unverified_state() {
     let s = &report.summary;
     assert_eq!(
         (s.total, s.ok, s.warning, s.violation, s.not_verified),
-        (16, 10, 1, 2, 3)
+        (16, 11, 1, 1, 3)
     );
     assert!(fails(&report, false));
 }

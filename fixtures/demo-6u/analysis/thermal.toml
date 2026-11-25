@@ -55,12 +55,48 @@ label        = "Black paint"
 absorptivity = 0.92
 emissivity   = 0.86
 
+[coating.cell_net]
+absorptivity = 0.6
+emissivity   = 0.85
+label        = "Solar cell, net of the electrical output"
+
 [surface.PANEL_PX]
 white_paint = 0.86
 black_paint = 0.14
+
+[surface.SP_MX]
+cell_net = 1.0
+
+[surface.SP_MY]
+cell_net = 1.0
+
+[surface.SP_PX]
+cell_net = 1.0
+
+[surface.SP_PY]
+cell_net = 1.0
+
+[surface.CELL_MOD_1]
+cell_net = 1.0
+
+[surface.CELL_MOD_2]
+cell_net = 1.0
+
+[surface.CELL_MOD_3]
+cell_net = 1.0
+
+[surface.CELL_MOD_4]
+cell_net = 1.0
+
+[surface.PANEL_PZ]
+white_paint = 1.0
 
 [enclosure]
 emissivity = 0.85
 
 [conductive.BAT]
-PANEL_MZ = { value = 0.8, unit = "W/K" }
+PANEL_MZ = { value = 0.03, unit = "W/K" }
+BUS      = { value = 0.05, unit = "W/K" }
+
+[conductive.CAM]
+PANEL_PZ = { value = 5.0, unit = "W/K" }

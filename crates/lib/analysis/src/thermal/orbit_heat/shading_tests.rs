@@ -6,9 +6,9 @@ use crate::structure::interference::InterferenceBox;
 use crate::thermal::network::{ThermalNetwork, ThermalPlate, ThermalSurface, tests::node};
 use sat_astro::math::Quat;
 
-const TOP: f64 = 0.005;
+pub(super) const TOP: f64 = 0.005;
 
-fn boxed(id: &str, c: [f64; 3], size: [f64; 3]) -> InterferenceBox {
+pub(super) fn boxed(id: &str, c: [f64; 3], size: [f64; 3]) -> InterferenceBox {
     InterferenceBox {
         id: id.to_owned(),
         count: 1,
@@ -21,7 +21,7 @@ fn boxed(id: &str, c: [f64; 3], size: [f64; 3]) -> InterferenceBox {
 
 /// 外面 "P"（0.01 m²、法線 +Z、α = 0.9、ε = 0.8）。箱は 1 m × 1 m の板と、その上面の半分（x ∈ [0, 0.5]）を覆う箱。
 /// `cells` があれば、板 P を (u, v) の升に分ける（#340）。
-fn network(enabled: Option<bool>, cells: Option<[u32; 2]>) -> ThermalNetwork {
+pub(super) fn network(enabled: Option<bool>, cells: Option<[u32; 2]>) -> ThermalNetwork {
     let frame = boxed("P", [0.0, 0.0, 0.0], [1.0, 1.0, 0.01]);
     ThermalNetwork {
         mounts: None,
@@ -65,7 +65,7 @@ fn plate(enabled: Option<bool>) -> Compiled {
 }
 
 /// 真上の太陽と、真上にある地球（高度 500 km。アルベドと赤外が入る）。
-fn overhead(sun: Option<Vec3>) -> ThermalExposure {
+pub(super) fn overhead(sun: Option<Vec3>) -> ThermalExposure {
     ThermalExposure::Fixed {
         sun_dir_body: sun,
         nadir_body: Some(-Vec3::Z),

@@ -28,10 +28,16 @@ fn adding_an_attribute_to_a_table_style_file_matches_cli() {
     post_json(&rt, &http_root, "/api/v1/ops", json!({ "ops": [op] }));
     assert_same_files(&cli_root, &http_root, "set EPT.isp");
     let text = std::fs::read_to_string(http_root.join(FILE)).unwrap();
-    let header = text
-        .find("\n[attr]\nisp = { value = 1200.0, unit = \"s\" }\n")
+    // #472: 推進器は熱の外面（面積・法線・光学特性）の値の行を `[attr]` に持つので、`isp` はその行の並びの中に入る
+    let header = text.find("\n[attr]\n").unwrap();
+    let row = text
+        .find("\nisp          = { value = 1200.0, unit = \"s\" }\n")
+        .or_else(|| text.find("\nisp = { value = 1200.0, unit = \"s\" }\n"))
         .unwrap();
-    assert!(header < text.find("[attr.mass]").unwrap(), "{text}");
+    assert!(
+        header < row && row < text.find("[attr.mass]").unwrap(),
+        "{text}"
+    );
     run_cli(&http_root, &["fmt", "--check"]);
     // 出典付き: `[attr.isp]` が ID の順の位置に入る（ファイルの終わりではない）
     for root in [&cli_root, &http_root] {
@@ -55,6 +61,11 @@ fn adding_an_attribute_to_a_table_style_file_matches_cli() {
             && text.find("[attr.isp]").unwrap() < text.find("[attr.size]").unwrap(),
         "{text}"
     );
-    assert!(!text.contains("\n[attr]\n"), "{text}");
+    // #472: `[attr]` は熱の外面の値の行だけを持つ（`isp` の行は無い。出典付きの値は表に入る）
+    let header = text.find("\n[attr]\n").unwrap();
+    assert!(
+        !text[header..text.find("[attr.mass]").unwrap()].contains("isp"),
+        "{text}"
+    );
     run_cli(&http_root, &["fmt", "--check"]);
 }

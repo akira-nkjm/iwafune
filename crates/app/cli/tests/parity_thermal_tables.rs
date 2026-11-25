@@ -127,7 +127,7 @@ fn tables_show_sources_and_apply_the_draft() {
     let explicit = row(&saved, "conductive", "BAT", "PANEL_MZ").expect("explicit pair");
     assert_eq!(explicit["source"], "explicit");
     assert_eq!(explicit["explicit"], true);
-    assert_eq!(explicit["value"]["display"], "0.800 W/K", "{explicit}");
+    assert_eq!(explicit["value"]["display"], "0.0300 W/K", "{explicit}");
     assert!(
         saved["couplings"]["rows"]
             .as_array()

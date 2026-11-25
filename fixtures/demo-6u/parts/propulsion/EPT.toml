@@ -9,6 +9,12 @@ point = "FACE_MZ"
 [pose]
 position = { x = 0.0, y = 60.0, z = 28.0, unit = "mm" }
 
+[attr]
+absorptivity = 0.6
+area         = { value = 81.0, unit = "cm^2" }
+emissivity   = 0.8
+normal       = { x = 0.0, y = 0.0, z = -1.0 }
+
 [attr.mass]
 value       = 0.4
 unit        = "kg"
