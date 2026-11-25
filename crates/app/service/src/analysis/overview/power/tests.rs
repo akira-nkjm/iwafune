@@ -79,10 +79,11 @@ fn mode_load_bars_scale_to_the_largest_mode() {
         let v = b.value.as_ref().unwrap().si;
         assert!((b.fill - v / largest).abs() < 1e-12);
     }
-    // 手で: デモの DOWNLINK が最大（17.36 W）で棒は満ちる
+    // 手で: デモの DOWNLINK が最大（18.72 W）で棒は満ちる。
+    // #491 ヒーターの増分 (3−2)×0.1 + (7−1)×0.2 = 1.3 W に成長余裕 5 % で 17.35775 + 1.365
     let downlink = bars.iter().find(|b| b.key == "DOWNLINK").unwrap();
     assert_eq!(downlink.fill, 1.0);
-    assert!((downlink.value.as_ref().unwrap().si - 17.35775).abs() < 1e-9);
+    assert!((downlink.value.as_ref().unwrap().si - 18.72275).abs() < 1e-9);
 }
 
 #[test]
@@ -118,9 +119,9 @@ fn energy_balance_shows_dod_per_case_against_the_limit() {
         assert!((b.fill - dod / (0.3 * 1.5)).abs() < 1e-9);
         assert_eq!(b.verdict, Some(sat_analysis::spec::Verdict::Ok));
     }
-    // 判定と同じ運用の値: DOWNLINK は最長継続時間で評価した 15.1 %（連続なら 100 %）
+    // 判定と同じ運用の値: DOWNLINK は最長継続時間で評価した 17.0 %（連続なら 100 %。#491 ヒーターの増分で 15.1 % から増えた）
     let downlink = bars.iter().find(|b| b.key == "DOWNLINK").unwrap();
-    assert_eq!(downlink.value.as_ref().unwrap().display, "15.1 %");
+    assert_eq!(downlink.value.as_ref().unwrap().display, "17.0 %");
     assert_eq!(downlink.label.label, "Downlink");
 }
 
@@ -160,15 +161,16 @@ fn sizing_compares_current_with_required() {
     let o = of(&page, "power.sizing");
     assert_eq!(bar_keys(o), ["area", "capacity"]);
     let bars = &o.chart.as_ref().unwrap().bars;
-    // デモ: 設計 2990 cm² / 必要 1375 cm²、設計 45.0 Wh / 必要 23.8 Wh（判定の文と同じ）。
+    // デモ: 設計 2990 cm² / 必要 1602 cm²、設計 45.0 Wh / 必要 27.1 Wh（判定の文と同じ）。
     // #424 部品どうしの影で発電が下がるので、必要な面積と容量が増えた（1295 → 1375 cm²、22.9 → 23.8 Wh）
+    // #491 ヒーターの電力を上げた分の負荷で、さらに増えた（1375 → 1602 cm²、23.8 → 27.1 Wh）
     assert_eq!(bars[0].value.as_ref().unwrap().display, "2990 cm²");
     assert_eq!(
         bars[0].reference.as_ref().unwrap().value.display,
-        "1375 cm²"
+        "1602 cm²"
     );
     assert_eq!(bars[1].value.as_ref().unwrap().display, "45.0 Wh");
-    assert_eq!(bars[1].reference.as_ref().unwrap().value.display, "23.8 Wh");
+    assert_eq!(bars[1].reference.as_ref().unwrap().value.display, "27.1 Wh");
     let ratio: f64 = 2990.0 / 1295.0;
     assert!((bars[0].fill - (ratio / 1.5).min(1.0)).abs() < 1e-3);
     assert_eq!(bars[0].reference.as_ref().unwrap().label.label, "必要");

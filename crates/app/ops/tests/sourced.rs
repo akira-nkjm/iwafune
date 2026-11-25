@@ -128,7 +128,7 @@ fn a_sourced_state_cell_uses_dotted_keys() {
     // 出典を保てば値の 1 行だけが変わる。
     let p = plan(&snap, &[cell(Some("sys_judgement"))]).unwrap();
     let (removed, added) = changed_lines(&p.changes[0]);
-    assert_eq!(removed, vec!["on.value       = 2.0".to_string()]);
+    assert_eq!(removed, vec!["on.value       = 3.0".to_string()]);
     assert_eq!(added, vec!["on.value       = 2.5".to_string()]);
     // 出典を外すとセルは 1 行に戻り、表の `=` も揃え直す（fmt と同じ）。
     let p = plan(&snap, &[cell(None)]).unwrap();

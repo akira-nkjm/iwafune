@@ -31,7 +31,7 @@ fn display(k: &KpiView) -> &str {
 fn demo_kpis_show_the_same_values_as_before() {
     let ws = demo();
     let expected: &[(&str, &[(KpiKey, &str)])] = &[
-        ("power.mode_load", &[(KpiKey::ModeLoad, "17.4 W")]),
+        ("power.mode_load", &[(KpiKey::ModeLoad, "18.7 W")]),
         (
             "power.orbit_generation",
             // #147 で日照率を足した（軌道 1 周の日照の時間の割合）。
@@ -49,7 +49,7 @@ fn demo_kpis_show_the_same_values_as_before() {
         // #424 部品どうしの影（発電が 28.3 → 27.1 W に下がる）で、軌道平均の収支は 15.0 W → 14.2 W、最大 DoD は 15.1 % のまま
         (
             "power.energy_balance",
-            &[(KpiKey::OrbitBalance, "14.2 W"), (KpiKey::MaxDod, "15.1 %")],
+            &[(KpiKey::OrbitBalance, "13.6 W"), (KpiKey::MaxDod, "17.0 %")],
         ),
         // #388 段階 4: 空力・太陽輻射圧の面積と腕を部品の箱から出す（デモの `cp_offset_*` は消した）。16.2 h → 17.6 h、
         // 2.39 → 2.25 mN·m·s。合計は残留磁気トルク（約 8e-7 N·m）が支配し、空力は 1.9e-8 → 5.9e-9 N·m、
@@ -98,9 +98,9 @@ fn demo_kpis_show_the_same_values_as_before() {
                 // 正味（α 0.91 → 0.6）で数え、電池を断熱してヒータの設定温度を 20〜25 °C にし、カメラと +Z 面の結合と白塗装で冷やした。
                 // 最高 40.3 → 29.5 °C（高温の +X のパネル）、最低 -17.2 → -13.7 °C（低温の -X のパネル）。低温のケースでは電池・カメラのヒータが容量いっぱい（飽和）
                 (KpiKey::MaxTemperature, "29.5 °C"),
-                (KpiKey::MinTemperature, "-13.7 °C"),
+                (KpiKey::MinTemperature, "-10.9 °C"),
                 (KpiKey::NodesInRange, "—"),
-                (KpiKey::MaxHeaterDuty, "100 %"),
+                (KpiKey::MaxHeaterDuty, "70.9 %"),
             ],
         ),
         (
@@ -113,7 +113,7 @@ fn demo_kpis_show_the_same_values_as_before() {
                 // #472: パネルの上のセルの面積を二度数えなくなり、デモの熱設計を見直した（セルの吸収は正味 α 0.6、電池のヒータの設定温度は 20〜25 °C）:
                 // 最高 58.3 → 45.9 °C（+X のパネル）、ヒータの最大のデューティ 30.5 → 54.3 %（電池のヒータが設定温度を守るので多く働く）
                 (KpiKey::TransientMaxTemperature, "45.9 °C"),
-                (KpiKey::TransientMaxHeaterDuty, "54.3 %"),
+                (KpiKey::TransientMaxHeaterDuty, "36.1 %"),
             ],
         ),
         (
@@ -253,12 +253,13 @@ fn demo_verdicts_fills_and_tallies() {
             // #446: 展開パドルが遮った日射を吸収するようになり、CAM が再び上限を超える（最高 24.0 °C 前後）ので 3 → 4
             // #472: パネルの二重の放射を無くし、デモの熱設計を見直した（電池のヒータを 20〜25 °C に）ので、違反は無くなり、範囲の端（警告）は
             // 低温のケースの電池の性能（ヒータが容量いっぱい）と、カメラの性能（冷たい側）の 2 組だけ（4 → 3 → 2）
-            flagged: 2,
+            // #491: 電池のヒータが設定温度を保てるようになり、電池の警告が消えてカメラの 1 組だけ（2 → 1）
+            flagged: 1,
             acknowledged: None
         })
     );
-    // 当てはまる割合は（判定した数 − 印の付いた数）/ 判定した数: 上の 2 に合わせて 11/13（#424 で 10/13 に、#446 で 9/13 に戻り、#472 で 11/13）
-    assert!((range.fill.unwrap().ratio - 11.0 / 13.0).abs() < 1e-12);
+    // 当てはまる割合は（判定した数 − 印の付いた数）/ 判定した数: 上の 1 に合わせて 12/13（#424 で 10/13 に、#446 で 9/13 に戻り、#472 で 11/13、#491 で 12/13）
+    assert!((range.fill.unwrap().ratio - 12.0 / 13.0).abs() < 1e-12);
     // 判定の対象でない KPI（発生量・角運動量）は判定を持たない
     assert!(kpis(&ws, "cdh.data_budget", None)[0].verdict.is_none());
     assert!(kpis(&ws, "aocs.rw_unloading", None)[1].verdict.is_none());
@@ -298,7 +299,8 @@ fn mode_load_uses_the_budget_mode() {
         assert_eq!(display(load), row.unwrap().with_growth.display, "{case:?}");
     }
     let safe = &kpis(&ws, "power.mode_load", Some("cold_safe"))[0];
-    assert_eq!(display(safe), "4.04 W");
+    // #491: ヒーターの増分 (3−2)×0.4 + (7−1)×0.3 = 2.2 W に成長余裕 5 % で 4.04 → 6.35 W
+    assert_eq!(display(safe), "6.35 W");
 }
 
 /// 解析の一覧は KPI の定義（名前）を、系のページに並べる順で持つ（結果が届く前に名前を並べるため）。
