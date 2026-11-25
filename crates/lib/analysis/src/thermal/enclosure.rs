@@ -7,7 +7,8 @@
 //! `B_ij = F_ij ε_j + Σ_k F_ik (1 − ε_k) B_kj`。面 i, j の放射交換面積は `ε_i A_i B_ij`（i ⇄ j で対称）で、
 //! 面 i から面 j への正味の熱流は `σ ε_i A_i B_ij (T_i⁴ − T_j⁴)`。
 
-use sat_astro::math::solve_dense;
+use crate::structure::interference::InterferenceBox;
+use sat_astro::math::{Vec3, solve_dense};
 use sat_astro::view_factor::box_faces;
 use sat_units::typed::{Length, Qty};
 use serde::{Deserialize, Serialize};
@@ -30,6 +31,13 @@ pub struct ThermalEnclosure {
     pub size: Option<ThermalBoxSize>,
     /// 内面の赤外の放射率（6 面で共通。0 を超え 1 以下）
     pub emissivity: f64,
+    /// 箱の中心（機体座標系。機体の根の部品の箱の中心）。無ければ原点。外面が箱の面の上にあるかの判断に使う
+    #[serde(default)]
+    pub center: Option<Vec3>,
+    /// 部品の箱（機体座標系。いま有効な形態の配置）。外面の部品の箱の位置を調べるのに使う。
+    /// 空なら位置は調べない（法線と面積だけで 6 面の節点を決める）
+    #[serde(default)]
+    pub boxes: Vec<InterferenceBox>,
 }
 
 /// 箱の 6 面（`BOX_FACES` の順）の面積・形態係数・放射の交換面積。
