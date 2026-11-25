@@ -10,6 +10,9 @@ vi.mock("@/i18n", async (original) => ({
   useT: () => getT(),
 }));
 vi.mock("@/api/ops", () => ({ useTextOp: () => ({ op: null, error: null }) }));
+vi.mock("@/quantity/QuantityInput", () => ({
+  QuantityInput: ({ label }: { label: string }) => <input aria-label={label} />,
+}));
 vi.mock("@/ops/OpDialog", () => ({
   OpDialog: ({
     ops,
@@ -62,4 +65,28 @@ it("値を入れる候補は、候補の部品を選ばせて閉じた語彙の�
   );
   expect(html).toContain(">BAT</option>");
   expect(html).toContain(">Li-ion</option>");
+});
+
+it("値の欄のラベルは、自分で名前を持つ量の入力欄には `for` を付けず、ほかの入力欄には欄の id を結ぶ", () => {
+  const fix = (dimension: string | null) =>
+    renderToStaticMarkup(
+      <MissingPartDialog
+        fix={{
+          kind: "set_value_on_part",
+          attr: "capacity",
+          dimension,
+          example: null,
+          choices: [],
+          parts: ["BAT"],
+          command: "",
+        }}
+        onOpenChange={() => {}}
+      />,
+    );
+  const quantity = fix("Energy");
+  expect(quantity).toContain('aria-label="値"');
+  expect(quantity).not.toContain('for="missing-part-value"');
+  const text = fix(null);
+  expect(text).toContain('for="missing-part-value"');
+  expect(text).toContain('id="missing-part-value"');
 });

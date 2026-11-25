@@ -8,6 +8,7 @@ use super::rollup;
 use crate::dto::{BudgetKind, BudgetPropellant, BudgetTotal, FillRatio};
 use crate::error::Result;
 use crate::units::quantity_auto;
+use crate::workspace::Snapshot;
 use fune_projection::Context;
 use sat_analysis::budget::BudgetItem;
 use sat_analysis::propulsion::Propellant;
@@ -22,7 +23,7 @@ pub(super) enum Load {
 }
 
 /// 推進系の解析を回して、積む推薬を読む。
-pub(super) fn load(ctx: &Context<'_>) -> Load {
+pub(super) fn load(s: &Snapshot, ctx: &Context<'_>) -> Load {
     if !fune_projection::propulsion::present(ctx) {
         return Load::Omitted(BudgetPropellant::NoPropulsion);
     }
@@ -30,7 +31,7 @@ pub(super) fn load(ctx: &Context<'_>) -> Load {
         Ok(input) => input,
         Err(m) => {
             return Load::Omitted(BudgetPropellant::Missing {
-                missing: crate::fixes::complete(ctx.design, ctx.resolved, m.into_vec()),
+                missing: crate::fixes::complete(s, m.into_vec()),
             });
         }
     };

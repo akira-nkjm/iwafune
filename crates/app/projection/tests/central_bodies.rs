@@ -215,7 +215,10 @@ fn eclipse_season_about_the_sun_is_an_error() {
     assert!(err.contains("An orbit around the Sun"), "{err}");
 }
 
-/// 月周回の外面の影（#424）。低温のケースは太陽指向（+X が太陽）なので、太陽は常に +X 側の面だけを照らし、遮る箱が無く、影ありでも入熱は同じ。
+/// 月周回の外面の影（#424）。低温のケースは太陽指向（+X が太陽）なので、太陽は常に +X 側の面だけを照らし、遮る箱が無く、影が直達日射を減らすことはない。
+/// ただし覆われた面積（センサーの下のセルの面、−Z パネルを貫くスラスタなど。#446）は、影を切らない限りアルベドと惑星の赤外を受けないので、
+/// 影ありの入熱の合計は影なしより少し少なく、減りは「覆われた割合の最大の面」の割合を超えない（各面の入熱は覆われた割合の分だけ減るので、合計の減りは
+/// 面ごとの入熱 × 覆われた割合の和で、これは合計 × 最大の割合以下）。
 /// 高温のケースは天底指向で太陽が機体のいろいろな向きから来るので、+Y 面のセル SP_PY が展開パドル（+X の縁から +Y へ立つ）の影に入り、
 /// 影なしより入熱の合計が減る。この減りが、影を数えた平均温度が低温のケースを下回る原因（影なしでは高温が暖かい）。
 #[test]
@@ -232,7 +235,20 @@ fn lunar_shadowing_removes_hot_case_input_but_not_the_sun_pointing_cold_case() {
         let c = o.cases.iter().find(|c| c.id == id).unwrap();
         c.nodes.iter().map(|n| n.absorbed.value()).sum()
     };
-    assert_eq!(total(&on, "cold"), total(&off, "cold"));
+    let cold = on.cases.iter().find(|c| c.id == "cold").unwrap();
+    let covered_max = cold
+        .shadowing
+        .as_ref()
+        .unwrap()
+        .parts
+        .iter()
+        .map(|p| p.covered.map_or(0.0, |f| f.value()))
+        .fold(0.0, f64::max);
+    let drop = total(&off, "cold") - total(&on, "cold");
+    assert!(
+        drop > 0.0 && drop <= covered_max * total(&off, "cold"),
+        "{drop} {covered_max}"
+    );
     assert!(total(&on, "hot") < total(&off, "hot") - 1.0);
     let hot = on.cases.iter().find(|c| c.id == "hot").unwrap();
     let sp_py = hot

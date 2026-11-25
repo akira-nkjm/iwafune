@@ -5,14 +5,14 @@ use super::column::{label_of, number_in, percent_number, pick_unit_smallest, vie
 use super::common::{empty_table, footer, note_unavailable, part_name};
 use super::{Ctx, Out};
 use crate::budget::{self, PartLine};
-use crate::dto::{BudgetKind, BudgetPropellant, BudgetRequest, BudgetRow, BudgetView, ReportItem};
+use crate::dto::{BudgetKind, BudgetPropellant, BudgetRow, BudgetView, ReportItem};
 use crate::error::Result;
 use fune_report::labels::{Text, t, tr};
 use fune_report::model::{Align, Cell, Column, Row, RowStyle, Table};
 
-pub(super) fn build(ctx: &Ctx<'_>, out: &mut Out) -> Result<()> {
+pub(super) fn build(ctx: &Ctx, out: &mut Out) -> Result<()> {
     let caption = t(ctx.lang, Text::MassCaption).to_owned();
-    let view = budget::budget(ctx.ws, BudgetKind::Mass, &BudgetRequest::default())?;
+    let view = budget::budget_cached(&ctx.session, BudgetKind::Mass, None)?;
     let Some(total) = view.total.as_ref().filter(|_| view.missing.is_empty()) else {
         let paths: Vec<&str> = view.missing.iter().map(|m| m.path.as_str()).collect();
         let reason = format!("missing inputs ({})", paths.join(", "));
@@ -21,7 +21,7 @@ pub(super) fn build(ctx: &Ctx<'_>, out: &mut Out) -> Result<()> {
         note_unavailable(out, ReportItem::Mass, None, &reason);
         return Ok(());
     };
-    let (lines, dry_total) = budget::mass_part_lines(&ctx.snapshot)?;
+    let (lines, dry_total) = budget::mass_part_lines(ctx.snapshot())?;
     let unit = pick_unit_smallest("Mass", lines.iter().map(|l| l.value));
     let mut rows = Vec::new();
     for r in &view.rows {
@@ -43,7 +43,7 @@ pub(super) fn build(ctx: &Ctx<'_>, out: &mut Out) -> Result<()> {
     Ok(())
 }
 
-fn columns(ctx: &Ctx<'_>, unit: &str) -> Vec<Column> {
+fn columns(ctx: &Ctx, unit: &str) -> Vec<Column> {
     let col = |text: Text, unit: Option<String>, align| Column {
         header: t(ctx.lang, text).to_owned(),
         unit,
@@ -61,7 +61,7 @@ fn columns(ctx: &Ctx<'_>, unit: &str) -> Vec<Column> {
 }
 
 /// 配分の行 1 つ分（見出し・部品・小計）。部品が無い行は出さない。
-fn system_rows(ctx: &Ctx<'_>, r: &BudgetRow, lines: &[PartLine], unit: &str) -> Vec<Row> {
+fn system_rows(ctx: &Ctx, r: &BudgetRow, lines: &[PartLine], unit: &str) -> Vec<Row> {
     let mut mine: Vec<&PartLine> = lines.iter().filter(|l| l.row == r.node).collect();
     if mine.is_empty() {
         return Vec::new();
@@ -102,7 +102,7 @@ fn system_rows(ctx: &Ctx<'_>, r: &BudgetRow, lines: &[PartLine], unit: &str) -> 
 }
 
 /// 配分の行の表示名（系は日英の名前、部品の配分は部品の名前、どれにも属さない行は「その他」）。
-fn system_label(ctx: &Ctx<'_>, r: &BudgetRow) -> String {
+fn system_label(ctx: &Ctx, r: &BudgetRow) -> String {
     match (&r.node, &r.label) {
         (None, _) => t(ctx.lang, Text::Other).to_owned(),
         (Some(node), None) => node.clone(),
@@ -111,7 +111,7 @@ fn system_label(ctx: &Ctx<'_>, r: &BudgetRow) -> String {
 }
 
 /// 末尾の行（合計・上限・余裕・推薬込み）。
-fn total_rows(ctx: &Ctx<'_>, view: &BudgetView, dry_total: f64, unit: &str) -> Vec<Row> {
+fn total_rows(ctx: &Ctx, view: &BudgetView, dry_total: f64, unit: &str) -> Vec<Row> {
     let line = |style, text: Text, mass: Option<Cell>, with_growth: Option<Cell>| Row {
         style,
         cells: vec![
@@ -160,7 +160,7 @@ fn total_rows(ctx: &Ctx<'_>, view: &BudgetView, dry_total: f64, unit: &str) -> V
     rows
 }
 
-fn notes(ctx: &Ctx<'_>, view: &BudgetView) -> Vec<String> {
+fn notes(ctx: &Ctx, view: &BudgetView) -> Vec<String> {
     let margin = format!(
         "{}.",
         tr(ctx.lang, Text::SystemMargin, &[&view.system_margin.display])

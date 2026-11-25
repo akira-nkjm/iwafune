@@ -13,10 +13,10 @@ import { DataTable } from "@/kit/table/DataTable";
 import { Td } from "@/kit/table/Td";
 import { Th } from "@/kit/table/Th";
 import { SEARCH } from "@/lib/nav";
+import { ManeuverDialog } from "@/ops/maneuver/ManeuverDialog";
+import { emptyManeuverText } from "@/ops/maneuver/maneuver-form";
 import { OpDialog } from "@/ops/OpDialog";
 import { Button } from "@/ui/button";
-import { ManeuverDialog } from "./ManeuverDialog";
-import { emptyManeuverText } from "./maneuver-form";
 
 /** 開いているダイアログ（追加・編集・削除） */
 type Open =

@@ -15,3 +15,5 @@ packing_factor  = 1.0
 eol_factor      = 0.88
 normal          = { x = 0.0, y = 0.0, z = 1.0 }
 size            = { x = 301.8, y = 50.0, z = 0.3, unit = "mm" }
+absorptivity    = 0.91
+emissivity      = 0.85

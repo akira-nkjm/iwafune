@@ -91,6 +91,6 @@ pub(super) fn contact_area(mount: &ThermalMountBoxes) -> Result<f64, ThermalCont
 }
 
 /// 使える箱（`is_usable`）だけを幾何の箱にする。
-fn oriented(b: &InterferenceBox) -> Option<OrientedBox> {
+pub(crate) fn oriented(b: &InterferenceBox) -> Option<OrientedBox> {
     is_usable(b).then(|| OrientedBox::from_size(b.position, b.orientation, b.size))
 }

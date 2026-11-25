@@ -100,6 +100,8 @@ pub(super) fn item(dir: &Path) -> Result<DataItem> {
         install_error,
         source: SOURCE_URL.to_owned(),
         fetched_at: version.and_then(|v| v.fetched_at.clone()),
+        used_by: "Solar flux F10.7 and geomagnetic Ap for the NRLMSISE-00 atmosphere".to_owned(),
+        license: None,
     })
 }
 
