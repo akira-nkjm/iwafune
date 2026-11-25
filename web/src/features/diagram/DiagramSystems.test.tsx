@@ -46,7 +46,7 @@ describe("系の表示トグル", () => {
 
   it("構造を再表示し、URL を読み直しても全表示を維持する", () => {
     const params = new URLSearchParams("other=keep");
-    const hidden = diagramHiddenSystems(params, fixture.defs.systems);
+    const hidden = diagramHiddenSystems(params, fixture.defs);
     const changed = vi.fn();
     const element = DiagramSystems({ defs: fixture.defs, hidden, onChange: changed });
     const structure = findElement(element, (props) => props.children === "structure");
@@ -55,9 +55,7 @@ describe("系の表示トグル", () => {
     if (typeof toggle !== "function") throw new Error("missing toggle");
     toggle(true);
     const next = withDiagramHiddenSystems(params, changed.mock.calls[0]![0]);
-    expect(
-      diagramHiddenSystems(new URLSearchParams(next.toString()), fixture.defs.systems).size,
-    ).toBe(0);
+    expect(diagramHiddenSystems(new URLSearchParams(next.toString()), fixture.defs).size).toBe(0);
     expect(next.get("other")).toBe("keep");
   });
 });

@@ -308,7 +308,7 @@ pub struct HarnessView {
 }
 
 /// 属性定義と種別定義（`GET /defs`）。
-#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct DefsView {
     pub attributes: Vec<AttributeDefView>,
     pub kinds: Vec<KindDefView>,
@@ -322,6 +322,10 @@ pub struct DefsView {
     pub mode_systems: Vec<sat_analysis::spec::System>,
     /// モードの表の部品ごとの列の出し方（系ごとと、`system` が null の設計のモードのページ。`mode_systems::mode_levels`）
     pub mode_levels: Vec<super::ModeLevelsView>,
+    /// 系統図で、最初は隠す系（指定なしの表示。`mode_systems::diagram_hidden_systems`）。信号・電力をつながない構造は隠す
+    pub diagram_hidden_systems: Vec<sat_analysis::spec::System>,
+    /// 設計のモードのページ（系を選ばない）が、足もとの合計を問い合わせる系（`mode_systems::totals_system`）。電力の合計の行
+    pub mode_totals_system: sat_analysis::spec::System,
 }
 
 /// 属性定義。

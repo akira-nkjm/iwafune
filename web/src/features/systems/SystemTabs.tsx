@@ -14,8 +14,13 @@ import { Panel } from "@/kit/panel/Panel";
 import { PanelHeader } from "@/kit/panel/PanelHeader";
 import { TablePanel } from "@/kit/table/TablePanel";
 import { systemTitle } from "@/lib/design";
-import { dedicatedViews } from "./dedicated";
-import { hasExtraTab } from "./preload";
+import {
+  type Extras,
+  hasExtraTab,
+  hasModes,
+  type SystemTab,
+  systemRegistration,
+} from "./dedicated";
 import { ManeuversTab } from "./propulsion/ManeuversTab";
 import { SystemOverview } from "./SystemOverview";
 
@@ -23,16 +28,6 @@ import { SystemOverview } from "./SystemOverview";
 const SeriesChart = lazy(() =>
   import("@/analysis/SeriesChart").then((m) => ({ default: m.SeriesChart })),
 );
-
-export type SystemTab =
-  | "results"
-  | "modes"
-  | "heat"
-  | "couplings"
-  | "analyses"
-  | "settings"
-  | "series"
-  | "maneuvers";
 
 /**
  * 系のページのタブの中身（結果・モード・熱画像・設定・時系列）。extra は系ごとの追加の表示（熱の温度範囲の図と熱画像）。
@@ -55,12 +50,12 @@ export function SystemTabs({
   design: DesignView | undefined;
   states: AnalysisState[];
   entries: Map<string, AnalysisEntry>;
-  extra?: Partial<Record<SystemTab, ReactNode>>;
+  extra?: Extras;
   noAnalyses?: boolean;
 }) {
   const dict = useT();
-  // 専用の表示を持つ系（電源・AOCS）は登録表（`dedicated.tsx`）の表示。結果は解析の表（ほかの系と同じ）
-  const dedicated = dedicatedViews(system);
+  // 専用の表示を持つ系（電源・AOCS）は登録表（`dedicated.tsx` の `SYSTEM_REGISTRY`）の表示。結果は解析の表（ほかの系と同じ）
+  const dedicated = systemRegistration(system);
   if (tab === "series" && dedicated?.series) return dedicated.series({ design, kase });
   if (tab === "modes" && dedicated?.modes) return dedicated.modes({ design, kase });
   if (tab === "modes")
@@ -167,10 +162,5 @@ export function SystemTabs({
  */
 export function tabFillsBody(system: System, tab: SystemTab, defs: DefsView | undefined): boolean {
   if (tab === "maneuvers") return true;
-  return tab === "modes" && hasModes(system, defs) && !dedicatedViews(system)?.modes;
-}
-
-/** モードの見方を持つ系だけにタブを出す。どの系が持つかは API（`DefsView.mode_systems`）が返す。 */
-export function hasModes(system: System, defs: DefsView | undefined): boolean {
-  return defs?.mode_systems.includes(system) ?? false;
+  return tab === "modes" && hasModes(system, defs) && !systemRegistration(system)?.modes;
 }

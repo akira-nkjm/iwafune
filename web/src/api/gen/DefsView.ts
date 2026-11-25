@@ -29,4 +29,12 @@ mode_systems: Array<System>,
 /**
  * モードの表の部品ごとの列の出し方（系ごとと、`system` が null の設計のモードのページ。`mode_systems::mode_levels`）
  */
-mode_levels: Array<ModeLevelsView>, };
+mode_levels: Array<ModeLevelsView>, 
+/**
+ * 系統図で、最初は隠す系（指定なしの表示。`mode_systems::diagram_hidden_systems`）。信号・電力をつながない構造は隠す
+ */
+diagram_hidden_systems: Array<System>, 
+/**
+ * 設計のモードのページ（系を選ばない）が、足もとの合計を問い合わせる系（`mode_systems::totals_system`）。電力の合計の行
+ */
+mode_totals_system: System, };

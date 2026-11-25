@@ -6,7 +6,8 @@ import type { AnalysisState } from "@/api/queries";
 import type { AnalysisEntry, AnalysisRunResult, KpiView, System } from "@/api/types";
 import { getT } from "@/i18n";
 import { fixture, qv } from "@/test/fixture";
-import { type SystemTab, SystemTabs } from "./SystemTabs";
+import type { SystemTab } from "./dedicated";
+import { SystemTabs } from "./SystemTabs";
 
 const kpi: KpiView = {
   key: "link_margin",
