@@ -3,12 +3,29 @@
 //! `B = B₀ (R_E/r)³ [3 (m̂·r̂) r̂ − m̂]`。m̂ は双極子モーメントの向き（南半球側を指す。
 //! 北磁極の向きの反対）、B₀ は赤道表面の強さ [`crate::constants::B0_EARTH`]。
 //! 双極子軸は地球に固定（ECEF）で、時刻に応じて ECI に回す。
+//!
+//! 球面調和関数のモデル（Gauss 係数。次数 1 の場合が上の傾斜双極子と一致する）と McIlwain の L は次のサブモジュール:
+//!
+//! | サブモジュール | 責務 |
+//! |---|---|
+//! | [`gauss`] | Gauss 係数 g・h（Schmidt 準正規化・年変化・基準半径）と磁束密度 B |
+//! | `gauss_text` | 係数の配布ファイル（文字列形式）の読み書き |
+//! | [`lshell`] | 磁力線を追った第 2 不変量 I から McIlwain の L と B/B₀ |
+//! | `dipole_f` | McIlwain の関数 F（中心双極子の積分から数値で求める） |
 
 use crate::constants::{B0_EARTH, GEOMAG_NORTH_POLE_LAT_DEG, GEOMAG_NORTH_POLE_LON_DEG, R_EARTH};
 use crate::earth::ecef_to_eci;
 use crate::ephem::CentralBody;
 use crate::math::Vec3;
 use crate::time::Epoch;
+
+mod dipole_f;
+pub mod gauss;
+mod gauss_text;
+pub mod lshell;
+
+pub use gauss::{FieldSnapshot, GaussModel, GaussTerm};
+pub use lshell::{LOptions, LShell, MomentConvention, NoL};
 
 /// 双極子モーメントの向き（ECEF の単位ベクトル。北磁極の反対向き）。
 pub fn dipole_axis_ecef() -> Vec3 {
@@ -39,6 +56,11 @@ pub fn field_about_eci_t(central: CentralBody, r_rel_m: Vec3, epoch: Epoch) -> V
         _ => Vec3::ZERO,
     }
 }
+
+#[cfg(test)]
+mod lshell_tests;
+#[cfg(test)]
+mod model_tests;
 
 #[cfg(test)]
 mod tests {
