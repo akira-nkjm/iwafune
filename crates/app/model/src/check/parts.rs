@@ -3,8 +3,10 @@
 use super::Ctx;
 use super::values::check_value_against;
 use crate::chain::chain;
+use crate::design::refs::{TANK_ATTR, tank_of};
 use crate::design::{EntityKey, Part, Pose, position_unit};
 use crate::path::{AttrPath, PortRef};
+use crate::role::Role;
 use crate::target::Target;
 use crate::value::list_from_text;
 use crate::value::units::expect_dimension;
@@ -18,7 +20,42 @@ pub(super) fn check_parts(ctx: &mut Ctx) {
         check_definition(ctx, part, &entity);
         check_part_attrs(ctx, part, &entity);
         check_mount(ctx, part, &entity);
+        check_tank_ref(ctx, part, &entity);
         check_ports(ctx, part, &entity);
+    }
+}
+
+/// スラスタが推薬を取るタンク（`[attr.tank]`）: 部品が無ければ誤り、あっても役割が `propellant_tank` でなければ警告。
+/// 推薬の名前の食い違い（解決後の値が要る）と「どのスラスタも取らないタンク」は `fune_projection::propulsion::tanks` が見る。
+fn check_tank_ref(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
+    let Some(tank) = tank_of(part) else {
+        return;
+    };
+    let design = ctx.design;
+    let target = Some(Target::attr(part.id.as_str(), TANK_ATTR));
+    let keys = ["attr", TANK_ATTR];
+    let Some(found) = design.parts.get(tank) else {
+        ctx.error(
+            "ref.part",
+            entity,
+            &keys,
+            target,
+            format!("Tank part `{tank}` is not defined"),
+        );
+        return;
+    };
+    let is_tank = design
+        .part_kind_id(found)
+        .and_then(|k| design.kind_role(k))
+        .is_some_and(|r| r == Role::PropellantTank);
+    if !is_tank {
+        ctx.warning(
+            "propulsion.tank_role",
+            entity,
+            &keys,
+            target,
+            format!("Part `{tank}` is not a propellant tank (role = propellant_tank)"),
+        );
     }
 }
 

@@ -536,6 +536,13 @@ description = "推薬の名前（スラスタとタンクで同じ名前を書�
 type        = "enum"
 section     = "propulsion"
 
+[tank]
+label       = "供給元のタンク"
+label_en    = "Source tank"
+description = "このスラスタが推薬を取るタンクの部品の ID（役割 propellant_tank。書かなければ、同じ推薬のタンクから取る）"
+type        = "text"
+section     = "propulsion"
+
 [propellant_density]
 label        = "推薬の密度"
 label_en     = "Propellant density"

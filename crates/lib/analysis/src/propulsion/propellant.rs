@@ -9,6 +9,8 @@
 
 use super::input::{DvCategory, PropulsionInput, TANK_MARGIN_WARNING};
 use super::sequence::{Options, Sequence, run};
+use super::tank_load::{self, PropellantTankRow, key_of, only_name, thruster_used_kg};
+use super::unloading;
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict, margin_verdict,
     quantity_text, ratio_margin,
@@ -48,42 +50,29 @@ pub struct PropellantOutput {
     pub usable_propellant: Qty<Mass>,
     /// 残る推薬
     pub residual_propellant: Qty<Mass>,
-    /// 積む推薬（使う分 + 残る分）
+    /// 積む推薬（使う分 + 残る分。RCS のスラスタがタンクを名指していれば、そのアンロードの推薬の積む分も含む）
     pub loaded_propellant: Qty<Mass>,
-    /// ウェット質量（乾燥質量 + 積む推薬）
+    /// RCS でのアンロードに積む推薬（使う分 + 残る分）のうち、RCS のスラスタが名指したタンクに入れた分
+    /// （どのスラスタもタンクを名指さなければ 0。`usable_propellant`・`residual_propellant` はマヌーバの分だけ）
+    pub unloading_propellant: Qty<Mass>,
+    /// ウェット質量（乾燥質量 + 積む推薬。アンロードの推薬はマヌーバの列の質量には入れず、あとから足す）
     pub wet_mass: Qty<Mass>,
     pub dv_margin: Fraction,
     pub residual_fraction: Fraction,
     pub groups: Vec<PropellantGroup>,
+    /// タンクごとの内訳（入力のタンクの順。合計は `groups` と同じ積む量）
+    pub tanks: Vec<PropellantTankRow>,
     /// スラスタが無く推薬を求められないマヌーバ
     pub maneuvers_without_thruster: Vec<String>,
     pub checks: Vec<Check>,
 }
 
-/// 推薬の名前（無ければ、種類が 1 つだけのときのその名前）。
-fn key_of(name: Option<&String>, only: Option<&String>) -> Option<String> {
-    name.or(only).cloned()
-}
-
 /// 推薬の名前ごとに、使う推薬・スラスタ・タンクを集める。
 fn groups(input: &PropulsionInput, seq: &Sequence<'_>, residual: f64) -> Vec<PropellantGroup> {
-    let mut names: Vec<&String> = input
-        .thrusters
-        .iter()
-        .filter_map(|t| t.propellant.as_ref())
-        .chain(input.tanks.iter().filter_map(|t| t.propellant.as_ref()))
-        .collect();
-    names.sort();
-    names.dedup();
-    let only = (names.len() == 1).then(|| names[0]);
+    let only = only_name(input);
     let mut by: BTreeMap<Option<String>, (Vec<String>, Vec<usize>, f64)> = BTreeMap::new();
     for t in &input.thrusters {
-        let used: f64 = seq
-            .legs
-            .iter()
-            .filter(|l| l.thruster.is_some_and(|x| x.id == t.id))
-            .filter_map(|l| l.propellant_kg)
-            .sum();
+        let used = thruster_used_kg(seq, &t.id);
         let e = by.entry(key_of(t.propellant.as_ref(), only)).or_default();
         e.0.push(t.id.clone());
         e.2 += used * (1.0 + residual);
@@ -225,6 +214,43 @@ fn used_by_thruster(
         .collect()
 }
 
+/// RCS が名指したタンクごとのアンロードの推薬 [kg] と、足せないときの警告。RCS のスラスタ（マヌーバのスラスタに数えない部品）が
+/// タンクを名指していて、アンロードの入力が無ければ、その推薬はどのタンクにも入らないと警告する。
+fn unloading_by_tank(
+    input: &PropulsionInput,
+) -> Result<(BTreeMap<String, f64>, Vec<Check>), AnalysisError> {
+    if input.thruster_tanks.is_empty() {
+        return Ok((BTreeMap::new(), Vec::new()));
+    }
+    if let Some(u) = &input.unloading {
+        return Ok((
+            unloading::propellant_by_tank(u, &input.thruster_tanks)?,
+            Vec::new(),
+        ));
+    }
+    let rcs: Vec<&str> = input
+        .thruster_tanks
+        .keys()
+        .filter(|id| !input.thrusters.iter().any(|t| &&t.id == id))
+        .map(String::as_str)
+        .collect();
+    let checks = (!rcs.is_empty())
+        .then(|| {
+            Check::new(
+                "unloading_tank",
+                "Unloading propellant tank",
+                Verdict::Warning,
+                format!(
+                    "RCS thrusters ({}) name a tank, but the unloading propellant is not available, so it is not counted in the tank",
+                    rcs.join(", ")
+                ),
+            )
+        })
+        .into_iter()
+        .collect();
+    Ok((BTreeMap::new(), checks))
+}
+
 /// 推薬の解析の本体。`category` があれば、その区分のマヌーバがスラスタごとに使う推薬も返す。
 fn evaluate(
     input: &PropulsionInput,
@@ -235,13 +261,18 @@ fn evaluate(
     let seq = run(input, opts)?;
     let usable = seq.used_propellant_kg();
     let residual = seq.residual_kg();
+    let (unloading_kg, unloading_checks) = unloading_by_tank(input)?;
+    let tanks = tank_load::rows(input, &seq, opts.residual_fraction, &unloading_kg)?;
+    let unloading_loaded = tanks
+        .iter()
+        .fold(0.0, |a, t| a + t.unloading_propellant.value());
     let without: Vec<String> = seq
         .legs
         .iter()
         .filter(|l| l.thruster.is_none())
         .map(|l| l.maneuver.id.clone())
         .collect();
-    let mut checks = Vec::new();
+    let mut checks = unloading_checks;
     if !without.is_empty() {
         checks.push(Check::new(
             "thruster",
@@ -253,17 +284,32 @@ fn evaluate(
             ),
         ));
     }
+    if tanks.iter().any(|t| t.named) {
+        checks.extend(tanks.iter().filter(|t| t.thrusters.is_empty()).map(|t| {
+            Check::new(
+                "tank_unused",
+                "Tank without thrusters",
+                Verdict::Warning,
+                format!(
+                    "No thruster draws from tank {}, while other tanks are named by thrusters",
+                    t.id
+                ),
+            )
+        }));
+    }
     let by_category = category.map_or_else(Vec::new, |c| used_by_thruster(input, &seq, c));
     let out = PropellantOutput {
         dry_mass: input.dry_mass,
         nominal_propellant: Qty::from_raw(nominal.used_propellant_kg()),
         usable_propellant: Qty::from_raw(usable),
         residual_propellant: Qty::from_raw(residual),
-        loaded_propellant: Qty::from_raw(usable + residual),
-        wet_mass: Qty::from_raw(seq.initial_mass_kg),
+        loaded_propellant: Qty::from_raw(usable + residual + unloading_loaded),
+        unloading_propellant: Qty::from_raw(unloading_loaded),
+        wet_mass: Qty::from_raw(seq.initial_mass_kg + unloading_loaded),
         dv_margin: Fraction::new(opts.dv_scale - 1.0),
         residual_fraction: Fraction::new(opts.residual_fraction),
         groups: groups(input, &seq, opts.residual_fraction),
+        tanks,
         maneuvers_without_thruster: without,
         checks,
     };

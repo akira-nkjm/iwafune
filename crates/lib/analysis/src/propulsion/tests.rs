@@ -73,6 +73,7 @@ pub(super) fn input(maneuvers: Vec<ManeuverInput>) -> PropulsionInput {
             propellant: Some("hydrazine".to_owned()),
             density: Some(Qty::from_raw(1000.0)),
         }],
+        thruster_tanks: Default::default(),
         maneuvers,
         dv_margin: None,
         residual_fraction: None,

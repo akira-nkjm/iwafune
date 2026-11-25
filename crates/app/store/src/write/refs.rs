@@ -8,8 +8,10 @@ use super::part::{rename_mount_target, set_port};
 use crate::error::StoreError;
 use crate::layout;
 use fune_model::Design;
+use fune_model::design::refs::TANK_ATTR;
 use fune_model::design::{AnalysisSystem, RefSite, Referent};
 use fune_model::path::PortRef;
+use fune_model::value::Value;
 use toml_edit::Item;
 
 mod defs;
@@ -269,6 +271,7 @@ fn rename_at(
         | RefSite::HarnessWire { .. }
         | RefSite::LaunchSelection { .. }
         | RefSite::ManeuverThruster { .. }
+        | RefSite::PartTank { .. }
         | RefSite::ManeuverMode { .. } => rename_value_at(edits, design, site, names),
         RefSite::PartKind { .. }
         | RefSite::CatalogKind { .. }
@@ -466,6 +469,19 @@ fn rename_value_at(
         }
         RefSite::ManeuverThruster { maneuver } => {
             set_top(edits, &layout::maneuver_file(maneuver), "thruster", to)
+        }
+        RefSite::PartTank { part } => {
+            // 値の行（`tank = "X"`）でも見出しの表（`[attr.tank]`）でも、出典を残して値だけ替える（属性の書き手に任せる）
+            let Some(mut authored) = design
+                .parts
+                .get(part.as_str())
+                .and_then(|p| p.attr.get(TANK_ATTR))
+                .cloned()
+            else {
+                return Ok(());
+            };
+            authored.value = Value::Text(to.to_owned());
+            super::part::set_attr(edits, &part_file(design, part)?, TANK_ATTR, &authored)
         }
         RefSite::ManeuverMode { maneuver } => set_in(
             edits,

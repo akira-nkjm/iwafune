@@ -38,6 +38,7 @@ use sat_units::typed::{
 };
 
 mod launch_window;
+pub mod tank_refs;
 pub use launch_window::launch_window;
 
 /// 設計の区分 → 解析の区分。
@@ -152,7 +153,9 @@ fn input(ctx: &Context<'_>, with_unloading: bool) -> Result<PropulsionInput, Mis
         .collect();
     let thrusters = thrusters(ctx, &ordered, &mut m);
     let tanks = tanks(ctx, &mut m);
-    let (unloading, unloading_note) = if with_unloading {
+    let thruster_tanks = tank_refs::thruster_tanks(ctx, &mut m);
+    // RCS のスラスタがタンクを名指していれば、アンロードの推薬をそのタンクに数えるので、ΔV バジェット以外の解析にも入力を付ける
+    let (unloading, unloading_note) = if with_unloading || tank_refs::rcs_names_tank(ctx) {
         unloading(ctx)
     } else {
         (None, None)
@@ -163,6 +166,7 @@ fn input(ctx: &Context<'_>, with_unloading: bool) -> Result<PropulsionInput, Mis
             dry_mass: dry?,
             thrusters,
             tanks,
+            thruster_tanks,
             maneuvers,
             dv_margin: s.and_then(|s| s.dv_margin).map(Fraction::new),
             residual_fraction: s.and_then(|s| s.residual_fraction).map(Fraction::new),
