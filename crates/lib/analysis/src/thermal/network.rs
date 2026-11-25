@@ -5,7 +5,7 @@
 //! Q_i は外部入熱（吸収した太陽・アルベド・地球赤外）と内部発熱（`load`）の和。外面の α/ε は `surface` が表面材から求める。`fixed_temperature` を持つ節点は境界（温度一定）。
 
 use crate::spec::AnalysisError;
-use crate::structure::external_geometry::{Footprint, LitSurfaces, ShadowingInput};
+use crate::structure::external_geometry::{LitSurfaces, ShadowingInput};
 use crate::thermal::enclosure::ThermalEnclosure;
 use crate::thermal::range::{ThermalRanges, ThermalRequiredRange};
 use sat_astro::constants::SIGMA_SB;
@@ -13,7 +13,9 @@ use sat_astro::math::Vec3;
 use sat_units::typed::{Area, Mass, Qty, SpecificHeatCapacity, Temperature, ThermalConductance};
 use serde::{Deserialize, Serialize};
 
+mod compile_surfaces;
 mod couplings;
+mod enclosure_faces;
 mod heater;
 mod heater_steady;
 mod load;
@@ -179,6 +181,9 @@ pub(crate) struct Surface {
     pub normal: Vec3,
     pub alpha: f64,
     pub eps: f64,
+    /// ほかの部品に覆われていない割合（1 = 覆われていない）。覆われた面積は、アルベド・惑星の赤外の入熱と宇宙への放射をやめる
+    /// （直達日射は日照割合が覆いを含む）。影を数えないとき（覆いを調べないとき）は 1
+    pub exposed: f64,
     /// 入力の外面（`ThermalNetwork::surfaces`）の添字。板を升に分けると 1 つの外面が升ごとの複数の `Surface` になるので、
     /// 日照割合（影）は入力の外面ごとに 1 つ求め、升には面積の割合で配った直達日射が同じ割合で掛かる
     pub input: usize,
@@ -273,44 +278,9 @@ impl Compiled {
         c.cond.extend(plan.inplane());
         couplings.plates = plan.used(&c.cond, &c.capacity, &unlocated);
         c.couplings = couplings;
-        for (k, s) in net.surfaces.iter().enumerate() {
-            for surface in c.surface(s, k)? {
-                c.space[surface.node] += surface.eps * SIGMA_SB * surface.area_m2;
-                c.surfaces.push(surface);
-            }
-        }
-        c.shading = net.shadowing.as_ref().and_then(|input| {
-            LitSurfaces::new(
-                input,
-                Footprint::Credited,
-                net.surfaces.iter().map(|s| (s.id.as_str(), s.normal)),
-            )
-        });
+        c.add_surfaces(net)?;
         c.nodes = plan.nodes;
         Ok(c)
-    }
-
-    /// 外面を節点の面（板なら升ごとに面積の割合で分けた面）にする。
-    fn surface(&self, s: &ThermalSurface, input: usize) -> Result<Vec<Surface>, AnalysisError> {
-        let (alpha, eps) = s.optics()?;
-        match (s.area.value() >= 0.0, s.normal.normalized()) {
-            (true, Some(normal)) => Ok(self
-                .slots(&s.node)?
-                .into_iter()
-                .map(|(node, share)| Surface {
-                    node,
-                    area_m2: s.area.value() * f64::from(s.count) * share,
-                    normal,
-                    alpha,
-                    eps,
-                    input,
-                })
-                .collect()),
-            _ => Err(invalid(format!(
-                "Surface {}: area must be 0 or more and the normal must be a non-zero vector",
-                s.id
-            ))),
-        }
     }
 
     /// 節点 `id` の（添字, 面積の割合）。板なら升すべて、そうでなければ 1 つ（割合 1）。

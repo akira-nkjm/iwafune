@@ -6,6 +6,7 @@
 
 use crate::dto::{BudgetKind, BudgetRequest, BudgetRow, BudgetUncounted, BudgetView, FillRatio};
 use crate::error::{Result, ServiceError};
+use crate::session::Session;
 use crate::units::quantity_auto;
 use crate::workspace::{Snapshot, Workspace};
 use fune_model::design::{Allocation, AnalysisSystem, Design, NodeRef};
@@ -14,6 +15,7 @@ use fune_model::value::units::to_si;
 use fune_projection::{Context, MissingInputs};
 use sat_analysis::budget::{BudgetItem, BudgetRollup, budget_rollup};
 use sat_analysis::spec::Verdict;
+use std::rc::Rc;
 
 pub(crate) use power::{budget_mode, mode_rollup};
 pub mod failure;
@@ -23,10 +25,25 @@ mod uncounted;
 
 /// バジェット（`GET`・`POST /budgets/{kind}`）。`req.ops` があれば書き込まずに当てた設計で、`req.case` があればそのケースで数える。
 /// 編集が通らなければ保存と同じエラー（検証なら診断付き）。入力が足りなければ `missing` に並べた表示を返す。
+/// 設計は呼び出しごとに読む（1 つの依頼でバジェットや解析をいくつも回す呼び出し側は [`budget_cached`] を使う）。
 pub fn budget(ws: &Workspace, kind: BudgetKind, req: &BudgetRequest) -> Result<BudgetView> {
     let s = crate::preview::snapshot_with(ws, &req.ops)?;
-    let mut view = header(&s.design, kind, req.case.clone());
-    match count(&s, kind, req.case.as_deref()) {
+    budget_in(&s, kind, req.case.as_deref())
+}
+
+/// 開いた設計（実行の記憶）のバジェット。同じ種類・ケースは 1 回だけ数える（失敗も記憶する）。
+pub(crate) fn budget_cached(
+    session: &Session,
+    kind: BudgetKind,
+    case: Option<&str>,
+) -> Result<Rc<BudgetView>> {
+    session.cached_result(&(kind, case), || budget_in(session.snapshot(), kind, case))
+}
+
+/// 読み込み済みの設計 `s` のバジェット（[`budget`] と [`budget_cached`] の中身）。
+fn budget_in(s: &Snapshot, kind: BudgetKind, case: Option<&str>) -> Result<BudgetView> {
+    let mut view = header(&s.design, kind, case.map(str::to_owned));
+    match count(s, kind, case) {
         Ok(counted) => fill(&s.design, &mut view, counted)?,
         Err(Uncounted::Missing(m)) => {
             view.missing = crate::fixes::complete(&s.design, &s.resolved, m.into_vec())

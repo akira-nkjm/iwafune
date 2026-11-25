@@ -113,18 +113,26 @@ fn totals_scope_returns_only_the_total_row() {
 #[test]
 fn missing_analyses_leave_the_view_without_power_parts() {
     let ws = demo();
-    let snapshot = ws.snapshot().unwrap();
-    let mut runs = Runs {
-        load: run_typed_in(&snapshot, None).unwrap(),
-        orbit: run_typed_in(&snapshot, None).unwrap(),
-        balance: run_typed_in(&snapshot, None).unwrap(),
-        sizing: run_typed_in(&snapshot, None).unwrap(),
+    let session = Session::open(&ws, &[]).unwrap();
+    let runs = Runs {
+        load: typed_run(&session, None).unwrap(),
+        orbit: typed_run(&session, None).unwrap(),
+        balance: typed_run(&session, None).unwrap(),
+        sizing: typed_run(&session, None).unwrap(),
     };
     assert!(!assemble(&runs).is_empty());
     // どの解析も出力が無い（不足入力・失敗）ときは、表示は空
-    (runs.load.output, runs.load.input) = (None, None);
-    (runs.orbit.output, runs.orbit.input) = (None, None);
-    (runs.balance.output, runs.balance.input) = (None, None);
-    (runs.sizing.output, runs.sizing.input) = (None, None);
+    fn none<A: sat_analysis::spec::Analysis>() -> Rc<TypedRun<A>> {
+        Rc::new(TypedRun {
+            input: None,
+            output: None,
+        })
+    }
+    let runs = Runs {
+        load: none(),
+        orbit: none(),
+        balance: none(),
+        sizing: none(),
+    };
     assert!(assemble(&runs).is_empty());
 }

@@ -18,6 +18,10 @@ c3: number, v_inf_departure: number, v_inf_arrival: number,
  */
 departure_declination: number, 
 /**
- * マヌーバの ΔV（出発の脱出 + 到着の捕獲。損失を除く）
+ * マヌーバの ΔV（出発の脱出 + 通過の近点の噴射 + 到着の捕獲。損失を除く）
  */
-delta_v: number, };
+delta_v: number, 
+/**
+ * 通過の日（出発から到着の順。直接の遷移は無く、出力にも出さない）。通過のある探索の点は、この日付で通過の噴射まで含めた値
+ */
+flyby_dates?: Array<string>, };

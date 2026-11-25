@@ -49,9 +49,9 @@ pub use input::{
     UnloadingNote,
 };
 pub use launch_window::{
-    LaunchWindow, LaunchWindowGrid, LaunchWindowInput, LaunchWindowNote, LaunchWindowOutput,
-    LaunchWindowPoint, LaunchWindowPointKind, LaunchWindowQuantity, LaunchWindowResult,
-    LaunchWindowSettings,
+    LaunchWindow, LaunchWindowFlybySearch, LaunchWindowGrid, LaunchWindowInput, LaunchWindowNote,
+    LaunchWindowOutput, LaunchWindowPoint, LaunchWindowPointKind, LaunchWindowQuantity,
+    LaunchWindowResult, LaunchWindowSettings,
 };
 pub use maneuvers::{ManeuverNote, ManeuverPropagation, Maneuvers, ManeuversOutput};
 pub use mass_properties::{PropellantMassInput, PropellantMassOutput, PropellantMassProperties};

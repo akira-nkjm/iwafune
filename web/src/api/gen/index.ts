@@ -263,6 +263,7 @@ export type * from "./LaunchFitPartBoxes";
 export type * from "./LaunchFitSearch";
 export type * from "./LaunchFitSource";
 export type * from "./LaunchFitSourceNote";
+export type * from "./LaunchWindowFlybySearch";
 export type * from "./LaunchWindowGrid";
 export type * from "./LaunchWindowInput";
 export type * from "./LaunchWindowLayer";

@@ -17,7 +17,7 @@ use sat_units::parse_unit;
 use serde_json::Value;
 
 /// 温度の時間変化（解析ケースごとに 1 枚）。
-pub(super) fn thermal(ctx: &Ctx<'_>, case: Option<&str>, out: &mut Out) -> Result<()> {
+pub(super) fn thermal(ctx: &Ctx, case: Option<&str>, out: &mut Out) -> Result<()> {
     let result = run(ctx, "thermal.transient", case)?;
     let case = effective(&result, case);
     remember_case(out, &case);
@@ -72,7 +72,7 @@ pub(super) fn thermal(ctx: &Ctx<'_>, case: Option<&str>, out: &mut Out) -> Resul
 }
 
 /// 発電・消費電力と電池の充電状態の時間変化（解析ケースごとに 1 枚）。
-pub(super) fn power(ctx: &Ctx<'_>, case: Option<&str>, out: &mut Out) -> Result<()> {
+pub(super) fn power(ctx: &Ctx, case: Option<&str>, out: &mut Out) -> Result<()> {
     let result = run(ctx, "power.energy_balance", case)?;
     let case = effective(&result, case);
     remember_case(out, &case);
@@ -135,7 +135,7 @@ fn time_unit(t_si: &[f64]) -> String {
     pick_unit_largest("Time", t_si.iter().copied())
 }
 
-fn to_series(ctx: &Ctx<'_>, channel: &Value, x: &[f64], unit: &str) -> Series {
+fn to_series(ctx: &Ctx, channel: &Value, x: &[f64], unit: &str) -> Series {
     let from = |v: f64| parse_unit(unit).map_or(v, |u| u.from_si(v));
     let label = pick_label(
         ctx.lang,
@@ -162,16 +162,16 @@ fn shade(eclipses: &[Value], unit: &str, end_si: Option<f64>) -> Vec<(f64, f64)>
 }
 
 /// 同じケースの発電の解析から蝕の区間を取る（温度の解析は蝕の区間を出さない）。取れなければ影なし。
-fn eclipse_intervals(ctx: &Ctx<'_>, case: Option<&str>) -> Result<Vec<Value>> {
+fn eclipse_intervals(ctx: &Ctx, case: Option<&str>) -> Result<Vec<Value>> {
     let r = run(ctx, "power.orbit_generation", case)?;
-    Ok(match (why_not(&r), r.output) {
-        (None, Some(o)) => list(&o, "eclipses").to_vec(),
+    Ok(match (why_not(&r), &r.output) {
+        (None, Some(o)) => list(o, "eclipses").to_vec(),
         _ => Vec::new(),
     })
 }
 
 /// 節点の許容範囲（動作の範囲。同じ範囲の節点はまとめて 1 本）。
-fn temperature_limits(ctx: &Ctx<'_>, nodes: &[Value]) -> Vec<Limit> {
+fn temperature_limits(ctx: &Ctx, nodes: &[Value]) -> Vec<Limit> {
     let mut groups: Vec<(f64, f64, Vec<&str>)> = Vec::new();
     for n in nodes {
         let ranges = list(n, "ranges");
@@ -219,7 +219,7 @@ fn temperature_limits(ctx: &Ctx<'_>, nodes: &[Value]) -> Vec<Limit> {
 }
 
 /// 電池の充電状態の下限（DoD の上限から求めた解析の値）。
-fn soc_limit(ctx: &Ctx<'_>, output: &Value) -> Vec<Limit> {
+fn soc_limit(ctx: &Ctx, output: &Value) -> Vec<Limit> {
     num(output, "min_allowed_soc")
         .map(|v| Limit {
             label: tr(
@@ -239,7 +239,7 @@ fn soc_limit(ctx: &Ctx<'_>, output: &Value) -> Vec<Limit> {
 
 /// 図を SVG にして出力に足す。
 fn add_figure(
-    ctx: &Ctx<'_>,
+    ctx: &Ctx,
     out: &mut Out,
     item: ReportItem,
     case: Option<String>,
@@ -263,7 +263,7 @@ fn add_figure(
 
 /// 数えられなかった図（理由つきの空の図）。
 fn unavailable(
-    ctx: &Ctx<'_>,
+    ctx: &Ctx,
     out: &mut Out,
     item: ReportItem,
     case: Option<String>,

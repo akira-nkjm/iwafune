@@ -19,7 +19,7 @@ pub enum ErrorKind {
 }
 
 /// fune-service のエラー。
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum ServiceError {
     #[error("Project not found: {0} (pass the directory containing fune.toml with -C)")]
     ProjectNotFound(String),
