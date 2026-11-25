@@ -61,6 +61,8 @@ pub struct DesignView {
     pub configurations: Vec<super::ConfigurationView>,
     /// 地上局（`conditions/ground/<ID>.toml`。ID 順。値は `settings`）
     pub stations: Vec<super::GroundStationView>,
+    /// 通信の回線（`analysis/comm.toml` の `[link.<名前>]`。名前順。開いて直す・消すための一覧）
+    pub links: Vec<super::LinkView>,
     /// 通信の回線・解析ケースを足すダイアログの選択肢（候補の絞り込みは service が決める）
     pub add_choices: super::AddChoices,
     /// 要求（`requirements/<ID>.toml`。ID 順）

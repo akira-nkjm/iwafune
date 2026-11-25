@@ -2,10 +2,10 @@ import { Plus } from "lucide-react";
 import { useState } from "react";
 import type { DesignView } from "@/api/types";
 import { useT } from "@/i18n";
-import { AddLinkDialog } from "@/ops/add-link/AddLinkDialog";
+import { LinkDialog } from "@/ops/link/LinkDialog";
 import { Button } from "@/ui/button";
 
-/** 通信のページの「回線を足す」ボタン（ダイアログは `ops/add-link`。足りない入力の行からも同じものを開く） */
+/** 通信のページの「回線を足す」ボタン（ダイアログは `ops/link`。足りない入力の行からも同じものを開く） */
 export function AddLinkButton({ design }: { design: DesignView }) {
   const tl = useT().conditions.links;
   const [adding, setAdding] = useState(false);
@@ -15,7 +15,7 @@ export function AddLinkButton({ design }: { design: DesignView }) {
         <Plus size={13} />
         {tl.add}
       </Button>
-      {adding && <AddLinkDialog design={design} onOpenChange={setAdding} />}
+      {adding && <LinkDialog design={design} onOpenChange={setAdding} />}
     </>
   );
 }

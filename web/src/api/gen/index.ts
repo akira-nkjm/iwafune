@@ -292,6 +292,7 @@ export type * from "./LinkBudgetLink";
 export type * from "./LinkBudgetLinkResult";
 export type * from "./LinkBudgetOutput";
 export type * from "./LinkDistanceModel";
+export type * from "./LinkView";
 export type * from "./ListKind";
 export type * from "./LoadGrowth";
 export type * from "./Maneuver";

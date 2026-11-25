@@ -20,6 +20,7 @@
 //! | `maneuver` | マヌーバの表示（`ManeuverView`）と `fune maneuver add\|set` の引数（`ManeuverText`） |
 //! | `configuration` | 形態の表示（`ConfigurationView`）と `fune configuration add\|set` の引数（`ConfigurationText`） |
 //! | `phase` | フェーズの表示（`PhaseView`）と `fune phase add\|set` の引数（`PhaseText`） |
+//! | `comm_links` | 通信の回線の表示（`LinkView`） |
 //! | `ground` | 地上局の表示（`GroundStationView`）と `fune ground add` の引数（`GroundAddText`） |
 //! | `records_text` | `fune link add`・`fune case set`・`fune catalog source add-local`・`fune project set` の引数（`LinkAddText`・`CaseSetText`・`CatalogLocalAddText`・`ProjectSetText`） |
 //! | `requirement` | 要求の表示（`RequirementView`）・`fune requirement add\|set` の引数（`RequirementText`）・要求適合表（`ComplianceReport`） |
@@ -81,7 +82,9 @@ pub use shared_catalog::{
     CatalogFetchRequest, CatalogItemChange, CatalogItemChangeKind, CatalogSyncEntry,
     CatalogSyncResult, CatalogUpdateRequest, CatalogValueChange,
 };
+mod comm_links;
 mod ground;
+pub use comm_links::LinkView;
 pub use ground::{GroundAddText, GroundStationView};
 mod records_text;
 pub use records_text::{CaseSetText, CatalogLocalAddText, LinkAddText, ProjectSetText};
