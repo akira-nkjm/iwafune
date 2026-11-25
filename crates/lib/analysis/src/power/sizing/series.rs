@@ -14,9 +14,9 @@ use crate::power::energy_balance::{
     EnergyBalanceCase, EnergyBalanceEvaluation, EnergyBalanceInput, EnergyBalanceLoad, LoadGrowth,
     ScaledBalance, ScaledJudgement,
 };
-use crate::power::mode_load::ModeLoad;
+use crate::power::mode_load::ModeLoadOutput;
 use crate::power::solar::SolarLife;
-use crate::spec::{Analysis, AnalysisError};
+use crate::spec::AnalysisError;
 use sat_astro::time::Epoch;
 use sat_astro::timeline::TimelineSpec;
 use sat_units::typed::{Angle, Area, Energy, Fraction, Qty};
@@ -78,6 +78,8 @@ pub(super) struct SeriesBasis<'a> {
     pub design_area: f64,
     pub longest: &'a EclipseSeasonPoint,
     pub loads: &'a [ModeLoads],
+    /// 全モードの負荷の内訳（`power.mode_load` の出力）
+    pub mode_loads: &'a ModeLoadOutput,
     /// SMAD の逆算（面積の初めの見積もりに使う）
     pub smad: &'a [SizingMode],
 }
@@ -245,7 +247,8 @@ fn balance_input(
     basis: &SeriesBasis,
 ) -> Result<EnergyBalanceInput, AnalysisError> {
     let timeline = worst_season(&input.timeline, basis.longest);
-    let peak_load = ModeLoad::run(&input.loads)?
+    let peak_load = basis
+        .mode_loads
         .modes
         .iter()
         .map(|m| {

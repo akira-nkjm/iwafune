@@ -8,8 +8,10 @@ use crate::spec::{AnalysisError, orbit_ranges};
 use sat_astro::attitude::AttitudeLaw;
 use sat_astro::orbit::Cycle;
 use sat_astro::timeline::{self, TimelineSpec};
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::ops::Range;
+use std::rc::Rc;
 
 /// モードの姿勢則（`mode_attitudes`）での発電（倍率をかける前）。モードの ID → 標本ごとの発電 [W]。
 pub(super) type LawGeneration = BTreeMap<String, Vec<f64>>;
@@ -21,24 +23,52 @@ pub(super) fn with_law(input: &EnergyBalanceInput, law: &AttitudeLaw) -> Timelin
     spec
 }
 
-/// 時系列に沿った発電。
-pub(super) fn profile(
-    input: &EnergyBalanceInput,
-    spec: &TimelineSpec,
-) -> Result<SolarProfile, AnalysisError> {
-    Ok(SolarProfile::build(&input.array, &timeline::build(spec)?))
+/// 姿勢則ごとの発電の時系列（[`SolarProfile`]）の作り置き。**同じ姿勢則の時系列は 1 回だけ作る**
+/// （時系列は軌道・期間・刻み・β・パネルが同じなら姿勢則だけで決まる。ケース・モード・並びが同じ姿勢則を使い回す）。
+pub(super) struct Profiles<'a> {
+    input: &'a EnergyBalanceInput,
+    built: RefCell<Vec<(AttitudeLaw, Rc<SolarProfile>)>>,
+}
+
+impl<'a> Profiles<'a> {
+    pub(super) fn new(input: &'a EnergyBalanceInput) -> Self {
+        Self {
+            input,
+            built: RefCell::default(),
+        }
+    }
+
+    /// 姿勢則 `law` の時系列（作ってあればそれ）。
+    pub(super) fn get(&self, law: &AttitudeLaw) -> Result<Rc<SolarProfile>, AnalysisError> {
+        if let Some((_, found)) = self.built.borrow().iter().find(|(known, _)| known == law) {
+            return Ok(Rc::clone(found));
+        }
+        let spec = with_law(self.input, law);
+        let built = Rc::new(SolarProfile::build(
+            &self.input.array,
+            &timeline::build(&spec)?,
+        ));
+        self.built
+            .borrow_mut()
+            .push((law.clone(), Rc::clone(&built)));
+        Ok(built)
+    }
+
+    /// 上段の姿勢則（`timeline.attitude`）の時系列。
+    pub(super) fn main(&self) -> Result<Rc<SolarProfile>, AnalysisError> {
+        self.get(&self.input.timeline.attitude)
+    }
 }
 
 /// モード `mode` の姿勢則での発電（倍率をかける前）。姿勢則の無いモードは None。
 pub(super) fn law_generation(
-    input: &EnergyBalanceInput,
+    profiles: &Profiles,
     mode: &str,
 ) -> Result<Option<Vec<f64>>, AnalysisError> {
+    let input = profiles.input;
     match input.mode_attitudes.get(mode) {
         None => Ok(None),
-        Some(law) => Ok(Some(
-            profile(input, &with_law(input, law))?.total(input.life()),
-        )),
+        Some(law) => Ok(Some(profiles.get(law)?.total(input.life()))),
     }
 }
 
@@ -48,7 +78,7 @@ pub(super) fn mode_generation(ctx: &Context, mode: &str) -> Result<Vec<f64>, Ana
     let cached = ctx.laws.and_then(|l| l.get(mode));
     let unscaled = match cached {
         Some(g) => Some(g.clone()),
-        None => law_generation(ctx.input, mode)?,
+        None => law_generation(ctx.profiles, mode)?,
     };
     Ok(match unscaled {
         None => ctx.generation.clone(),
@@ -61,6 +91,8 @@ pub(super) struct Context<'a> {
     pub(super) input: &'a EnergyBalanceInput,
     pub(super) battery: &'a EnergyBalanceBattery,
     pub(super) profile: &'a SolarProfile,
+    /// 姿勢則ごとの時系列の作り置き
+    pub(super) profiles: &'a Profiles<'a>,
     /// 発電（倍率込み）[W]
     pub(super) generation: Vec<f64>,
     pub(super) ranges: Vec<Range<usize>>,
@@ -82,6 +114,7 @@ impl<'a> Context<'a> {
         input: &'a EnergyBalanceInput,
         battery: &'a EnergyBalanceBattery,
         profile: &'a SolarProfile,
+        profiles: &'a Profiles<'a>,
         cycle: Cycle,
     ) -> Self {
         Self {
@@ -90,6 +123,7 @@ impl<'a> Context<'a> {
             input,
             battery,
             profile,
+            profiles,
             cycle,
             laws: None,
             scale: 1.0,
@@ -112,6 +146,7 @@ impl<'a> Context<'a> {
             input: self.input,
             battery: self.battery,
             profile: self.profile,
+            profiles: self.profiles,
             generation,
             ranges: self.ranges.clone(),
             cycle: self.cycle,

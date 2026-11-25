@@ -4,6 +4,7 @@ use super::{SizingInput, SizingMode, SizingTimeSeries, SizingUsed};
 use crate::power::orbit_generation::{OrbitGeneration, OrbitGenerationInput};
 use crate::power::solar::{SolarArray, SolarLife};
 use crate::spec::{Analysis, AnalysisError};
+use sat_astro::attitude::AttitudeLaw;
 use sat_units::typed::{Fraction, Qty};
 
 /// 対象モードごとに入射係数・必要発電・面積・容量を求める。
@@ -25,10 +26,24 @@ pub(super) fn evaluate(
             "EOL generation per unit area is not positive".into(),
         ));
     }
+    // 同じ姿勢則のモードは同じ時系列・同じ入力なので、日照中の平均発電は 1 回だけ求める
+    let mut averages: Vec<(&AttitudeLaw, f64)> = Vec::new();
     loads
         .iter()
         .map(|l| {
-            let k = sunlit_average(input, array, &l.id)? / reference;
+            let law = input
+                .mode_laws
+                .get(&l.id)
+                .unwrap_or(&input.timeline.attitude);
+            let average = match averages.iter().find(|(known, _)| *known == law) {
+                Some((_, average)) => *average,
+                None => {
+                    let average = sunlit_average(input, array, law)?;
+                    averages.push((law, average));
+                    average
+                }
+            };
+            let k = average / reference;
             if k <= 0.0 {
                 return Err(AnalysisError::InvalidInput(format!(
                     "The attitude of mode {} generates no power in sunlight",
@@ -54,16 +69,14 @@ pub(super) fn evaluate(
         .collect()
 }
 
-/// モード `mode` の姿勢則で回した日照中の平均発電（EOL）[W]。
+/// 姿勢則 `law` で回した日照中の平均発電（EOL）[W]（モードの姿勢則が無ければ時系列の姿勢則）。
 fn sunlit_average(
     input: &SizingInput,
     array: &SolarArray,
-    mode: &str,
+    law: &AttitudeLaw,
 ) -> Result<f64, AnalysisError> {
     let mut timeline = input.timeline.clone();
-    if let Some(law) = input.mode_laws.get(mode) {
-        timeline.attitude = law.clone();
-    }
+    timeline.attitude = law.clone();
     let out = OrbitGeneration::run(&OrbitGenerationInput {
         timeline,
         array: array.clone(),

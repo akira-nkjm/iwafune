@@ -279,18 +279,19 @@ impl Analysis for EnergyBalance {
         super::mode_load::validate(&input.loads)?;
         sequence::validate(input)?;
         let cycle = input.timeline.orbit().cycle();
-        let main = profile(input, &input.timeline)?;
-        let ctx = Context::new(input, &battery, &main, cycle);
+        let profiles = Profiles::new(input);
+        let main = profiles.main()?;
+        let ctx = Context::new(input, &battery, &main, &profiles, cycle);
         let base = duration::BaseMode::new(&ctx)?;
         let mut cases = Vec::with_capacity(input.cases.len());
         for c in &input.cases {
             let own = match &c.attitude {
                 None => None,
-                Some(law) => Some(profile(input, &with_law(input, law))?),
+                Some(law) => Some(profiles.get(law)?),
             };
             let own_ctx = own
                 .as_ref()
-                .map(|p| Context::new(input, &battery, p, cycle));
+                .map(|p| Context::new(input, &battery, p, &profiles, cycle));
             let case_ctx = own_ctx.as_ref().unwrap_or(&ctx);
             let (mut result, _) = evaluate_case(case_ctx, c)?;
             duration::apply(case_ctx, c, base.as_ref(), &mut result)?;
@@ -358,7 +359,7 @@ mod sequence;
 mod timing;
 mod verdict;
 use case::evaluate_case;
-use context::{Context, profile, with_law};
+use context::{Context, Profiles};
 pub use duration::EnergyBalanceDuration;
 pub use scaled::{ScaledBalance, ScaledJudgement};
 pub use sequence::{EnergyBalanceSegment, EnergyBalanceSequence};

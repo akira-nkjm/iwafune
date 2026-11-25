@@ -15,7 +15,7 @@ pub const DEFAULT_SECONDARY_AXIS: Vec3 = Vec3::X;
 pub const DEFAULT_INERTIAL_ORIENTATION: Quat = Quat::IDENTITY;
 
 /// 姿勢則。軸はすべて機体座標系の単位ベクトル。
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[serde(tag = "law", rename_all = "snake_case")]
 pub enum AttitudeLaw {

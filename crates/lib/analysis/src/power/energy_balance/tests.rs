@@ -376,3 +376,23 @@ fn eclipse_assignment_reaches_balance_loads() {
 mod operation;
 mod page_outputs;
 mod timing;
+
+/// 同じ姿勢則の時系列は 1 回だけ作り（同じものを返す）、違う姿勢則は別の時系列。
+#[test]
+fn profiles_are_built_once_per_attitude_law() {
+    use super::context::Profiles;
+    use crate::power::testkit::nadir_pointing_z;
+    let i = input(vec![pz_panel()], vec![]);
+    let profiles = Profiles::new(&i);
+    let main = profiles.main().unwrap();
+    assert!(std::rc::Rc::ptr_eq(
+        &main,
+        &profiles.get(&sun_pointing_z()).unwrap()
+    ));
+    let nadir = profiles.get(&nadir_pointing_z()).unwrap();
+    assert!(!std::rc::Rc::ptr_eq(&main, &nadir));
+    assert!(std::rc::Rc::ptr_eq(
+        &nadir,
+        &profiles.get(&nadir_pointing_z()).unwrap()
+    ));
+}

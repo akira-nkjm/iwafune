@@ -284,3 +284,50 @@ fn per_mode_checks_compare_hand_checkable_requirements() {
 
 mod assumptions;
 mod series;
+
+/// 逆算が使うモードの負荷は `power.mode_load` の出力そのもの（逆算の中で 1 回だけ求めて下へ渡す）。
+#[test]
+fn mode_loads_are_the_mode_load_output() {
+    let i = input();
+    let (loads, output) = calculate::loads(&i).unwrap();
+    let own = crate::power::mode_load::ModeLoad::run(&i.loads).unwrap();
+    assert_eq!(
+        serde_json::to_string(&output).unwrap(),
+        serde_json::to_string(&own).unwrap()
+    );
+    assert_eq!(loads.len(), own.modes.len());
+    assert_eq!(loads[0].sunlit, own.modes[0].total_with_growth.value());
+}
+
+/// 同じ姿勢則のモードの入射係数は 1 回の計算を共有し、単独で回した値と同じ。違う姿勢則のモードは別の値。
+#[test]
+fn modes_with_the_same_attitude_share_the_incidence() {
+    let mut i = input();
+    let nominal = i.loads.modes[0].clone();
+    i.loads.modes = ["A", "B", "C"]
+        .iter()
+        .map(|id| ModeDef {
+            id: (*id).to_owned(),
+            ..nominal.clone()
+        })
+        .collect();
+    // C だけ地心指向（A と B は時系列の太陽指向）
+    i.mode_laws.insert("C".to_owned(), nadir_pointing_z());
+    let all = Sizing::run(&i).unwrap();
+    let factor = |out: &SizingOutput, id: &str| {
+        out.modes
+            .iter()
+            .find(|m| m.id == id)
+            .unwrap()
+            .incidence_factor
+            .value()
+    };
+    for id in ["A", "C"] {
+        let mut alone = i.clone();
+        alone.mode = Some(id.to_owned());
+        let single = Sizing::run(&alone).unwrap();
+        assert_eq!(factor(&all, id), factor(&single, id));
+    }
+    assert_eq!(factor(&all, "A"), factor(&all, "B"));
+    assert_ne!(factor(&all, "A"), factor(&all, "C"));
+}
