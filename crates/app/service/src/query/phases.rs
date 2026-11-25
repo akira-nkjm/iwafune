@@ -40,7 +40,7 @@ fn view(design: &Design, p: &Phase, position: u32) -> PhaseView {
         id: id.to_owned(),
         position,
         order: p.order,
-        label: p.label.clone().unwrap_or_else(|| id.to_owned()),
+        label: fune_model::display_name::name_or_id(p.label.as_deref(), id),
         start: p.start.clone(),
         end: p.end.clone(),
         duration: p

@@ -178,7 +178,7 @@ pub fn energy_balance(ctx: &Context<'_>) -> Result<EnergyBalanceInput, MissingIn
         .filter(|md| mode.as_ref().is_none_or(|id| md.id.as_str() == id))
         .map(|md| EnergyBalanceCase {
             id: md.id.to_string(),
-            label: md.label.clone().unwrap_or_else(|| md.id.to_string()),
+            label: fune_model::display_name::name_or_id(md.label.as_deref(), md.id.as_str()),
             load: EnergyBalanceLoad::Mode {
                 mode: md.id.to_string(),
             },

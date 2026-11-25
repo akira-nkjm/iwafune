@@ -338,7 +338,7 @@ pub fn mode_def(mode: &Mode) -> ModeDef {
     };
     ModeDef {
         id: mode.id.to_string(),
-        label: mode.label.clone().unwrap_or_else(|| mode.id.to_string()),
+        label: fune_model::display_name::name_or_id(mode.label.as_deref(), mode.id.as_str()),
         assignments: assignments(&mode.states),
         eclipse: assignments(&mode.eclipse),
     }

@@ -64,6 +64,38 @@ fn spelling_and_text_format_have_one_home() {
     assert_eq!(errors.len(), 1);
 }
 
+/// 表示名と ID の組み方は model の `display_name` だけ。`label` の空を見ない ID への置き換えも書かない。
+#[test]
+fn display_name_rules_have_one_home() {
+    let rule = |needle: &str| RUST_RULES.iter().find(|r| r.0 == needle).unwrap();
+    let mut errors = Vec::new();
+    let home = "crates/app/model/src/display_name.rs";
+    check_rule(home, "fn name_or_id(", rule("fn name_or_id("), &mut errors);
+    check_rule(
+        home,
+        "fn name_with_id(",
+        rule("fn name_with_id("),
+        &mut errors,
+    );
+    assert!(errors.is_empty());
+    check_rule(
+        "crates/app/service/src/report/common.rs",
+        "fn name_with_id(",
+        rule("fn name_with_id("),
+        &mut errors,
+    );
+    assert_eq!(errors.len(), 1);
+    errors.clear();
+    let fallback = "label.clone().unwrap_or_else(|| ";
+    check_rule(
+        "crates/app/service/src/query/views.rs",
+        fallback,
+        rule(fallback),
+        &mut errors,
+    );
+    assert_eq!(errors.len(), 1);
+}
+
 /// 読み込み中のスケルトンは kit/feedback/Loading の部品だけが ui/skeleton を使う。
 #[test]
 fn skeletons_come_from_kit_loading() {

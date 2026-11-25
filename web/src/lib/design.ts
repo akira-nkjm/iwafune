@@ -52,7 +52,7 @@ export function withNote(
   note: string | null | undefined,
   lang: Lang = getLang(),
 ): string {
-  return note && note !== main ? dictionaries[lang].common.withNote(main, note) : main;
+  return note?.trim() && note !== main ? dictionaries[lang].common.withNote(main, note) : main;
 }
 
 /** 日英の表示名を持つ定義（属性・種別） */
@@ -145,10 +145,12 @@ export type Named = { id: string; label?: string | null; label_en?: string | nul
 
 /**
  * 製品ツリーのノードやモードの表示名。系は API の日英名を使う。
- * 英語名を持たない部品やモードは英語で ID、日本語で設計の表示名（無ければ ID）を使う。
+ * 英語名を持たない部品やモードは英語で ID、日本語で設計の表示名（無い・空・空白だけなら ID）を使う。
+ * 空の表示名を ID に替える規則は Rust の `fune_model::display_name` と同じ（`display_name_cases.json` で揃える）。
  */
 export function nodeName(node: Named, lang: Lang = getLang()): string {
-  return lang === "en" ? node.label_en || node.id : node.label || node.id;
+  const name = lang === "en" ? node.label_en : node.label;
+  return name?.trim() ? name : node.id;
 }
 
 /** 選択肢に出す「ID（表示名）」（`withNote`）。表示名が ID と同じとき（英語・表示名なし）は ID だけ */

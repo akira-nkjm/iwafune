@@ -7,6 +7,7 @@ use crate::dto::{
 };
 use crate::error::{Result, ServiceError};
 use crate::units::number_text;
+use fune_model::display_name::{name_or_id, name_with_id};
 use fune_projection::Projects;
 use fune_report::labels::{Text, t, tr};
 use fune_report::model::{Table, ValueEntry};
@@ -149,28 +150,27 @@ pub(super) fn pick_label(lang: ReportLang, label: &str, label_en: Option<&str>) 
 pub(super) fn case_label(ctx: &Ctx, case: Option<&str>) -> String {
     match case {
         None => t(ctx.lang, Text::CaseDefault).to_owned(),
-        Some(id) => ctx
-            .snapshot()
-            .design
-            .cases
-            .get(id)
-            .and_then(|c| c.label.clone())
-            .unwrap_or_else(|| id.to_owned()),
+        Some(id) => name_or_id(
+            ctx.snapshot()
+                .design
+                .cases
+                .get(id)
+                .and_then(|c| c.label.as_deref()),
+            id,
+        ),
     }
 }
 
-/// 部品の表示名（`<名前> (<ID>)`。名前が無ければ ID）。
+/// 部品の表示名（`<名前> (<ID>)`。名前が無い・空のときは ID だけ。組み方は `fune_model::display_name`）。
 pub(super) fn part_name(ctx: &Ctx, id: &str) -> String {
-    match ctx
-        .snapshot()
-        .resolved
-        .parts
-        .get(id)
-        .and_then(|p| p.label.as_deref())
-    {
-        Some(label) => format!("{label} ({id})"),
-        None => id.to_owned(),
-    }
+    name_with_id(
+        ctx.snapshot()
+            .resolved
+            .parts
+            .get(id)
+            .and_then(|p| p.label.as_deref()),
+        id,
+    )
 }
 
 /// 量の表示から文章用の値の項目を作る。

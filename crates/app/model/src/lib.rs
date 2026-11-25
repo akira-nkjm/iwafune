@@ -16,6 +16,7 @@
 //! | `resolve` | Design → Resolved（カタログ・上書きの重ね合わせ、SI 換算、出所） |
 //! | `check` | 検証（severity 付きの診断） |
 //! | `diagnostic` | 診断の型 |
+//! | `display_name` | 表示名と ID の組み方（`name_or_id`・`name_with_id`。表示名が空・空白だけ・ID と同じなら ID だけ。Web の `idWithName` と同じ表を読むテストで揃える） |
 //! | `target` | 診断と不足入力の対象（部品・属性・設定・モードなどを構造で持つ。文字列のパスは `Display` だけ） |
 //!
 //! 設計データのファイル I/O はしない（読み書きは fune-store）。TOML を読むのは、埋め込みの組み込み定義（`builtin`）だけ。
@@ -25,6 +26,7 @@ pub mod chain;
 pub mod check;
 pub mod design;
 pub mod diagnostic;
+pub mod display_name;
 pub mod enum_text;
 pub mod field_names;
 pub mod id;

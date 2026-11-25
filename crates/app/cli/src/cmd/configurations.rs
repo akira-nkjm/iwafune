@@ -89,7 +89,7 @@ fn show(ws: &Workspace, id: &str, out: &Out) -> Handled {
 }
 
 fn print_configuration(c: &ConfigurationView, out: &Out) {
-    out.heading(&format!("{} ({})", c.label, c.id));
+    out.heading(&query::name_with_id(Some(&c.label), &c.id));
     let line = |key: &str, value: String| {
         if !value.is_empty() {
             println!("  {:<12} {value}", out.dim(key));

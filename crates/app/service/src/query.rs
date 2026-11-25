@@ -50,6 +50,9 @@ pub fn enum_label<T: std::fmt::Display>(ty: &str, value: &T) -> String {
     })
 }
 
+/// 表示名と ID の組み方（CLI が見出しに使う。規則は `fune_model::display_name` だけ）。
+pub use fune_model::display_name::name_with_id;
+
 /// 日英の表示名の組から CLI に出す側を選ぶ（**この規則はここだけ**）。英語があればそれ、無い（または空の）ときは
 /// もう一方（作者が書いた表示名など、英語の無いもの）。GUI は DTO の両方の欄を持ち、言語の切り替えで選ぶ。
 pub fn english<'a>(label: &'a str, label_en: Option<&'a str>) -> &'a str {
