@@ -1,6 +1,7 @@
 import type { Op } from "@/api/types";
 import { useT } from "@/i18n";
 import { CliCopyButton } from "@/kit/CliCopyButton";
+import { refreshingDim } from "@/kit/feedback/Refreshable";
 import { cn } from "@/lib/cn";
 import { withNote } from "@/lib/design";
 import { useOpCheck } from "./use-op-check";
@@ -23,7 +24,7 @@ export function OpPreview({ ops, compact = false }: { ops: Op[] | null; compact?
       className={cn(
         "min-w-0 rounded-control border border-line bg-panel-2 transition-opacity",
         compact ? "space-y-1 px-2.5 py-2" : "space-y-1.5 p-2.5",
-        check.pending && cli.length > 0 && "opacity-60",
+        refreshingDim(check.pending && cli.length > 0),
       )}
     >
       {compact ? (

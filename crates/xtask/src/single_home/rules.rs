@@ -108,6 +108,12 @@ pub(super) const WEB_RULES: &[(&str, &[&str], &str)] = &[
         &["web/src/kit/feedback/"],
         "the animated logo mark for waiting (loading display)",
     ),
+    // 読み直しの間に前の中身を薄くする度合い（`opacity-55`）は kit/feedback の `Refreshable` / `refreshingDim` だけが持つ
+    (
+        "opacity-55",
+        &["web/src/kit/feedback/"],
+        "dimming content while refreshing (loading display; use `Refreshable` or `refreshingDim`)",
+    ),
     // 系とバジェットの種類の一覧と並びは API（`DefsView.systems`・`budget_kinds`）。Web に写しを書かない
     (
         "\"aocs\", \"cdh\"",
