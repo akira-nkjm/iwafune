@@ -3,9 +3,9 @@
 //! JSON では `{ "op": "set_value", ... }` の形（`op` が種類）。
 
 use fune_model::design::{
-    AttributeDef, Case, CaseField, CatalogField, FindingKind, Harness, KindDef, LinkDirection,
-    Maneuver, Maturity, ModeSegment, ModeWhen, Net, NetField, PartField, Phase, Pose, ProjectField,
-    Requirement, Source, StartRef,
+    AttributeDef, Case, CatalogField, FindingKind, Harness, KindDef, LinkDirection, Maneuver,
+    Maturity, ModeSegment, ModeWhen, Net, NetField, PartField, Phase, Pose, ProjectField,
+    RecordKind, RecordValue, Requirement, Source, StartRef,
 };
 use fune_model::value::{Provenance, Quaternion, SettingValue, Value, Vector3};
 use serde::{Deserialize, Serialize};
@@ -438,12 +438,17 @@ pub enum Op {
         #[serde(default)]
         epoch: Option<String>,
     },
-    /// 解析ケースの欄を 1 つだけ書く（`field` の値が None ならその欄を外す。ケースのほかの欄は変えない。ケースが無ければ拒む。
-    /// `SetCase` が丸ごと置き換えるのに対し、これは書いた欄だけを変える: `fune set cases.<ID>.<欄>`）。
-    /// フェーズと時刻の欄は専用の Op（`SetCasePhase`・`SetCaseEpoch`）。
-    SetCaseField {
-        case: String,
-        field: CaseField,
+    /// 名前のついたレコード（解析ケース・マヌーバ・要求・ハーネス・出典・フェーズの見出し）の欄を 1 つだけ書く
+    /// （`value` が None ならその欄を外す。ほかの欄は変えない。レコードが無ければ拒む）。`SetCase`・`SetManeuver` などが
+    /// 丸ごと置き換えるのに対し、これは書いた欄だけを変える: `fune set <集まり>.<ID>.<欄> <値>`。
+    /// `field` は `RecordKind::fields` の名前（入れ子の表は `constraint.value`）。値の型は欄の宣言が決め、service が読む。
+    /// ケースのフェーズと時刻の欄は専用の Op（`SetCasePhase`・`SetCaseEpoch`）。
+    SetRecordField {
+        record: RecordKind,
+        id: String,
+        field: String,
+        #[serde(default)]
+        value: Option<RecordValue>,
     },
     /// 形態を足す（同じ ID があれば拒む）。
     CreateConfiguration {

@@ -77,8 +77,15 @@ impl Geometry {
     }
 }
 
-/// 外面 1 枚の吸収熱 [W]。`lit` は面の日照割合（直達日射にだけ掛ける）。
-fn surface_absorbed(s: &Surface, lit: f64, env: &ResolvedEnvironment, g: &Geometry) -> f64 {
+/// 外面 1 枚の吸収熱 [W]。`lit` は面の日照割合（直達日射にだけ掛ける。ほかの部品に覆われた範囲を除いてある）、
+/// `exposed` は覆われていない割合（アルベドと惑星の赤外にだけ掛ける）。
+fn surface_absorbed(
+    s: &Surface,
+    lit: f64,
+    exposed: f64,
+    env: &ResolvedEnvironment,
+    g: &Geometry,
+) -> f64 {
     let flux = env.solar_flux_w_m2.unwrap_or(g.solar_flux_w_m2);
     let solar = s.alpha * flux * s.area_m2 * solar_incidence(s.normal, g.sun_dir, g.sunlit) * lit;
     let Some(r) = g.r_m else {
@@ -86,33 +93,56 @@ fn surface_absorbed(s: &Surface, lit: f64, env: &ResolvedEnvironment, g: &Geomet
     };
     let f = body_view_factor(s.normal, r, env.body_radius_m);
     let cos_sun = r.normalized().map_or(0.0, |u| u.dot(g.sun_dir).max(0.0));
-    let albedo = s.alpha * flux * env.albedo * f * cos_sun * s.area_m2;
-    let ir = s.eps * env.ir.emitted_w_m2(env.albedo, flux, cos_sun) * f * s.area_m2;
+    let albedo = s.alpha * flux * env.albedo * f * cos_sun * s.area_m2 * exposed;
+    let ir = s.eps * env.ir.emitted_w_m2(env.albedo, flux, cos_sun) * f * s.area_m2 * exposed;
     solar + albedo + ir
+}
+
+/// 影と覆いを、どの部品について数えるか。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Blockers {
+    /// すべての部品（通常の入熱）
+    All,
+    /// 熱の外面を持つ部品だけ（外面を持たない部品は無いものとする。外面を持つ部品が遮った入熱はその部品が吸収するので失われず、
+    /// 外面を持たない部品が遮って吸収されない入熱を、`All` との差で知るための比較用）
+    SurfacedOnly,
 }
 
 /// 節点ごとの外部入熱 [W]。
 pub(crate) fn absorbed(net: &Compiled, env: &ResolvedEnvironment, g: &Geometry) -> Vec<f64> {
-    absorbed_with(net, env, g, true)
+    absorbed_with(net, env, g, Blockers::All)
 }
 
-/// 節点ごとの外部入熱 [W]。`shaded` が偽なら影を数えない（影で遮られた日射を知るための比較用）。
+/// 節点ごとの外部入熱 [W]。`blockers` は影と、ほかの部品に覆われた面積を、どの部品について数えるか。
 pub(crate) fn absorbed_with(
     net: &Compiled,
     env: &ResolvedEnvironment,
     g: &Geometry,
-    shaded: bool,
+    blockers: Blockers,
 ) -> Vec<f64> {
     let mut q = vec![0.0; net.len()];
     for s in &net.surfaces {
-        // 光を受ける面だけ影を評価する（受けない面は直達日射が 0 なので、日照割合は効かない）
-        let lit = match &net.shading {
-            Some(shading) if shaded && g.sunlit > 0.0 && s.normal.dot(g.sun_dir) > 0.0 => {
-                shading.lit(s.input, g.sun_dir)
-            }
-            _ => 1.0,
+        let (lit, exposed) = match (&net.shading, blockers) {
+            (None, _) => (1.0, 1.0),
+            // 光を受ける面だけ影を評価する（受けない面は直達日射が 0 なので、日照割合は効かない）
+            (Some(shading), Blockers::All) => (
+                if g.sunlit > 0.0 && s.normal.dot(g.sun_dir) > 0.0 {
+                    shading.lit(s.input, g.sun_dir)
+                } else {
+                    1.0
+                },
+                s.exposed,
+            ),
+            (Some(shading), Blockers::SurfacedOnly) => (
+                if g.sunlit > 0.0 && s.normal.dot(g.sun_dir) > 0.0 {
+                    shading.lit_surfaced_only(s.input, g.sun_dir)
+                } else {
+                    1.0
+                },
+                shading.exposed_surfaced_only(s.input),
+            ),
         };
-        q[s.node] += surface_absorbed(s, lit, env, g);
+        q[s.node] += surface_absorbed(s, lit, exposed, env, g);
     }
     q
 }

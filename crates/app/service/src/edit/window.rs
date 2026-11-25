@@ -11,7 +11,7 @@ use sat_analysis::propulsion::LaunchWindow;
 use sat_analysis::spec::Analysis;
 
 /// 最新の設計から日付を探索し、指定のマヌーバの `transfer` を最小の点の日付にした `SetManeuver` Op を返す
-/// （マヌーバのほかの欄は今のまま）。マヌーバが無い・天体間の遷移でない・格子に解けた点が無いときはエラー。
+/// （マヌーバのほかの欄は今のまま。通過のあるマヌーバは通過の日も点の日付にする）。マヌーバが無い・天体間の遷移でない・格子に解けた点が無いときはエラー。
 pub fn maneuver_window_op(ws: &Workspace, req: &ManeuverWindowRequest) -> Result<Op> {
     let snap = ws.snapshot()?;
     let maneuver = snap
@@ -42,13 +42,16 @@ pub fn maneuver_window_op(ws: &Workspace, req: &ManeuverWindowRequest) -> Result
     }
     .ok_or_else(|| ServiceError::Analysis(format!("No solved point for maneuver {}", req.id)))?;
     let mut maneuver = maneuver.clone();
-    // 日付だけを入れ替える（出発の噴射を誰が行うか・途中のスイングバイは、書かれたものを保つ）
+    // 日付だけを入れ替える（出発の噴射を誰が行うか・通過の天体と高度の下限と動力は、書かれたものを保ち、通過の日は点の日付にする）
     let departure_by = maneuver.transfer.as_ref().and_then(|t| t.departure_by);
-    let flybys = maneuver
+    let mut flybys = maneuver
         .transfer
         .as_ref()
         .map(|t| t.flybys.clone())
         .unwrap_or_default();
+    for (flyby, date) in flybys.iter_mut().zip(&point.flyby_dates) {
+        flyby.date = date.to_iso();
+    }
     maneuver.transfer = Some(ManeuverTransfer {
         departure: Some(point.departure.to_iso()),
         arrival: Some(point.arrival.to_iso()),

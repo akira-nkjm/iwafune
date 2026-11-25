@@ -6,7 +6,7 @@ use super::records::{remove, set_id};
 use crate::error::OpError;
 use crate::op::Op;
 use fune_model::Design;
-use fune_model::design::{Case, CaseField, Phase};
+use fune_model::design::{Case, Phase};
 use fune_model::value::SettingValue;
 use fune_store::Edits;
 use fune_store::layout;
@@ -52,7 +52,6 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
         Op::UnsetPhaseLaw { phase, mode } => unset_phase_law(edits, design, phase, mode),
         Op::SetCasePhase { case, phase } => set_case_phase(edits, design, case, phase.as_deref()),
         Op::SetCaseEpoch { case, epoch } => set_case_epoch(edits, design, case, epoch.as_deref()),
-        Op::SetCaseField { case, field } => set_case_field(edits, design, case, field),
         _ => Err(OpError::invalid("This op is not handled here")),
     }
 }
@@ -197,21 +196,4 @@ fn set_case_epoch(
         ..current.clone()
     };
     Ok(write_record(edits, &layout::case_file(case), &updated)?)
-}
-
-/// ケースの欄を 1 つだけ書き換える（ほかの欄はそのまま。書けない値は検査（`check`）が拒む）。
-fn set_case_field(
-    edits: &mut Edits,
-    design: &Design,
-    case: &str,
-    field: &CaseField,
-) -> Result<(), OpError> {
-    let Some(current) = design.cases.get(case) else {
-        return Err(OpError::not_found(format!("Analysis case `{case}`")));
-    };
-    Ok(write_record(
-        edits,
-        &layout::case_file(case),
-        &field.applied(current),
-    )?)
 }

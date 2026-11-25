@@ -3,4 +3,4 @@
 /**
  * 結果の注記。**文は持たない**（service の語彙が引く）。
  */
-export type LaunchWindowNote = "analytic_ephemeris" | "declination_above_inclination" | "minimum_at_grid_edge" | "written_dates_unsolved";
+export type LaunchWindowNote = "analytic_ephemeris" | "declination_above_inclination" | "minimum_at_grid_edge" | "written_dates_unsolved" | "written_flyby_infeasible" | "unpowered_flyby_not_ballistic" | "refinement_incomplete";

@@ -6,6 +6,11 @@
 //! - 飛行時間: ホーマン遷移の時間（`patched_conic` の `transfer_time_s`。日付なしのマヌーバが使う値）の 0.5〜1.5 倍。
 //! - 格子の点の数: 出発・到着の軸ごとに [`DEFAULT_STEPS`]（解くのは飛行時間が範囲に入る点だけなので、実行時間は天体の組によらない）。
 //!
+//! 途中の通過（`flybys`）が書かれたマヌーバは、同じ軸（出発 × 到着）に通過の日の最適化を重ねる（[`super::chain`]）ので、
+//! 点 1 つの費用が数十倍になる。そのため既定が 2 つ変わる: 点の数は軸ごとに [`DEFAULT_FLYBY_STEPS`]（通過 1 つで 60、2 つで 36、3 つで 20）、
+//! 飛行時間の範囲は **書かれた飛行時間（出発 → 到着）** の 0.5〜1.5 倍（ホーマン遷移の時間は出発・到着の 2 天体の直行の値で、
+//! 通過を経由する飛行の長さの目安にならない）。設定で指定された値はそのまま使う。点の数の上限は [`MAX_FLYBY_CELLS`]。
+//!
 //! 軸の日付は元期から整数秒の位置に丸める（書き出した日付を読み直すと同じ元期になり、`propulsion.maneuvers` と値が一致する）。
 
 use super::super::input::DatedTransferInput;
@@ -21,6 +26,12 @@ pub const DEFAULT_TIME_OF_FLIGHT_FACTORS: (f64, f64) = (0.5, 1.5);
 
 /// 出発・到着の軸ごとの既定の点の数（8 000 点ほどの格子で、解く点は飛行時間の範囲に入る 2 000 点ほど。実測は `launch_window_tests`）。
 pub const DEFAULT_STEPS: u32 = 100;
+
+/// 通過のあるマヌーバの、出発・到着の軸ごとの既定の点の数（添字 = 通過の数。点 1 つが通過の日の最適化を含むので、通過が増えるほど粗くする。最小は全日付の局所の詰めで精密にする）。
+pub const DEFAULT_FLYBY_STEPS: [u32; 4] = [DEFAULT_STEPS, 60, 36, 20];
+
+/// 通過のあるマヌーバの、格子の全体の点の数の上限。
+pub const MAX_FLYBY_CELLS: u64 = 10_000;
 
 /// 格子の点の数の下限（軸ごと）。
 const MIN_STEPS: u32 = 2;
@@ -88,8 +99,8 @@ fn positive(name: &str, q: Option<Qty<Time>>) -> Result<Option<f64>, AnalysisErr
     }
 }
 
-fn steps(name: &str, n: Option<u32>) -> Result<u32, AnalysisError> {
-    let n = n.unwrap_or(DEFAULT_STEPS);
+fn steps(name: &str, n: Option<u32>, default: u32) -> Result<u32, AnalysisError> {
+    let n = n.unwrap_or(default);
     if n < MIN_STEPS {
         return Err(AnalysisError::InvalidInput(format!(
             "Launch window {name} must be at least {MIN_STEPS} ({n})"
@@ -124,13 +135,19 @@ impl Axes {
             positive("departure span", settings.departure_span)?.unwrap_or(synodic_s),
         );
         let (f_min, f_max) = DEFAULT_TIME_OF_FLIGHT_FACTORS;
+        // 通過のある遷移は、書かれた飛行時間を基準にする（直接の遷移はホーマンの時間）
+        let flyby = written.is_some_and(|w| !w.flybys.is_empty());
+        let reference_s = match written {
+            Some(w) if flyby => w.arrival.seconds_since(w.departure),
+            _ => hohmann_s,
+        };
         let tof_min = whole_seconds(
             positive("minimum time of flight", settings.time_of_flight_min)?
-                .unwrap_or(f_min * hohmann_s),
+                .unwrap_or(f_min * reference_s),
         );
         let tof_max = whole_seconds(
             positive("maximum time of flight", settings.time_of_flight_max)?
-                .unwrap_or(f_max * hohmann_s),
+                .unwrap_or(f_max * reference_s),
         );
         if tof_min >= tof_max {
             return Err(AnalysisError::InvalidInput(format!(
@@ -144,13 +161,21 @@ impl Axes {
         let start = Epoch {
             j2000_s: whole_seconds(start.j2000_s),
         };
+        let k = written.map_or(0, |w| w.flybys.len());
+        let default_steps = DEFAULT_FLYBY_STEPS[k.min(DEFAULT_FLYBY_STEPS.len() - 1)];
         let (n_dep, n_arr) = (
-            steps("departure steps", settings.departure_steps)?,
-            steps("arrival steps", settings.arrival_steps)?,
+            steps("departure steps", settings.departure_steps, default_steps)?,
+            steps("arrival steps", settings.arrival_steps, default_steps)?,
         );
-        if u64::from(n_dep) * u64::from(n_arr) > MAX_CELLS {
+        let limit = if flyby { MAX_FLYBY_CELLS } else { MAX_CELLS };
+        if u64::from(n_dep) * u64::from(n_arr) > limit {
             return Err(AnalysisError::InvalidInput(format!(
-                "Launch window grid has {n_dep} x {n_arr} points, above the limit of {MAX_CELLS}"
+                "Launch window grid has {n_dep} x {n_arr} points, above the limit of {limit}{}",
+                if flyby {
+                    " for a transfer with flybys"
+                } else {
+                    ""
+                }
             )));
         }
         let departures = axis(start, dep_span, n_dep);
@@ -173,6 +198,16 @@ impl Axes {
             synodic_s,
             hohmann_s,
         })
+    }
+
+    /// 出発の軸の間隔 [s]。
+    pub fn departure_step_s(&self) -> f64 {
+        self.departures[1].seconds_since(self.departures[0])
+    }
+
+    /// 到着の軸の間隔 [s]。
+    pub fn arrival_step_s(&self) -> f64 {
+        self.arrivals[1].seconds_since(self.arrivals[0])
     }
 
     /// 出発 `i`・到着 `j` の組の飛行時間 [s]。
