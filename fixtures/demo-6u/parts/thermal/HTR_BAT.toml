@@ -7,7 +7,7 @@ on = "BAT"
 
 [attr]
 specific_heat = { value = 1100.0, unit = "J/(kg*K)" }
-setpoint      = { min = 5.0, max = 10.0, unit = "degC" }
+setpoint      = { min = 20.0, max = 25.0, unit = "degC" }
 
 [attr.mass]
 value       = 5.0

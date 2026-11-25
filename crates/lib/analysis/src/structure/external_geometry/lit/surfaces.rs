@@ -80,17 +80,26 @@ pub struct ShadowLoss {
     pub fraction: Fraction,
 }
 
-/// 箱ごとの、部品 `owner` に（取付の連鎖で）取り付けられているか。`geometry` の箱の並びと同じ順。
-fn mounted_on(input: &ShadowingInput, geometry: &ExternalGeometry, owner: &str) -> Vec<bool> {
+/// 箱ごとの、部品 `owner` の面の光学特性に**含まれる**か（取付の連鎖に `owner` があり、かつ自分の熱の外面を持たない）。
+/// `geometry` の箱の並びと同じ順。取り付けられた部品が自分の外面（面積・法線・光学特性）を持つなら、面の下は二重に数えないよう
+/// その部品に覆われたものとして扱う（含めない。覆い・向き合い・影の規則をそのまま使う）。
+/// 外面を持つかは `has_surface`（面の一覧に入っているか。`ShadowLoss` の `surfaced` と同じ判定）で決める。
+fn lumped_into(
+    input: &ShadowingInput,
+    geometry: &ExternalGeometry,
+    owner: &str,
+    has_surface: &dyn Fn(&str) -> bool,
+) -> Vec<bool> {
     geometry
         .parts()
         .iter()
         .map(|p| {
-            input
-                .boxes
-                .iter()
-                .find(|b| b.id == p.id)
-                .is_some_and(|b| b.mount_ancestors.iter().any(|a| a == owner))
+            !has_surface(&p.id)
+                && input
+                    .boxes
+                    .iter()
+                    .find(|b| b.id == p.id)
+                    .is_some_and(|b| b.mount_ancestors.iter().any(|a| a == owner))
         })
         .collect()
 }
@@ -120,7 +129,7 @@ pub struct LitSurfaces {
 impl LitSurfaces {
     /// 箱と面の一覧から作る。影を切ってある（`enabled` が偽）か、使える箱が 1 つも無ければ `None`（影を数えない）。
     /// 面の部品は ID で箱に結びつける。`footprint` が [`Footprint::Credited`]（熱の外面）のときは、面を覆う部品も調べる
-    /// （規則は `covers`。面の部品に取り付けられ、自分の外面を持たない部品は覆いに数えない）。
+    /// （規則は `covers`。面の部品に取り付けられ、自分の外面を持たない部品は覆いに数えない。外面を持つ部品は数える。#472）。
     pub fn new<'a>(
         input: &ShadowingInput,
         footprint: Footprint,
@@ -140,11 +149,14 @@ impl LitSurfaces {
                     .position(|p| p.id == id)
                     .and_then(|owner| {
                         let face = geometry.face_toward(owner, normal)?;
-                        let mounted = mounted_on(input, &geometry, id);
+                        let mounted = lumped_into(input, &geometry, id, &|part| {
+                            surfaces.iter().any(|(s, _)| *s == part)
+                        });
                         if footprint == Footprint::Blocks {
                             return Some(FaceOccluders::new(&geometry, owner, &face, None));
                         }
-                        // 面の部品に取り付けられた部品は、面の光学特性に含まれる（覆いに数えない。取付の連鎖で決め、接している距離に頼らない）
+                        // 面の部品に取り付けられ、自分の外面を持たない部品は、面の光学特性に含まれる（覆いに数えない。取付の連鎖で決め、接している距離に頼らない）。
+                        // 自分の外面を持つ部品は含まれない: 面の下はその部品に覆われたものとして、日射と環境とのやり取りを二重に数えない（#472）
                         Some(
                             FaceOccluders::new(&geometry, owner, &face, Some(&mounted))
                                 .with_covers(&geometry, owner, &face, &mounted),

@@ -323,7 +323,8 @@ fn mode_display_order_preserves_analysis_values() {
 /// デモ（I_xx = 0.112 kg·m²（推進系の部品込み）、RW 10 mN·m·s × 0.8・1 mN·m、90°）は x 軸が最悪で台形:
 /// t = θ I / h + h / τ = (π/2)(0.11226)/0.008 + 8 = 22.04 + 8 = 30.04 s。
 /// （ホイールとタンクの置き直し（#384）で I_xx が 0.1100 から 0.1124 に増え、29.6 s から 30.1 s になった。
-/// その後、−X 側の太陽センサー（35 g）を他の 3 つと同じ出方にし、y = +80 mm へ移した（#374）ので、I_xx は 0.11236 から 0.11226 に減り、30.04 s になった。）
+/// その後、−X 側の太陽センサー（35 g）を他の 3 つと同じ出方にし、y = +80 mm へ移した（#374）ので、I_xx は 0.11236 から 0.11226 に減り、30.04 s になった。
+/// さらに ±Y のセルを ±X と同じく 0.5 mm 持ち上げた（#472）ので、I_xx は 0.11228 に増え、30.05 s になった。）
 #[test]
 fn slew_time_projects_settings_inertia_and_wheels() {
     use sat_analysis::spec::Analysis;
@@ -341,5 +342,5 @@ fn slew_time_projects_settings_inertia_and_wheels() {
     let expect = std::f64::consts::FRAC_PI_2 * ixx / 0.008 + 8.0;
     assert_eq!(out.worst.label, "x");
     assert!((out.worst.time.value() - expect).abs() < 1e-9);
-    assert!((out.worst.time.value() - 30.04).abs() < 0.005);
+    assert!((out.worst.time.value() - 30.05).abs() < 0.005);
 }

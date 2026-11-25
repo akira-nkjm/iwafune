@@ -135,7 +135,8 @@ fn explicit_couplings_and_enclosure_reach_the_analysis() {
         .iter()
         .find(|l| (l.a.as_str(), l.b.as_str()) == ("BAT", "PANEL_MZ"))
         .unwrap();
-    assert_eq!(strap.conductance.value(), 0.8);
+    // #472: デモの電池は断熱した箱で、機体と PANEL_MZ への結合を細くした（0.8 → 0.03 W/K）
+    assert_eq!(strap.conductance.value(), 0.03);
     assert_eq!(net.radiative.len(), 1);
     assert_eq!(net.radiative[0].exchange_area.value(), 0.02);
     let e = net.enclosure.unwrap();
@@ -186,8 +187,9 @@ fn thermostat_heaters_are_passed_as_heaters_not_loads() {
     let case = input.cases.iter().find(|c| c.id == "cold").unwrap();
     let h = case.heaters.iter().find(|h| h.id == "HTR_BAT").unwrap();
     assert_eq!(h.node, "BAT");
-    assert!((h.on_below.value() - 278.15).abs() < 1e-9);
-    assert!((h.off_above.value() - 283.15).abs() < 1e-9);
+    // #472: 電池の性能範囲（10〜35 °C に不確かさ 5 K と警告幅 5 K）に合わせ、設定温度を 5〜10 °C から 20〜25 °C にした
+    assert!((h.on_below.value() - 293.15).abs() < 1e-9);
+    assert!((h.off_above.value() - 298.15).abs() < 1e-9);
     assert_eq!(h.power.value(), 2.0);
     assert_eq!(case.heaters.len(), 2);
     let analysis_parts = &case.mode_loads.as_ref().unwrap().parts;

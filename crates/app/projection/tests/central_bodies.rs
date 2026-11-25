@@ -60,17 +60,17 @@ fn lunar_orbit_thermal_and_eclipse_use_lunar_environment() {
         assert!((c.environment.night_ir.unwrap().value() - 5.387).abs() < 1e-2);
     }
     assert_eq!(hot.environment.solar_flux.unwrap().value(), 1414.0);
-    // 高温（β 60°・発熱の多いモード）は低温（β 0・セーフモード）より平均で暖かい
-    let mean = |c: &sat_analysis::thermal::steady::ThermalSteadyCaseResult| {
-        c.nodes.iter().map(|n| n.temperature.value()).sum::<f64>() / c.nodes.len() as f64
-    };
+    // 高温（β 60°・発熱の多いモード）は低温（β 0・セーフモード）より最高の温度が高い
     let max = |c: &sat_analysis::thermal::steady::ThermalSteadyCaseResult| {
         c.nodes
             .iter()
+            .filter(|n| n.node != "BAT" && n.node != "CAM")
             .map(|n| n.temperature.value())
             .fold(0.0, f64::max)
     };
-    assert!(mean(hot) > mean(cold), "{} {}", mean(hot), mean(cold));
+    // #472: 電池とカメラはヒータが設定温度の近くに保つので（どちらのケースでも 15〜16 °C 付近）、最高の温度はヒータの節点を除いて見る。
+    // また、セルの吸収を電気出力を引いた正味（α 0.6）で数えるようになり、天底指向の高温のケースの平均は、太陽指向でセルが日を受ける低温のケースの平均より
+    // 低くなった（ヒータの節点を除いて 266.0 K と 269.1 K）ので、順序は平均ではなく最高の温度で見る
     assert!(max(hot) > max(cold));
     let transient = thermal::transient(&ctx).unwrap();
     assert_eq!(transient.timeline.orbit().central(), CentralBody::Moon);

@@ -165,6 +165,8 @@ mod external;
 pub(crate) use external::{exposure_heat, mean_absorbed, sample_shadowing, shadow_loss_check};
 
 #[cfg(test)]
+mod mounted_surface_tests;
+#[cfg(test)]
 mod shading_tests;
 
 #[cfg(test)]

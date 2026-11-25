@@ -166,7 +166,8 @@ fn a_temperature_requirement_still_reaches_the_thermal_input_after_a_part_rename
     apply(&ws, vec![rename_part("BAT", "BAT_CELL")]).unwrap();
     assert_eq!(check_of(&ws, "R_BAT_TEMP"), "range_low:BAT:operating");
     assert_eq!(limit(&ws), before);
-    assert_eq!(verdict_of(&ws, "R_BAT_TEMP"), Some(Verdict::Violation));
+    // #472: 冷たいケースの電池の最低温度が -1.64 → 11.6 °C（下限 0 °C）になり、判定は違反から ok に替わった（要求の判定が出ること自体は同じ）
+    assert_eq!(verdict_of(&ws, "R_BAT_TEMP"), Some(Verdict::Ok));
 }
 
 /// 削除は、キーを書き換えられないので拒む（部品・熱の節点・地上局・回線）。
