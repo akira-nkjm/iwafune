@@ -2,10 +2,10 @@ import { useState } from "react";
 import type { DesignView, MissingInput } from "@/api/types";
 import { useT } from "@/i18n";
 import { AddCaseDialog } from "@/ops/add-case/AddCaseDialog";
-import { AddLinkDialog } from "@/ops/add-link/AddLinkDialog";
 import { AddModeDialog } from "@/ops/add-mode/AddModeDialog";
 import { AddPartDialog } from "@/ops/add-part/AddPartDialog";
 import { AddStationDialog } from "@/ops/add-station/AddStationDialog";
+import { LinkDialog } from "@/ops/link/LinkDialog";
 import { ManeuverDialog } from "@/ops/maneuver/ManeuverDialog";
 import { emptyManeuverText } from "@/ops/maneuver/maneuver-form";
 import { MissingPartDialog } from "./MissingPartDialog";
@@ -56,9 +56,7 @@ function AddItemDialog({
       return <AddStationDialog initialId={action.id} onOpenChange={onOpenChange} />;
     case "comm_link":
       return (
-        design && (
-          <AddLinkDialog design={design} initialId={action.id} onOpenChange={onOpenChange} />
-        )
+        design && <LinkDialog design={design} initialId={action.id} onOpenChange={onOpenChange} />
       );
     case "case":
       return (

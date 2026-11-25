@@ -89,8 +89,41 @@ export const conditionsEn: typeof conditionsJa = {
       noBand:
         "No ground station has a band performance. Write one in the station's settings first.",
       choose: "Choose one",
+      editTitle: (id: string) => `Edit comm link ${id}`,
+      editDescription:
+        "Rewrites the direction, transceiver and band of the link (same as fune set analysis.comm.link.<name>.<field>). Changing the ID also rewrites the downlink choice and the keys of requirement checks.",
+      editSummary: (id: string) => `Edit comm link ${id}`,
+      editConfirm: "Save",
+      panelTitle: "Comm links",
+      panelCaption: (file: string) =>
+        `[link.<name>] in ${file}. Values such as losses are written in the settings tab.`,
+      noLinks: "There are no comm links",
+      id: "ID",
+      edit: (id: string) => `Edit link ${id}`,
+      remove: (id: string) => `Remove link ${id}`,
+      removeTitle: (id: string) => `Remove comm link ${id}`,
+      removeDescription: (file: string) =>
+        `Removes the link from ${file}. The downlink choice is cleared if it names this link. It cannot be removed while a requirement's check names it (the preview shows why). Undo is in the change history.`,
+      removeSummary: (id: string) => `Remove comm link ${id}`,
+      removeConfirm: "Remove",
     },
     openWith: "Open with this case",
+    caseActions: {
+      rename: (id: string) => `Rename case ${id}`,
+      renameTitle: (id: string) => `Rename case ${id}`,
+      renameDescription:
+        "The default case (analysis.common.default_case) and the cases of requirements (quantify.cases) are rewritten too.",
+      newId: "New ID",
+      renameConfirm: "Rename",
+      renameSummary: (id: string, to: string) => `Analysis case ${id} → ${to}`,
+      remove: (id: string) => `Remove case ${id}`,
+      removeTitle: (id: string) => `Remove analysis case ${id}`,
+      removeDescription: (file: string) =>
+        `Removes ${file}. It cannot be removed while a requirement or a setting refers to the case (the preview shows why). Undo is in the change history.`,
+      removeSummary: (id: string) => `Remove analysis case ${id}`,
+      removeConfirm: "Remove",
+      actions: "Actions",
+    },
     orbit: "Orbit & ground stations",
     orbitSubtitle:
       "conditions/ settings (orbit, ground stations, period) and ground station visibility",
