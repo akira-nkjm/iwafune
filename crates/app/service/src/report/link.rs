@@ -11,7 +11,7 @@ use fune_report::model::{Align, Cell, Column, Row, RowStyle, Table};
 use sat_analysis::spec::Verdict;
 use serde_json::Value;
 
-pub(super) fn build(ctx: &Ctx<'_>, out: &mut Out) -> Result<()> {
+pub(super) fn build(ctx: &Ctx, out: &mut Out) -> Result<()> {
     let result = run(ctx, "comm.link_budget", None)?;
     super::values::kpis(ctx, out, &result, None);
     let (Some(input), Some(output), None) = (&result.input, &result.output, why_not(&result))
@@ -65,7 +65,7 @@ fn verdict_of(result: &AnalysisRunResult, subject: &str) -> Option<Verdict> {
         .map(|c| c.verdict)
 }
 
-fn columns(ctx: &Ctx<'_>) -> Vec<Column> {
+fn columns(ctx: &Ctx) -> Vec<Column> {
     let col = |text: Text, align| Column {
         header: t(ctx.lang, text).to_owned(),
         unit: None,
@@ -79,7 +79,7 @@ fn columns(ctx: &Ctx<'_>) -> Vec<Column> {
 }
 
 /// （名前, 値, 次元）の行を表の行にする。値が無い行は出さない。次元が `unit:K` の形なら、その単位で表す（雑音温度は K）。
-fn rows(ctx: &Ctx<'_>, specs: &[(Text, Option<f64>, &str)]) -> Vec<Row> {
+fn rows(ctx: &Ctx, specs: &[(Text, Option<f64>, &str)]) -> Vec<Row> {
     specs
         .iter()
         .filter_map(|(label, value, dim)| {
@@ -96,7 +96,7 @@ fn rows(ctx: &Ctx<'_>, specs: &[(Text, Option<f64>, &str)]) -> Vec<Row> {
         .collect()
 }
 
-fn table(ctx: &Ctx<'_>, variant: &str, subject: &str, caption: String, rows: Vec<Row>) -> Table {
+fn table(ctx: &Ctx, variant: &str, subject: &str, caption: String, rows: Vec<Row>) -> Table {
     let mut notes = Vec::new();
     if variant == "result" {
         notes.push(t(ctx.lang, Text::LinkNote).to_owned());
@@ -115,7 +115,7 @@ fn table(ctx: &Ctx<'_>, variant: &str, subject: &str, caption: String, rows: Vec
     }
 }
 
-fn input_table(ctx: &Ctx<'_>, link: &Value, subject: &str, scenario: &str) -> Table {
+fn input_table(ctx: &Ctx, link: &Value, subject: &str, scenario: &str) -> Table {
     let rf = get(link, "rf").unwrap_or(link);
     let r = |key: &str| num(rf, key);
     let l = |key: &str| num(link, key);
@@ -146,7 +146,7 @@ fn input_table(ctx: &Ctx<'_>, link: &Value, subject: &str, scenario: &str) -> Ta
 }
 
 fn result_table(
-    ctx: &Ctx<'_>,
+    ctx: &Ctx,
     res: &Value,
     subject: &str,
     scenario: &str,

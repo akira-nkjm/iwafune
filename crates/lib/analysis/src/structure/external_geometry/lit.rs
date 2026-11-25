@@ -17,6 +17,8 @@
 //!   面の光学特性は、面に載る部品を含めた表面を表す慣例なので、部品の真下（面への正射影）は日照のまま数え、その外へ伸びる影だけを引く。
 //!   面の上のセルを面の表面材で数える設計と二重に数えない）。
 //!
+//! - **接地面の意味**（`Credited`）: 載る部品が持ち主を遮らないことだけ。第三の部品の影は接地面の下にも落ちる（暗い範囲は、載る部品の影から接地面を除いたものと、そのほかの影・覆いの和集合）。
+//!
 //! 面が箱の面のどれにも合わない（部品の書かれた法線が箱の軸から外れる、部品に箱が無い）ときは、影を数えない（日照割合 1）。
 //! 一覧は [`LitSurfaces::summary`] が `unshadowed` に残す。
 //!
@@ -30,7 +32,9 @@ use sat_astro::math::Vec3;
 use sat_astro::math::planar::{ConvexPolygon, union_measure};
 use serde::{Deserialize, Serialize};
 
+mod covers;
 mod surfaces;
+use covers::{Cover, Facing, covers_of, facing_of};
 pub use surfaces::{LitSurfaces, PartLit, ShadowLoss, ShadowingReport};
 
 /// 面に載る部品（面の平面に接する・横切る箱と、面の部品に取り付けられた部品）の接地面を、面の日照にどう数えるか。
@@ -99,6 +103,10 @@ pub struct FaceOccluders {
     area: f64,
     rectangle: ConvexPolygon,
     occluders: Vec<Occluder>,
+    /// 面を覆う箱（面の平面に接する・横切る箱。熱の外面だけが [`FaceOccluders::with_covers`] で調べる）
+    covers: Vec<Cover>,
+    /// 面の前に平行に向き合う、接していない箱（`with_covers` が調べる）
+    facing: Vec<Facing>,
 }
 
 impl FaceOccluders {
@@ -136,7 +144,89 @@ impl FaceOccluders {
             area: face.area(),
             rectangle,
             occluders,
+            covers: Vec::new(),
+            facing: Vec::new(),
         }
+    }
+
+    /// 面を覆う箱を調べる（規則は `covers`）。`exempt` は [`covers::covers_of`] と同じ。覆いは [`FaceOccluders::covered_fraction`] で読み、
+    /// 日照割合（[`FaceOccluders::lit_fraction`]）からも覆われた範囲を除く（覆われた面は光を受けない）。
+    pub fn with_covers(
+        mut self,
+        geometry: &ExternalGeometry,
+        owner: usize,
+        face: &BoxFace,
+        exempt: &[bool],
+    ) -> Self {
+        self.covers = covers_of(geometry, owner, face, exempt);
+        let covered: Vec<usize> = self.covers.iter().map(|c| c.part).collect();
+        self.facing = facing_of(geometry, owner, face, exempt, &covered);
+        self
+    }
+
+    /// 面の面積 [m²]。
+    pub fn area(&self) -> f64 {
+        self.area
+    }
+
+    /// 覆われている割合（0〜1。覆いの範囲の和集合の面積 / 面の面積。1e-12 以内は 0 か 1 に丸める）。向きによらない。
+    pub fn covered_fraction(&self) -> f64 {
+        self.covered_fraction_among(&|_| true)
+    }
+
+    /// [`FaceOccluders::covered_fraction`] を、`keep(箱の番号)` が真の箱だけについて求める。
+    pub fn covered_fraction_among(&self, keep: &dyn Fn(usize) -> bool) -> f64 {
+        let regions: Vec<ConvexPolygon> = self
+            .covers
+            .iter()
+            .filter(|c| keep(c.part))
+            .map(|c| c.region.clone())
+            .collect();
+        let covered = union_measure(&regions).area / self.area;
+        if covered <= LIT_SNAP {
+            0.0
+        } else if covered >= 1.0 - LIT_SNAP {
+            1.0
+        } else {
+            covered
+        }
+    }
+
+    /// 面の前に平行に向き合う箱への形態係数の和（1 で打ち切る。`keep(箱の番号)` が真の箱だけ。積み重なった箱は重ねて数えるので、多めに出る）。
+    pub fn facing_fraction_among(&self, keep: &dyn Fn(usize) -> bool) -> f64 {
+        self.facing
+            .iter()
+            .filter(|f| keep(f.part))
+            .map(|f| f.factor)
+            .sum::<f64>()
+            .min(1.0)
+    }
+
+    /// 面が環境（アルベド・惑星の赤外・宇宙）に開いている割合: `(1 − 覆われた割合) × (1 − 向き合う箱への形態係数の和)`
+    /// （`keep` が真の箱だけ）。接して覆う範囲と向き合う面が同じ面積に重なっても二重に引かない（積）。
+    pub fn exposed_fraction_among(&self, keep: &dyn Fn(usize) -> bool) -> f64 {
+        (1.0 - self.covered_fraction_among(keep)) * (1.0 - self.facing_fraction_among(keep))
+    }
+
+    /// 面に向き合う（接していない）箱の番号。近い順に、形態係数の和が 1 になるまで（それより奥の箱は、手前の箱の陰で効かない）。
+    pub fn facers(&self) -> Vec<usize> {
+        let mut near: Vec<&Facing> = self.facing.iter().collect();
+        near.sort_by(|a, b| a.gap.total_cmp(&b.gap));
+        let mut sum = 0.0;
+        let mut out = Vec::new();
+        for f in near {
+            if sum >= 1.0 {
+                break;
+            }
+            sum += f.factor;
+            out.push(f.part);
+        }
+        out
+    }
+
+    /// 面を覆っている箱の番号。
+    pub fn coverers(&self) -> Vec<usize> {
+        self.covers.iter().map(|c| c.part).collect()
     }
 
     /// 遮る箱 `o` の影（面の長方形で切る）。`shift` は `(d·u, d·v) / (n·d)`。
@@ -185,6 +275,12 @@ impl FaceOccluders {
 
     /// 光源の向き `direction`（機体座標系。長さは問わない）での日照割合。向きが零か非有限なら 0。
     pub fn lit_fraction(&self, direction: Vec3) -> f64 {
+        self.lit_fraction_among(direction, &|_| true)
+    }
+
+    /// [`FaceOccluders::lit_fraction`] を、`keep(箱の番号)` が真の箱（影を作る箱と、覆う箱）だけについて求める
+    /// （一部の部品がなかったとしたときの日照割合。熱の外面を持たない部品が遮る分を知るのに使う）。
+    pub fn lit_fraction_among(&self, direction: Vec3, keep: &dyn Fn(usize) -> bool) -> f64 {
         let Some(d) = direction.normalized().filter(|d| d.x.is_finite()) else {
             return 0.0;
         };
@@ -193,19 +289,30 @@ impl FaceOccluders {
             return 0.0;
         }
         let shift = (d.dot(self.u) / cos, d.dot(self.v) / cos);
-        let mut covers: Vec<ConvexPolygon> = self
-            .occluders
-            .iter()
-            .map(|o| self.shadow(o, shift))
-            .collect();
-        let footprints: Vec<ConvexPolygon> = self
-            .occluders
-            .iter()
-            .filter_map(|o| o.footprint.clone())
-            .collect();
-        // 影から、影が覆う接地面（真下）を除く: |影 ∪ 接地面| − |接地面|（接地面は影に含まれるとは限らない。取付の隙間があるとき）
-        covers.extend(footprints.iter().cloned());
-        let covered = (union_measure(&covers).area - union_measure(&footprints).area).max(0.0);
+        // 暗い範囲は、面に載る部品（接地面あり）自身の影から接地面（真下）を除いたもの M \ F と、そのほかの影・覆いの範囲 B の和集合。
+        // 接地面は「載る部品が自分の持ち主を遮らない」ことだけを意味し、ほかの部品の影（B）は接地面の下にも落ちる。
+        // |(M \ F) ∪ B| = |M ∪ B ∪ F| − |F ∪ B| + |B|（B が空なら |M ∪ F| − |F|）。
+        let (mut m, mut f, mut b) = (Vec::new(), Vec::new(), Vec::new());
+        for o in self.occluders.iter().filter(|o| keep(o.part)) {
+            let shadow = self.shadow(o, shift);
+            match &o.footprint {
+                Some(fp) => {
+                    m.push(shadow);
+                    f.push(fp.clone());
+                }
+                None => b.push(shadow),
+            }
+        }
+        b.extend(
+            self.covers
+                .iter()
+                .filter(|c| keep(c.part))
+                .map(|c| c.region.clone()),
+        );
+        let all: Vec<ConvexPolygon> = [&m, &f, &b].into_iter().flatten().cloned().collect();
+        let fb: Vec<ConvexPolygon> = [&f, &b].into_iter().flatten().cloned().collect();
+        let covered =
+            (union_measure(&all).area - union_measure(&fb).area + union_measure(&b).area).max(0.0);
         let lit = 1.0 - covered / self.area;
         if lit <= LIT_SNAP {
             0.0

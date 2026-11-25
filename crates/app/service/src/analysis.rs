@@ -10,7 +10,9 @@
 //! | `overview` | 系の概要の解析の表の行（主な結果の選び方・判定の文の持ち主ごとのまとまり・電源の棒グラフと隠す表） |
 //! | `part_findings` | 幾何の所見（箱の重なり・円錐に入る部品）に関わる部品ごとの状態（承知でない所見が残るか・すべて承知済みか） |
 //! | `part_heat` | 熱の定常解析の部品ごとの代表の温度（節点と部品の対応・代表の選び方） |
+//! | `patch` | 入力への JSON Merge Patch（RFC 7396。`source: patched` の入力の上書き） |
 //! | `typed` | 型付きの実行（入力・出力を型のまま返す。電源のモードの見方・概要の隠す表が使う） |
+//! | `cached` | 実行の記憶（`session::Session`）を使う実行（同じ解析・ケースは 1 回だけ。JSON の結果と型付きの結果） |
 //! | `weather` | 高度低下の入力に宇宙天気の表から日付で引いた列を足し、使った表の版を返す |
 
 use crate::dto::{
@@ -18,6 +20,7 @@ use crate::dto::{
     AnalysisRunStatus, RunAnalysisRequest,
 };
 use crate::error::{Result, ServiceError};
+use crate::session::Session;
 use crate::workspace::Workspace;
 use fune_model::design::UncertaintySide;
 use fune_projection::configuration_policy::ConfigurationSource;
@@ -25,10 +28,12 @@ use fune_projection::{Context, MissingInput, ProjectionError, project_json_with_
 use serde_json::Value;
 use std::collections::BTreeMap;
 
+pub(crate) use cached::{run_cached, typed_run};
 pub use failure::fails;
 pub use fune_projection::system::area_key;
 pub(crate) use typed::{TypedRun, run_typed_in};
 
+mod cached;
 pub(crate) mod channels;
 pub(crate) mod checks;
 mod dims;
@@ -38,6 +43,7 @@ pub mod labels;
 pub(crate) mod overview;
 mod part_findings;
 mod part_heat;
+mod patch;
 mod typed;
 mod weather;
 
@@ -106,15 +112,14 @@ struct Projected {
 }
 
 /// 解析を実行する（`POST /analyses/{id}`）。足りない入力は `missing` に入れて返す（エラーにしない）。
+/// 設計は呼び出しごとに読む（1 つの依頼で解析をいくつも回す呼び出し側は [`run_cached`] を使う）。
 pub fn run_analysis(
     ws: &Workspace,
     id: &str,
     req: &RunAnalysisRequest,
 ) -> Result<AnalysisRunResult> {
-    if !sat_analysis::catalog::catalog().iter().any(|i| i.id == id) {
-        return Err(ServiceError::not_found("analysis", id));
-    }
-    let snapshot = match &req.source {
+    ensure_known(id)?;
+    let session = match &req.source {
         AnalysisInputSource::Given { .. } => {
             if req.configuration.is_some() {
                 return Err(ServiceError::InvalidInput(
@@ -123,19 +128,34 @@ pub fn run_analysis(
             }
             None
         }
-        _ => {
-            let snapshot = crate::preview::snapshot_with(ws, &req.ops)?;
-            crate::query::pose::require_configuration(
-                &snapshot.design,
-                req.configuration.as_deref(),
-            )?;
-            Some(snapshot)
-        }
+        _ => Some(Session::open(ws, &req.ops)?),
     };
-    let (case, case_source, side) = effective_case(snapshot.as_ref(), id, req.case.as_deref());
-    let outcome = run_inner(id, req, snapshot.as_ref(), case.as_deref())?;
+    execute(id, req, session.as_deref())
+}
+
+/// 解析の ID が登録されているか（無ければ見つからないエラー）。
+fn ensure_known(id: &str) -> Result<()> {
+    if sat_analysis::catalog::catalog().iter().any(|i| i.id == id) {
+        Ok(())
+    } else {
+        Err(ServiceError::not_found("analysis", id))
+    }
+}
+
+/// 開いた設計（`session`。入力を丸ごと与える実行は無い）で解析を実行して結果にする。`req.ops` は開くときに当て済みなので読まない。
+fn execute(
+    id: &str,
+    req: &RunAnalysisRequest,
+    session: Option<&Session>,
+) -> Result<AnalysisRunResult> {
+    let snapshot = session.map(Session::snapshot);
+    if let Some(snapshot) = snapshot {
+        crate::query::pose::require_configuration(&snapshot.design, req.configuration.as_deref())?;
+    }
+    let (case, case_source, side) = effective_case(snapshot, id, req.case.as_deref());
+    let outcome = run_inner(id, req, snapshot, case.as_deref())?;
     let mut result = finish(id, (case, case_source, side), outcome);
-    overview::add_system_parts(&mut result, snapshot.as_ref(), req.case.as_deref());
+    overview::add_system_parts(&mut result, session, req.case.as_deref());
     Ok(result)
 }
 
@@ -242,7 +262,7 @@ fn run_inner(
             match projected {
                 Ok(mut p) => {
                     if let AnalysisInputSource::Patched { patch } = source {
-                        p.input = merge_patch(p.input, patch);
+                        p.input = patch::merge_patch(p.input, patch);
                     }
                     (p, configuration)
                 }
@@ -333,27 +353,6 @@ fn project<'a>(
     (projected, configuration)
 }
 
-/// JSON Merge Patch（RFC 7396）。
-fn merge_patch(mut target: Value, patch: &Value) -> Value {
-    let Value::Object(p) = patch else {
-        return patch.clone();
-    };
-    if !target.is_object() {
-        target = Value::Object(Default::default());
-    }
-    if let Value::Object(t) = &mut target {
-        for (k, v) in p {
-            if v.is_null() {
-                t.remove(k);
-            } else {
-                let cur = t.remove(k).unwrap_or(Value::Null);
-                t.insert(k.clone(), merge_patch(cur, v));
-            }
-        }
-    }
-    target
-}
-
 /// 出力の量の葉ごとの次元（JSON Pointer → 次元名）と、語彙の値の表示名（JSON Pointer → 表示名）。
 /// 型付きの出力に戻して `dims::meta_of` で集める（[`meta_labels`]）。
 fn output_meta(
@@ -383,20 +382,4 @@ fn meta_labels(
         .filter_map(|(at, (ty, value))| Some((at.clone(), labels::value_label(ty, value)?)))
         .collect();
     (meta.dims, labels)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::merge_patch;
-    use serde_json::json;
-
-    #[test]
-    fn merge_patch_rfc7396() {
-        let t = json!({"a": 1, "b": {"c": 2, "d": 3}});
-        let p = json!({"b": {"c": 5, "d": null}, "e": true});
-        assert_eq!(
-            merge_patch(t, &p),
-            json!({"a": 1, "b": {"c": 5}, "e": true})
-        );
-    }
 }

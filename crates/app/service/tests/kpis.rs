@@ -89,9 +89,12 @@ fn demo_kpis_show_the_same_values_as_before() {
             "thermal.steady",
             &[
                 // #424 部品どうしの影（外面の直達日射に影を数える）: 高温のケースで +Y 面のセルが展開パドルの影になり、
-                // 最高温度 39.3 → 38.0 °C（最低温度は影の無い低温のケースなので -21.9 °C のまま）
-                (KpiKey::MaxTemperature, "38.0 °C"),
-                (KpiKey::MinTemperature, "-21.9 °C"),
+                // 最高温度 39.3 → 38.0 °C（最低温度は影の無い低温のケースなので -21.9 °C のまま）。
+                // #446: 展開パドルが熱の外面（裏面と、セルの面）を持ち、遮った日射を吸収して取付から機体へ熱を伝えるので、
+                // 低温・高温のどのケースも暖かくなる（最高 38.0 → 40.3 °C、最低 -21.9 → -17.2 °C。展開形態のパドルの外面
+                // （裏面とセルの面）の吸収は、軌道平均で高温の約 62 W、低温の約 56 W）。覆われた面積（センサー・スラスタの下）は環境とやり取りしない
+                (KpiKey::MaxTemperature, "40.3 °C"),
+                (KpiKey::MinTemperature, "-17.2 °C"),
                 (KpiKey::NodesInRange, "—"),
                 // 冷たいケースではヒータが容量いっぱい（飽和）
                 (KpiKey::MaxHeaterDuty, "100 %"),
@@ -101,9 +104,11 @@ fn demo_kpis_show_the_same_values_as_before() {
             "thermal.transient",
             &[
                 // #424 部品どうしの影: 最高温度 58.0 → 57.9 °C、ヒータの最大のデューティ 41.5 → 60.0 %（影で外面の入熱が減って全体が冷え、
-                // BAT のヒータ HTR_BAT が多く働く。どちらも判定は ok）
-                (KpiKey::TransientMaxTemperature, "57.9 °C"),
-                (KpiKey::TransientMaxHeaterDuty, "60.0 %"),
+                // BAT のヒータ HTR_BAT が多く働く。どちらも判定は ok）。
+                // #446: 展開パドルが遮った日射を吸収して機体へ熱を伝えるので、全体が暖かくなり、最高温度 57.9 → 58.3 °C、
+                // ヒータの最大のデューティ 60.0 → 30.5 %（ヒータが働く時間が減る）
+                (KpiKey::TransientMaxTemperature, "58.3 °C"),
+                (KpiKey::TransientMaxHeaterDuty, "30.5 %"),
             ],
         ),
         (
@@ -238,13 +243,14 @@ fn demo_verdicts_fills_and_tallies() {
         range.tally,
         Some(KpiTally {
             checked: 13,
-            // #424 部品どうしの影: 高温のケースでカメラ（CAM）の性能の範囲の上限の警告が無くなる（最高 21.3 → 18.6 °C）ので 4 → 3
-            flagged: 3,
+            // #424 部品どうしの影: 高温のケースでカメラ（CAM）の性能の範囲の上限の警告が無くなる（最高 21.3 → 18.6 °C）ので 4 → 3。
+            // #446: 展開パドルが遮った日射を吸収するようになり、CAM が再び上限を超える（最高 24.0 °C 前後）ので 3 → 4
+            flagged: 4,
             acknowledged: None
         })
     );
-    // 当てはまる割合は（判定した数 − 印の付いた数）/ 判定した数: 上の 3 に合わせて 10/13（#424 で 9/13 から）
-    assert!((range.fill.unwrap().ratio - 10.0 / 13.0).abs() < 1e-12);
+    // 当てはまる割合は（判定した数 − 印の付いた数）/ 判定した数: 上の 4 に合わせて 9/13（#424 で 10/13 に、#446 で 9/13 に戻る）
+    assert!((range.fill.unwrap().ratio - 9.0 / 13.0).abs() < 1e-12);
     // 判定の対象でない KPI（発生量・角運動量）は判定を持たない
     assert!(kpis(&ws, "cdh.data_budget", None)[0].verdict.is_none());
     assert!(kpis(&ws, "aocs.rw_unloading", None)[1].verdict.is_none());
