@@ -119,6 +119,8 @@ pub enum CommandText {
     CatalogLocalAdd(super::CatalogLocalAddText),
     /// `fune link add <ID> --direction down --part STX --band s_band`（`analysis/comm.toml` に回線を足す。同じ名前があれば拒む）
     LinkAdd(super::LinkAddText),
+    /// `fune case set <ID> --label … --mode … --beta "60 deg" …`（`cases/<ID>.toml` を作る。あれば丸ごと置き換え、書かなかった欄は無くなる）
+    CaseSet(super::CaseSetText),
     /// `fune project set <フィールド> <値>`・`fune project unset <フィールド>`（fune.toml の `[project]`）
     ProjectSet(super::ProjectSetText),
 }

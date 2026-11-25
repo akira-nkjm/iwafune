@@ -53,6 +53,43 @@ export const conditionsEn: typeof conditionsJa = {
       summary: (id: string, phase: string) =>
         phase ? `Set the phase of case ${id} to ${phase}` : `Clear the phase of case ${id}`,
     },
+    addCase: {
+      open: "Add a case",
+      title: "Add an analysis case",
+      description:
+        "Writes cases/<ID>.toml (same as fune case set). A case with the same ID is replaced and the fields you leave out are removed (the preview lists them).",
+      summary: (id: string) => `Add analysis case ${id}`,
+      confirm: "Add",
+      label: "Display name (optional)",
+      descriptionLabel: "Description (optional)",
+      mode: "Mode (optional)",
+      phase: "Phase (optional)",
+      side: "Uncertainty side (optional)",
+      thermalCase: "Thermal environment (optional)",
+      beta: "Beta angle (optional)",
+      quantityHint: "Write it with a unit (e.g. 60 deg)",
+      orbits: "Number of orbits (optional)",
+      sunDistance: "Distance from the Sun (optional)",
+      epoch: "Start time (optional)",
+      epochHint: "ISO 8601. For an orbit with a one-off span, a time inside the span.",
+      none: "Not specified",
+    },
+    links: {
+      add: "Add a link",
+      addTitle: "Add a comm link",
+      addDescription:
+        "Adds a link to analysis/comm.toml (same as fune link add). Values such as losses and the modulation are written in the settings afterwards.",
+      addSummary: (id: string) => `Add comm link ${id}`,
+      addConfirm: "Add",
+      direction: "Direction",
+      part: "Transceiver (spacecraft side)",
+      noPart: "There is no transceiver part. Add one first.",
+      band: "Band (ground station side)",
+      bandHint: "Choose from the bands a ground station has a performance for.",
+      noBand:
+        "No ground station has a band performance. Write one in the station's settings first.",
+      choose: "Choose one",
+    },
     openWith: "Open with this case",
     orbit: "Orbit & ground stations",
     orbitSubtitle:

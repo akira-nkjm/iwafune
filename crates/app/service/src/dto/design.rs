@@ -61,6 +61,8 @@ pub struct DesignView {
     pub configurations: Vec<super::ConfigurationView>,
     /// 地上局（`conditions/ground/<ID>.toml`。ID 順。値は `settings`）
     pub stations: Vec<super::GroundStationView>,
+    /// 通信の回線・解析ケースを足すダイアログの選択肢（候補の絞り込みは service が決める）
+    pub add_choices: super::AddChoices,
     /// 要求（`requirements/<ID>.toml`。ID 順）
     pub requirements: Vec<super::RequirementView>,
     /// 出典の台帳（`sources/<ID>.toml`。ID 順）
@@ -530,4 +532,16 @@ pub struct ModeValuesView {
     pub available: Option<QuantityView>,
     pub margin: Option<QuantityView>,
     pub verdict: Option<sat_analysis::spec::Verdict>,
+}
+
+/// 通信の回線・解析ケースを足すダイアログの選択肢（`DesignView.add_choices`）。
+/// 部品・モード・フェーズは `DesignView` のそれぞれの一覧から選ぶ。ここにあるのは、一覧だけでは絞れない候補。
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+pub struct AddChoices {
+    /// 回線の衛星側にできる部品（役割が送受信機の部品の ID。`fune link add --part` に渡せる）
+    pub transceivers: Vec<String>,
+    /// 回線の地上局側の帯域（どれかの地上局が性能を持つ帯域。`fune link add --band` に渡せる）
+    pub bands: Vec<String>,
+    /// 解析ケースの熱の環境条件（`analysis/thermal.toml` の `[case.<名前>]`。`fune case set --thermal-case` に渡せる）
+    pub thermal_cases: Vec<String>,
 }

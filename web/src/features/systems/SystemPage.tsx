@@ -11,6 +11,7 @@ import { systemTitle } from "@/lib/design";
 import { paths, SEARCH } from "@/lib/nav";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
+import { dedicatedViews } from "./dedicated";
 import { systemExtras } from "./extras";
 import { hasExtraTab } from "./preload";
 import { SystemHeaderActions } from "./SystemHeaderActions";
@@ -117,15 +118,18 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
         title={systemTitle(system, design.data?.defs)}
         subtitle={t.systems.specs[system].description}
         actions={
-          <SystemHeaderActions
-            cases={design.data?.cases ?? []}
-            kase={kase}
-            defaultCaseId={
-              states.find((s) => s.result?.case_source === "default")?.result?.case ?? null
-            }
-            onCase={(c) => setParams(c ? { [SEARCH.case]: c } : {})}
-            ids={catalog.ids}
-          />
+          <>
+            {dedicatedViews(system)?.actions?.({ design: design.data, kase })}
+            <SystemHeaderActions
+              cases={design.data?.cases ?? []}
+              kase={kase}
+              defaultCaseId={
+                states.find((s) => s.result?.case_source === "default")?.result?.case ?? null
+              }
+              onCase={(c) => setParams(c ? { [SEARCH.case]: c } : {})}
+              ids={catalog.ids}
+            />
+          </>
         }
       />
       <PageTabs

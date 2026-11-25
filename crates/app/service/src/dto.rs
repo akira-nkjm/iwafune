@@ -21,7 +21,7 @@
 //! | `configuration` | 形態の表示（`ConfigurationView`）と `fune configuration add\|set` の引数（`ConfigurationText`） |
 //! | `phase` | フェーズの表示（`PhaseView`）と `fune phase add\|set` の引数（`PhaseText`） |
 //! | `ground` | 地上局の表示（`GroundStationView`）と `fune ground add` の引数（`GroundAddText`） |
-//! | `records_text` | `fune link add`・`fune catalog source add-local`・`fune project set` の引数（`LinkAddText`・`CatalogLocalAddText`・`ProjectSetText`） |
+//! | `records_text` | `fune link add`・`fune case set`・`fune catalog source add-local`・`fune project set` の引数（`LinkAddText`・`CaseSetText`・`CatalogLocalAddText`・`ProjectSetText`） |
 //! | `requirement` | 要求の表示（`RequirementView`）・`fune requirement add\|set` の引数（`RequirementText`）・要求適合表（`ComplianceReport`） |
 //! | `budget` | 質量・電力・データ量のバジェット |
 //! | `kpi` | KPI（系の代表値・判定・塗りの比・判定の数え方）と塗りの比 |
@@ -84,7 +84,7 @@ pub use shared_catalog::{
 mod ground;
 pub use ground::{GroundAddText, GroundStationView};
 mod records_text;
-pub use records_text::{CatalogLocalAddText, LinkAddText, ProjectSetText};
+pub use records_text::{CaseSetText, CatalogLocalAddText, LinkAddText, ProjectSetText};
 mod source;
 pub use source::SourceView;
 mod mode_levels;
@@ -116,9 +116,9 @@ pub use common::{
 pub use data::{DataItem, DataStatus, SpaceWeatherLookup, SpaceWeatherQuery, SpaceWeatherVersion};
 pub use design::PartViewRequest;
 pub use design::{
-    AttrSection, AttributeDefView, CaseView, DefsView, DesignCounts, DesignView, HarnessView,
-    KindDefView, ModeHeader, ModeRow, ModeSegmentView, ModeSequenceView, ModeStartView,
-    ModeSummaryField, ModeSummaryLabel, ModeSummaryRow, ModeSummaryScope, ModeTable,
+    AddChoices, AttrSection, AttributeDefView, CaseView, DefsView, DesignCounts, DesignView,
+    HarnessView, KindDefView, ModeHeader, ModeRow, ModeSegmentView, ModeSequenceView,
+    ModeStartView, ModeSummaryField, ModeSummaryLabel, ModeSummaryRow, ModeSummaryScope, ModeTable,
     ModeValuesView, NetView, PartQuery, PartRow, PartView, PartsQuery, PortView, ProjectInfo,
     SettingView, SystemModeView, SystemModesRequest, SystemModesView, TreeNode, TreeNodeKind,
     ValueAnswer, ValueQuery,
