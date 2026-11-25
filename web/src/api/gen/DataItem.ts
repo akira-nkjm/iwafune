@@ -40,4 +40,12 @@ source: string,
 /**
  * 取得した日時（ISO 8601、UTC）。記録が無ければ null（DE440 は版が決まっているので記録しない）
  */
-fetched_at: string | null, };
+fetched_at: string | null, 
+/**
+ * 何に使うか（利用者に見せる文。英語）
+ */
+used_by: string, 
+/**
+ * 出所と利用条件（利用者に見せる文。英語。無ければ null）
+ */
+license: string | null, };

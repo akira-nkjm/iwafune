@@ -50,7 +50,7 @@ impl Snapshot {
 }
 
 impl Workspace {
-    /// `dir` かその親から fune.toml を探して開く。外部データの初期化は data::install_cached_ephemeris が担当する。
+    /// `dir` かその親から fune.toml を探して開く。外部データの初期化は data::install_cached_datasets が担当する。
     pub fn open(dir: impl AsRef<Path>) -> Result<Self> {
         let dir = dir.as_ref();
         let root = fune_store::project::find_root(dir)
