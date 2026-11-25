@@ -13,17 +13,17 @@ fn case_field_edits_match_cli_and_keep_the_other_fields() {
     let (_t1, cli_root) = demo_copy();
     let (_t2, http_root) = demo_copy();
     let edits: [(&str, Option<&str>, &str); 12] = [
-        ("label", Some("Worst case"), "set_case_field"),
-        ("description", None, "set_case_field"),
-        ("mode", Some("SAFE"), "set_case_field"),
-        ("side", Some("min"), "set_case_field"),
-        ("thermal_case", Some("hot"), "set_case_field"),
-        ("beta", Some("-45 deg"), "set_case_field"),
-        ("orbits", Some("20"), "set_case_field"),
-        ("sun_distance", Some("0.9 AU"), "set_case_field"),
+        ("label", Some("Worst case"), "set_record_field"),
+        ("description", None, "set_record_field"),
+        ("mode", Some("SAFE"), "set_record_field"),
+        ("side", Some("min"), "set_record_field"),
+        ("thermal_case", Some("hot"), "set_record_field"),
+        ("beta", Some("-45 deg"), "set_record_field"),
+        ("orbits", Some("20"), "set_record_field"),
+        ("sun_distance", Some("0.9 AU"), "set_record_field"),
         ("phase", None, "set_case_phase"),
         ("epoch", Some("2027-06-01T00:00:00Z"), "set_case_epoch"),
-        ("orbits", None, "set_case_field"),
+        ("orbits", None, "set_record_field"),
         ("epoch", None, "set_case_epoch"),
     ];
     for (field, value, op_name) in edits {

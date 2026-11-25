@@ -50,6 +50,7 @@ pub fn parse(path: &str, text: &str) -> Result<DocumentMut, StoreError> {
 
 /// 文書の `=` を揃えて本文にする（新しいファイルの書き出しにも使う）。値の行の無い表の見出しは書かない。
 pub fn finish(mut doc: DocumentMut) -> String {
+    order_parents_first(&mut doc);
     hide_empty_headers(doc.as_table_mut());
     align_table(doc.as_table_mut());
     let text = doc.to_string();
@@ -65,6 +66,50 @@ pub fn finish(mut doc: DocumentMut) -> String {
     }
     out.push('\n');
     out
+}
+
+/// 値の行のある見出しの表（`[attr]`）を、その下の見出しの表（`[attr.mass]`）より前に置く（§10.2 の 3）。
+/// 見出しの表の出力の順は位置で決まる。親の位置が子より後ろにあると（`[attr]` を後から足した・手で後ろに書いた）、
+/// TOML としては正しいが正規形ではない。親の位置を子の最小の位置まで前へ寄せる（同じ位置なら親が先に出力される）。
+/// 最上位の表は呼び出し側が 1 つずつ渡す（ルートの値の行は常に先頭）。
+pub fn parents_first(table: &mut Table) -> Option<isize> {
+    let mut first_child: Option<isize> = None;
+    let mut note = |p: Option<isize>| {
+        if let Some(p) = p {
+            first_child = Some(first_child.map_or(p, |c| c.min(p)));
+        }
+    };
+    for (_, item) in table.iter_mut() {
+        match item {
+            Item::Table(t) if !t.is_dotted() => note(parents_first(t)),
+            Item::ArrayOfTables(rows) => rows.iter_mut().for_each(|t| note(parents_first(t))),
+            _ => {}
+        }
+    }
+    match (table.position(), first_child) {
+        (Some(own), Some(child)) if child < own => table.set_position(Some(child)),
+        (None, Some(child)) if !table.get_values().is_empty() => table.set_position(Some(child)),
+        _ => {}
+    }
+    match (table.position(), first_child) {
+        (Some(own), Some(child)) => Some(own.min(child)),
+        (own, child) => own.or(child),
+    }
+}
+
+/// 文書のすべての見出しの表に [`parents_first`] を当てる。
+pub fn order_parents_first(doc: &mut DocumentMut) {
+    for (_, item) in doc.as_table_mut().iter_mut() {
+        match item {
+            Item::Table(t) if !t.is_dotted() => {
+                parents_first(t);
+            }
+            Item::ArrayOfTables(rows) => rows.iter_mut().for_each(|t| {
+                parents_first(t);
+            }),
+            _ => {}
+        }
+    }
 }
 
 /// 入れ子の表すべてに [`hide_empty_header`] を当てる。

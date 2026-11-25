@@ -27,6 +27,20 @@ export const fixesJa = {
       summary: (path: string) => `${path} に値を入れる`,
       confirm: "保存",
     },
+    part: {
+      setTitle: (attr: string) => `部品の ${attr} に値を入れる`,
+      setDescription: "部品を選んで値を打ってください。その部品の上書きとして保存します。",
+      assignTitle: "既存の部品を割り当てる",
+      assignDescription: "この役割にする部品を選びます。部品の種別をその役割のものに替えます。",
+      part: "部品",
+      kind: "種別",
+      value: "値",
+      example: (e: string) => `例: ${e}`,
+      choose: "選んでください",
+      setSummary: (part: string, attr: string) => `${part} の ${attr} に値を入れる`,
+      assignSummary: (part: string, kind: string) => `${part} の種別を ${kind} にする`,
+      confirm: "保存",
+    },
     pick: {
       action: {
         part: "部品を選ぶ",

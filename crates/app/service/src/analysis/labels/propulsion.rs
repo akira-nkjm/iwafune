@@ -84,6 +84,18 @@ pub(super) fn launch_window_note(n: LaunchWindowNote) -> AnalysisLabel {
             "マヌーバに書かれた日付では遷移が解けない",
             "The transfer cannot be solved for the dates written in the maneuver",
         ),
+        LaunchWindowNote::WrittenFlybyInfeasible => label(
+            "マヌーバに書かれた日付では、通過のどれかが下限の高度で曲がりきれない（`propulsion.maneuvers` は足りない回頭の分を噴射に足して警告する）",
+            "At the dates written in the maneuver a flyby cannot turn enough at its minimum altitude (propulsion.maneuvers adds the missing turn to the burn and warns)",
+        ),
+        LaunchWindowNote::UnpoweredFlybyNotBallistic => label(
+            "動力なしと書かれた通過の入りと出の超過速度が最小の点で揃っていない。その近点の噴射は ΔV に数えていないので、最小の ΔV はその分だけ小さい",
+            "The in and out excess speeds of a flyby declared unpowered differ at the minimum point. That periapsis burn is not counted in delta-V, so the minimum is lower by that amount",
+        ),
+        LaunchWindowNote::RefinementIncomplete => label(
+            "全部の日付の詰めが評価の上限で止まった。最小はまだ下がるかもしれない",
+            "The refinement of all dates stopped at its evaluation limit: the minimum may still be lowered",
+        ),
     }
 }
 

@@ -30,6 +30,21 @@ export const fixesEn: typeof fixesJa = {
       summary: (path: string) => `Set ${path}`,
       confirm: "Save",
     },
+    part: {
+      setTitle: (attr: string) => `Enter ${attr} on a part`,
+      setDescription: "Choose a part and type the value; it is saved as an override on that part.",
+      assignTitle: "Assign an existing part",
+      assignDescription:
+        "Choose the part that takes this role. Its kind is changed to one with the role.",
+      part: "Part",
+      kind: "Kind",
+      value: "Value",
+      example: (e: string) => `e.g. ${e}`,
+      choose: "Choose one",
+      setSummary: (part: string, attr: string) => `Set ${attr} on ${part}`,
+      assignSummary: (part: string, kind: string) => `Set the kind of ${part} to ${kind}`,
+      confirm: "Save",
+    },
     pick: {
       action: {
         part: "Pick a part",

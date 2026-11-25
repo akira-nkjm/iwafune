@@ -2,6 +2,13 @@ import type { fieldsJa } from "./ja";
 
 /** Display names of analysis output fields (English) */
 const labels: Record<string, string> = {
+  bodies: "Bodies",
+  chain_solves: "Chain solves",
+  flyby_dates: "Flyby dates",
+  flyby_search: "Flyby search",
+  infeasible_cells: "Cells with no feasible flyby",
+  infeasible_solves: "Solves excluded (flyby cannot turn enough)",
+  refine_evaluations: "Refinement evaluations",
   sunlit_average_generation: "Sunlit-average generation",
   sunlit_average_charge: "Sunlit-average charge power",
   sunlit_average_discharge: "Sunlit-average discharge power",
@@ -61,6 +68,7 @@ const labels: Record<string, string> = {
   evaluations: "Balance evaluations",
   series_count: "Series count",
   parallel_count: "Parallel count",
+  unpowered_residual: "Uncounted unpowered-flyby burn at the minimum",
   used: "Assumptions used",
   longest: "Longest eclipse sample",
   beta_min: "Minimum beta sample",

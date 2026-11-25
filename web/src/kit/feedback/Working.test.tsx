@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { MARK } from "@/shell/brand/brand-art";
-import { Refreshable } from "./Refreshable";
+import { Refreshable, refreshingDim } from "./Refreshable";
 import { Settled } from "./Settled";
 import { Working } from "./Working";
 
@@ -96,5 +96,19 @@ describe("Settled（そろうまで待つ枠）", () => {
     expect(out).toContain("熱を計算中");
     expect(out).toContain("invisible");
     expect(out).toContain("中身");
+  });
+});
+
+describe("refreshingDim（枠にできない要素を薄くする class）", () => {
+  it("読み直している間だけ薄くし、枠（Refreshable）と同じ度合いにする", () => {
+    expect(refreshingDim(false)).toBe("");
+    expect(refreshingDim(true)).toContain("opacity-55");
+    expect(
+      renderToStaticMarkup(
+        <Refreshable active>
+          <p />
+        </Refreshable>,
+      ),
+    ).toContain("opacity-55");
   });
 });

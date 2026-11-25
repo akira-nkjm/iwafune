@@ -48,7 +48,7 @@ pub async fn op_unset_from_text(
     State(s): State<AppState>,
     ApiJson(req): ApiJson<UnsetText>,
 ) -> Result<Json<Op>, ApiError> {
-    blocking(&s, move |_| fune_service::edit::unset_op(&req))
+    blocking(&s, move |ws| fune_service::edit::unset_op(ws, &req))
         .await
         .map(Json)
 }

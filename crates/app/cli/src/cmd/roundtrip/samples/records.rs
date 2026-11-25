@@ -2,9 +2,9 @@
 
 use super::s;
 use fune_service::dto::{
-    AttributeDef, Case, CaseField, Distribution, FindingKind, Harness, KindDef, LinkDirection,
-    ModeCell, ModeSegment, ModeWhen, Net, NetField, NetKind, Op, PortRef, ProjectField, Quantity,
-    SettingValue, Source, SourceKind, StartFrom, StartRef, UncertaintySide, ViewNodePos,
+    AttributeDef, Case, Distribution, FindingKind, Harness, KindDef, LinkDirection, ModeCell,
+    ModeSegment, ModeWhen, Net, NetField, NetKind, Op, PortRef, ProjectField, Quantity, RecordKind,
+    RecordValue, SettingValue, Source, SourceKind, StartFrom, StartRef, ViewNodePos,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -422,25 +422,77 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
             case: s("eclipse_worst"),
             epoch: None,
         },
-        Op::SetCaseField {
-            case: s("eclipse_worst"),
-            field: CaseField::Beta(Some(Quantity::new(-60.5, "deg"))),
+        Op::SetRecordField {
+            record: RecordKind::Case,
+            id: s("eclipse_worst"),
+            field: s("beta"),
+            value: Some(RecordValue::Quantity(Quantity::new(-60.5, "deg"))),
         },
-        Op::SetCaseField {
-            case: s("eclipse_worst"),
-            field: CaseField::Orbits(Some(15)),
+        Op::SetRecordField {
+            record: RecordKind::Case,
+            id: s("eclipse_worst"),
+            field: s("orbits"),
+            value: Some(RecordValue::Integer(15)),
         },
-        Op::SetCaseField {
-            case: s("eclipse_worst"),
-            field: CaseField::Side(Some(UncertaintySide::Max)),
+        Op::SetRecordField {
+            record: RecordKind::Case,
+            id: s("eclipse_worst"),
+            field: s("side"),
+            value: Some(RecordValue::Text(s("max"))),
         },
-        Op::SetCaseField {
-            case: s("eclipse_worst"),
-            field: CaseField::Label(Some(s("Worst \"eclipse\" case"))),
+        Op::SetRecordField {
+            record: RecordKind::Case,
+            id: s("eclipse_worst"),
+            field: s("label"),
+            value: Some(RecordValue::Text(s("Worst \"eclipse\" case"))),
         },
-        Op::SetCaseField {
-            case: s("eclipse_worst"),
-            field: CaseField::SunDistance(None),
+        Op::SetRecordField {
+            record: RecordKind::Case,
+            id: s("eclipse_worst"),
+            field: s("sun_distance"),
+            value: None,
+        },
+        Op::SetRecordField {
+            record: RecordKind::Maneuver,
+            id: s("RAISE"),
+            field: s("constraints.duty"),
+            value: Some(RecordValue::Number(0.5)),
+        },
+        Op::SetRecordField {
+            record: RecordKind::Maneuver,
+            id: s("RAISE"),
+            field: s("constraints.sunlit_only"),
+            value: Some(RecordValue::Bool(true)),
+        },
+        Op::SetRecordField {
+            record: RecordKind::Requirement,
+            id: s("R_MASS"),
+            field: s("quantify.cases"),
+            value: Some(RecordValue::List(vec![s("hot"), s("cold")])),
+        },
+        Op::SetRecordField {
+            record: RecordKind::Harness,
+            id: s("H1"),
+            field: s("cores"),
+            value: Some(RecordValue::Integer(4)),
+        },
+        Op::SetRecordField {
+            record: RecordKind::Source,
+            id: s("DS1"),
+            field: s("ref"),
+            value: Some(RecordValue::Text(s("Doc 12, Rev. C"))),
+        },
+        Op::SetRecordField {
+            record: RecordKind::Phase,
+            id: s("LEOP"),
+            field: s("order"),
+            value: Some(RecordValue::Integer(-1)),
+        },
+        Op::SetRecordField {
+            record: RecordKind::Phase,
+            id: s("LEOP"),
+            field: s("duration"),
+            value: Some(RecordValue::Quantity(Quantity::new(30.0, "d"))),
         },
         Op::CreateGroundStation {
             id: s("SVALBARD"),

@@ -1,7 +1,7 @@
 //! 置き換える Op（`SetCase` など）が既存のレコードから落としたキーの一覧（`Plan::removed`）と、
-//! 1 つの欄だけを書く Op（`SetCaseField`）が何も落とさないこと（fixtures/demo-6u に対して計画だけを立てる）。
+//! 1 つの欄だけを書く Op（`SetRecordField`）が何も落とさないこと（fixtures/demo-6u に対して計画だけを立てる）。
 
-use fune_model::design::{Case, CaseField};
+use fune_model::design::{Case, RecordKind, RecordValue};
 use fune_model::value::Quantity;
 use fune_ops::{Op, OpError, plan, to_cli};
 use fune_store::{Snapshot, load};
@@ -103,14 +103,16 @@ fn a_key_written_back_by_a_later_op_is_not_reported() {
     assert!(p.removed.is_empty(), "{:?}", p.removed);
 }
 
-/// `SetCaseField` は書いた欄だけを変える（ほかの欄は残り、何も消えない）。外す欄は消えるが、置き換えではないので載せない。
+/// `SetRecordField` は書いた欄だけを変える（ほかの欄は残り、何も消えない）。外す欄は消えるが、置き換えではないので載せない。
 #[test]
 fn a_case_field_edit_keeps_every_other_field() {
     let snap = snapshot();
     let before = snap.design.cases["eclipse_worst"].clone();
-    let set = Op::SetCaseField {
-        case: "eclipse_worst".into(),
-        field: CaseField::Beta(Some(Quantity::new(30.0, "deg"))),
+    let set = Op::SetRecordField {
+        record: RecordKind::Case,
+        id: "eclipse_worst".into(),
+        field: "beta".into(),
+        value: Some(RecordValue::Quantity(Quantity::new(30.0, "deg"))),
     };
     let p = plan(&snap, std::slice::from_ref(&set)).unwrap();
     let after = &p.design.cases["eclipse_worst"];
@@ -123,17 +125,21 @@ fn a_case_field_edit_keeps_every_other_field() {
         to_cli(&set),
         ["fune set cases.eclipse_worst.beta \"30 deg\""]
     );
-    let unset = Op::SetCaseField {
-        case: "eclipse_worst".into(),
-        field: CaseField::Orbits(None),
+    let unset = Op::SetRecordField {
+        record: RecordKind::Case,
+        id: "eclipse_worst".into(),
+        field: "orbits".into(),
+        value: None,
     };
     let p = plan(&snap, std::slice::from_ref(&unset)).unwrap();
     assert!(p.design.cases["eclipse_worst"].orbits.is_none());
     assert_eq!(p.design.cases["eclipse_worst"].beta, before.beta);
     assert_eq!(to_cli(&unset), ["fune unset cases.eclipse_worst.orbits"]);
-    let missing = Op::SetCaseField {
-        case: "NO_SUCH_CASE".into(),
-        field: CaseField::Orbits(None),
+    let missing = Op::SetRecordField {
+        record: RecordKind::Case,
+        id: "NO_SUCH_CASE".into(),
+        field: "orbits".into(),
+        value: None,
     };
     assert!(matches!(
         plan(&snap, &[missing]),
