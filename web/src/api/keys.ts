@@ -1,4 +1,4 @@
-import type { Op } from "./types";
+import type { DesignView, Op } from "./types";
 
 /**
  * TanStack Query のキーはここだけで作る。編集（POST /ops）の後に無効化する範囲もここで決める。
@@ -107,6 +107,22 @@ export function retiredBy(ops: readonly Op[]): Retired {
     else if (o.op === "remove_case" || o.op === "rename_case") cases.add(o.id);
   }
   return { parts, configurations, cases };
+}
+
+/**
+ * 変わる前の設計にあって、変わった後の設計に無い対象（変わる前の ID）。取り消し・やり直しは、
+ * 何を消した・名前を変えたかを返さないので、前後の設計を比べて求める（`retiredBy` と同じ範囲の種類だけ）
+ */
+export function retiredBetween(before: DesignView, after: DesignView): Retired {
+  const gone = (was: readonly { id: string }[], now: readonly { id: string }[]) => {
+    const live = new Set(now.map((x) => x.id));
+    return new Set(was.filter((x) => !live.has(x.id)).map((x) => x.id));
+  };
+  return {
+    parts: gone(before.parts, after.parts),
+    configurations: gone(before.configurations, after.configurations),
+    cases: gone(before.cases, after.cases),
+  };
 }
 
 const isEmpty = (r: Retired) => r.parts.size + r.configurations.size + r.cases.size === 0;

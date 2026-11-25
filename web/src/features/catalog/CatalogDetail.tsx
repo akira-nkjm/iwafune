@@ -1,7 +1,6 @@
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router";
 import type { CatalogItemView, DesignView } from "@/api/types";
-import { AddPartDialog } from "@/features/components/AddPartDialog";
 import { useT } from "@/i18n";
 import { DetailAction, DetailHeader, DetailPane } from "@/kit/detail/DetailPane";
 import { DetailSection } from "@/kit/detail/DetailSection";
@@ -11,6 +10,7 @@ import { ChipLink } from "@/kit/selection/Chip";
 import { Pill } from "@/kit/status/Pill";
 import { kindDef, kindLabel } from "@/lib/design";
 import { paths } from "@/lib/nav";
+import { AddPartDialog } from "@/ops/add-part/AddPartDialog";
 import { OpDialog } from "@/ops/OpDialog";
 import { CatalogFields } from "./CatalogFields";
 import { CatalogInherited } from "./CatalogInherited";
