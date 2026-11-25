@@ -6,7 +6,7 @@
 //!
 //! | 参照先 | 参照元（[`RefSite`]） |
 //! |---|---|
-//! | 部品 | 要求の `[verify].check` が名指す部品（`intrusion:<部品>`・`heater:<部品>`・`interface:<取付先>`・`panel:<部品>` など）・モードの `[states]` と `[eclipse]` のキー・ネットの `source` / `master`・ハーネスの `from` / `to`・子部品の `mount.on`・配分のキー・`analysis/comm.toml` の `[link.*].part` / `antenna`・`analysis/thermal.toml` の `[nodes]` と `[surface]` と `[heat_node]` と `[subdivide]` のキー・図の `[nodes]` のキー・マヌーバの `thruster`・形態の `[pose]` のキー・`analysis/structure.toml` の `[[acknowledged]]` の `first` / `second` |
+//! | 部品 | スラスタの `[attr.tank]`（推薬を取るタンク）・要求の `[verify].check` が名指す部品（`intrusion:<部品>`・`heater:<部品>`・`interface:<取付先>`・`panel:<部品>` など）・モードの `[states]` と `[eclipse]` のキー・ネットの `source` / `master`・ハーネスの `from` / `to`・子部品の `mount.on`・配分のキー・`analysis/comm.toml` の `[link.*].part` / `antenna`・`analysis/thermal.toml` の `[nodes]` と `[surface]` と `[heat_node]` と `[subdivide]` のキー・図の `[nodes]` のキー・マヌーバの `thruster`・形態の `[pose]` のキー・`analysis/structure.toml` の `[[acknowledged]]` の `first` / `second` |
 //! | グループ | 配分のキー・図の `[nodes]` のキー |
 //! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]`・`[[sequences.<名前>.segments]]` の `mode` と `base_mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode`・マヌーバの `[constraints].mode`・フェーズの `modes` と `[law]` のキー |
 //! | フェーズ | ケースの `phase` |
@@ -31,6 +31,17 @@ use serde::{Deserialize, Serialize};
 
 mod checks;
 mod records;
+
+/// 部品が自分の属性として書いたタンクの部品の ID（`[attr.tank]`。カタログ品の値は部品を指せないので見ない）。
+pub fn tank_of(part: &super::Part) -> Option<&str> {
+    match &part.attr.get(TANK_ATTR)?.value {
+        crate::value::Value::Text(t) | crate::value::Value::Enum(t) => Some(t.as_str()),
+        _ => None,
+    }
+}
+
+/// スラスタが推薬を取るタンクを書く属性の ID（組み込みの属性。**この綴りの正本はここ**）。
+pub const TANK_ATTR: &str = "tank";
 
 /// 参照される ID。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -153,6 +164,8 @@ pub enum RefSite {
     LaunchSelection { which: LaunchInterface },
     /// マヌーバのスラスタ（`maneuvers/<マヌーバ>.toml` の `thruster`）
     ManeuverThruster { maneuver: String },
+    /// スラスタの部品が推薬を取るタンク（部品の属性 `tank` の値。`parts/<…>.toml` の `[attr.tank]`）
+    PartTank { part: String },
     /// マヌーバの噴射するモード（`[constraints].mode`）
     ManeuverMode { maneuver: String },
     /// 解析ケースのフェーズ（`cases/<ケース>.toml` の `phase`）
@@ -326,6 +339,14 @@ impl Design {
                 .filter(|m| m.thruster.as_ref().is_some_and(|t| t.as_str() == id))
                 .map(|m| RefSite::ManeuverThruster {
                     maneuver: m.id.to_string(),
+                }),
+        );
+        out.extend(
+            self.parts
+                .values()
+                .filter(|p| tank_of(p) == Some(id))
+                .map(|p| RefSite::PartTank {
+                    part: p.id.to_string(),
                 }),
         );
         out.extend(self.acknowledged_refs(|a| a.first == id || a.second == id, true));

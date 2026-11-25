@@ -2,8 +2,8 @@
 //!
 //! - 乾燥の部品（タンクの部品の質量を含む）は `structure.mass_properties` と同じ項目。質量特性の計算は
 //!   [`crate::structure::mass_properties`]（質量特性はそこだけ）に任せ、ここは推薬の点質量を足すだけ。
-//! - 寿命初期の推薬は `propulsion.propellant` の推薬ごとの積む量（マージン込みで使う分 + 残る分）。同じ推薬の
-//!   タンクには容積の比で分け、タンクの部品の重心に点質量として置く（液面・ブラダの形は扱わない）。
+//! - 寿命初期の推薬は `propulsion.propellant` のタンクごとの積む量（`tanks`。スラスタが名指したタンクはその分、名指さなければ同じ推薬の
+//!   タンクへ容積の比で分けた量。RCS が名指したタンクにはアンロードの推薬も入る）で、タンクの部品の重心に点質量として置く（液面・ブラダの形は扱わない）。
 //! - 寿命末期は残る推薬だけ（積む量に「残る / 積む」の比を掛けて、同じタンクに置く）。
 //! - タンクの部品が質量特性の項目に無ければ、乾燥の重心に置いて警告する。
 
@@ -70,27 +70,6 @@ fn point(id: &str, mass: f64, position: Vec3) -> MassPropertiesItem {
     }
 }
 
-/// 推薬ごとの積む量を、同じ推薬のタンクに容積の比で分ける（タンクの ID → 積む量 [kg]）。
-fn split(
-    input: &PropulsionInput,
-    groups: &[super::propellant::PropellantGroup],
-) -> Vec<(String, f64)> {
-    let mut out = Vec::new();
-    for g in groups {
-        let total: f64 = g.tank_volume.value();
-        for id in &g.tanks {
-            let v = input
-                .tanks
-                .iter()
-                .find(|t| &t.id == id)
-                .map_or(0.0, |t| t.volume.value());
-            let share = if total > 0.0 { v / total } else { 0.0 };
-            out.push((id.clone(), g.required.value() * share));
-        }
-    }
-    out
-}
-
 impl Analysis for PropellantMassProperties {
     const ID: &'static str = "propulsion.mass_properties";
     const USES: &'static [&'static str] = &[crate::propulsion::Propellant::ID];
@@ -108,15 +87,18 @@ impl Analysis for PropellantMassProperties {
         let items = &input.structure.items;
         let dry = mass_properties(items)?;
         let prop = Propellant::run(&input.propulsion)?;
-        let loaded = prop.loaded_propellant.value();
-        let eol_ratio = if loaded > 0.0 {
-            prop.residual_propellant.value() / loaded
+        // 残る分の比（マヌーバの分: 残る / 積む。アンロードの分も同じ割合で残るので、全体にこの比を使う）
+        let maneuver_loaded = prop.usable_propellant.value() + prop.residual_propellant.value();
+        let eol_ratio = if maneuver_loaded > 0.0 {
+            prop.residual_propellant.value() / maneuver_loaded
         } else {
             0.0
         };
         let mut checks = Vec::new();
-        let tanks: Vec<TankLoad> = split(&input.propulsion, &prop.groups)
-            .into_iter()
+        let tanks: Vec<TankLoad> = prop
+            .tanks
+            .iter()
+            .map(|row| (row.id.clone(), row.loaded.value()))
             .map(|(id, bol)| {
                 let position = items.iter().find(|it| it.id == id).map_or_else(
                     || {

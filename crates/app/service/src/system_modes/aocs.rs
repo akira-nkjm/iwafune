@@ -137,7 +137,7 @@ fn evaluate<A: Analysis>(
         Ok(input) => input,
         Err(m) => {
             state.status = AnalysisRunStatus::MissingInputs;
-            state.missing = crate::fixes::complete(&s.design, &s.resolved, m.into_vec());
+            state.missing = crate::fixes::complete(s, m.into_vec());
             return (None, state);
         }
     };

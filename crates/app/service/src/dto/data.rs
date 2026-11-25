@@ -36,6 +36,10 @@ pub struct DataItem {
     pub source: String,
     /// 取得した日時（ISO 8601、UTC）。記録が無ければ null（DE440 は版が決まっているので記録しない）
     pub fetched_at: Option<String>,
+    /// 何に使うか（利用者に見せる文。英語）
+    pub used_by: String,
+    /// 出所と利用条件（利用者に見せる文。英語。無ければ null）
+    pub license: Option<String>,
 }
 
 /// 宇宙天気の表の版（解析の結果に残す）。

@@ -5,7 +5,7 @@
 //! 推力（[`thrust`]）は状態（質量・積んだ ΔV）と噴射の有無に依るので、推力を入れた伝搬（`crate::orbit::powered`）が
 //! この和に足す。
 
-mod gravity;
+pub(crate) mod gravity;
 mod solid_tide;
 mod terms;
 pub mod thrust;

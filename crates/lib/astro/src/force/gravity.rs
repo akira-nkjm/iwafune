@@ -99,6 +99,36 @@ impl GravityTable {
         }
     }
 
+    /// Schmidt 準正規化の係数（地磁気の Gauss 係数 g・h）から、中心項なしの係数表を作る。`terms` は `(n, m, g, h)`。
+    ///
+    /// 外部（内部起源）ポテンシャル `V = a Σ (a/r)^(n+1) Σ (g cos mφ + h sin mφ) P_nm` は重力ポテンシャルと同じ形なので、
+    /// 加速度の漸化式を共用できる。`μ = a²` と置けば [`GravityTable::acceleration_ecef`] が返す `∇V` が、そのまま
+    /// `−B`（係数と同じ単位）になる。Schmidt → 非正規化の係数は √((2 − δ_m0)(n − m)!/(n + m)!)
+    /// （完全正規化の係数 [`normalization`] を √(2n + 1) で割ったもの）。
+    pub(crate) fn from_schmidt(
+        re: f64,
+        degree: usize,
+        terms: &[(usize, usize, f64, f64)],
+    ) -> GravityTable {
+        let len = idx(degree, degree) + 1;
+        let (mut c, mut s) = (vec![0.0; len], vec![0.0; len]);
+        for &(n, m, g, h) in terms {
+            if n == 0 || m > n || n > degree {
+                continue;
+            }
+            let k = normalization(n, m) / ((2 * n + 1) as f64).sqrt();
+            c[idx(n, m)] = g * k;
+            s[idx(n, m)] = if m == 0 { 0.0 } else { h * k };
+        }
+        GravityTable {
+            mu: re * re,
+            re,
+            degree,
+            c,
+            s,
+        }
+    }
+
     #[cfg(test)]
     /// 完全正規化の係数 (C̄_nm, S̄_nm)。表の外は 0。
     pub(crate) fn normalized(&self, n: usize, m: usize) -> (f64, f64) {

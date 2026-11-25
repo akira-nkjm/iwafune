@@ -2,10 +2,11 @@
 
 use fune_model::path::{ParamPath, SettingPath};
 use fune_model::role::Role;
-use fune_model::{Design, Target, resolve};
+use fune_model::{Design, Target};
 use fune_service::dto::{
     AnalysisInputSource, AnalysisRunResult, Choice, Fix, ListKind, MissingInput, RefKind,
 };
+use fune_service::workspace::Snapshot;
 use fune_service::{Workspace, analysis, fixes};
 use serde_json::{Value, json};
 use std::path::Path;
@@ -33,7 +34,12 @@ fn values(choices: &[Choice]) -> Vec<&str> {
 
 /// 対象だけを与えた不足入力の候補（設計は `design`）。
 fn fixes_of(design: &Design, target: Target) -> Vec<Fix> {
-    let resolved = resolve(design);
+    let files = demo().snapshot().expect("snapshot").files;
+    fixes_in(&Snapshot::of(design.clone(), files), target)
+}
+
+/// 対象だけを与えた不足入力の候補（スナップショットは設計とファイルが揃っているもの）。
+fn fixes_in(snapshot: &Snapshot, target: Target) -> Vec<Fix> {
     let m = MissingInput {
         part: target.part().map(str::to_owned),
         path: target.to_string(),
@@ -41,7 +47,7 @@ fn fixes_of(design: &Design, target: Target) -> Vec<Fix> {
         reason: String::new(),
         fixes: Vec::new(),
     };
-    fixes::fixes_for(design, &resolved, &m)
+    fixes::fixes_for(snapshot, &m)
 }
 
 /// 部品の属性の値がカタログ品にも無い: 部品の上書きと、品の側の書き先の両方を出す。解析の結果の不足にも付く。
@@ -124,6 +130,7 @@ fn setting_value_carries_its_dimension() {
 }
 
 /// 役割の部品が 1 つも無い: 部品を足す（その役割の種別とカタログ品）か、既にある部品の種別を替える。
+/// 替える候補は、その種別に替えて検査が通る部品だけ（カタログ品を選んだ部品などは出ない）。
 #[test]
 fn missing_role_offers_add_and_assign() {
     let ws = demo();
@@ -149,8 +156,45 @@ fn missing_role_offers_add_and_assign() {
     assert_eq!(kinds, &["battery"]);
     assert!(catalog_items.iter().any(|c| c == "local/bat_2s2p"));
     assert_eq!(command, "fune part add <ID> --kind battery");
-    assert!(parts.iter().any(|p| p == "OBC") && !parts.iter().any(|p| p == "BAT"));
+    assert!(parts.iter().any(|p| p == "BUS_FRAME") && !parts.iter().any(|p| p == "BAT"));
+    // カタログ品を選んだ部品（種別が品と食い違う）と、状態ごとの値を持つ部品は、替えると検査が落ちるので出さない
+    assert!(!parts.iter().any(|p| p == "OBC" || p == "EPT"), "{parts:?}");
     assert_eq!(assign, "fune set <part>.kind battery");
+}
+
+/// 替えられる部品が 1 つも無ければ、種別を替える候補は出さない（部品を足す候補だけが残る）。
+#[test]
+fn assign_is_not_offered_when_no_part_can_take_the_kind() {
+    let ws = demo();
+    let mut design = ws.snapshot().unwrap().design;
+    design.parts.remove("BAT");
+    // 替えて通る部品（カタログ品も状態ごとの値も持たないもの）を設計から外す
+    let all = fixes_of(&design, Target::any_of_roles(&[Role::Battery], None));
+    let Some(Fix::AssignPart { parts, .. }) = all.get(1) else {
+        panic!("{all:?}");
+    };
+    for p in parts.clone() {
+        design.parts.remove(p.as_str());
+    }
+    let fix = fixes_of(&design, Target::any_of_roles(&[Role::Battery], None));
+    assert!(matches!(fix.as_slice(), [Fix::AddPart { .. }]), "{fix:?}");
+}
+
+/// 一覧の追加の候補は、足りない入力が名指しした ID を案として持つ（地上局・ケース）。名指しが無ければ空。
+#[test]
+fn add_list_item_carries_the_named_id() {
+    let ws = demo();
+    let design = ws.snapshot().unwrap().design;
+    let id = |target: Target| match fixes_of(&design, target).as_slice() {
+        [Fix::AddListItem { id, .. }] => id.clone(),
+        other => panic!("{other:?}"),
+    };
+    assert_eq!(id(Target::Modes), None);
+    assert_eq!(id(Target::case("HOT", None)), Some("HOT".into()));
+    let station = fune_model::path::SettingPath::conditions(&["ground", "SVALBARD_GS"]);
+    assert_eq!(id(station.into()), Some("SVALBARD_GS".into()));
+    let any = fune_model::path::SettingPath::conditions(&["ground"]);
+    assert_eq!(id(any.into()), None);
 }
 
 /// 役割の部品が有るなら、役割の不足には足さない（部品ごとの不足として出る）。有って値だけ無いなら、値を入れる部品を選ぶ。
@@ -236,7 +280,7 @@ fn empty_lists_offer_adding_an_item() {
     let ws = demo();
     let design = ws.snapshot().unwrap().design;
     let list = |target: Target| match fixes_of(&design, target).as_slice() {
-        [Fix::AddListItem { list, command }] => (*list, command.clone()),
+        [Fix::AddListItem { list, command, .. }] => (*list, command.clone()),
         other => panic!("{other:?}"),
     };
     assert_eq!(

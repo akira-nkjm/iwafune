@@ -99,7 +99,8 @@ pub use analysis::{
 };
 pub use attr_input::{AttrInput, AttrReadOnlyReason};
 pub use budget::{
-    BudgetPropellant, BudgetRequest, BudgetRow, BudgetTotal, BudgetUncounted, BudgetView,
+    BudgetPropellant, BudgetPropellantTank, BudgetRequest, BudgetRow, BudgetTotal, BudgetUncounted,
+    BudgetView,
 };
 pub use catalog::{CatalogItemView, CatalogSourceView};
 pub use command::{

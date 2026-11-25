@@ -65,7 +65,7 @@ extends  = "component"
 role     = "thruster"
 states   = ["off", "standby", "on"]
 required = ["power", "thrust", "isp", "direction"]
-optional = ["plume_half_angle"]
+optional = ["plume_half_angle", "propellant", "tank"]
 
 [star_tracker]
 label    = "スタートラッカ"
@@ -165,7 +165,7 @@ extends  = "component"
 role     = "propulsion_thruster"
 states   = ["off", "standby", "on"]
 required = ["power", "thrust", "isp"]
-optional = ["propellant", "min_impulse_bit", "rated_total_impulse", "rated_firing_time", "rated_firings", "direction", "plume_half_angle"]
+optional = ["propellant", "min_impulse_bit", "rated_total_impulse", "rated_firing_time", "rated_firings", "direction", "plume_half_angle", "tank"]
 
 [propellant_tank]
 label    = "推薬タンク"

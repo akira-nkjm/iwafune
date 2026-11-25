@@ -25,6 +25,8 @@ export const overviewJa = {
     limitFrom: (id: string) => `上限は要求 ${id} から（編集は要求で）`,
     budgetDry: "乾燥",
     budgetWet: "推薬込み",
+    budgetTank: (id: string) => `タンク ${id}`,
+    budgetTankMargin: (m: string) => `容積の余裕 ${m}`,
     budgetPropellant: "推薬",
     propellantNone: "推進系（マヌーバ・推進系の部品）が無いので、推薬は数えていません",
     propellantMissing: "推進系の入力が足りないので、推薬は数えていません",

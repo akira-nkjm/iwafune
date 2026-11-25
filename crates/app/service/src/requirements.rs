@@ -8,38 +8,41 @@
 //! 違反 > 確かめられない > 警告 > 良の順（1 つでも確かめられないケースがあれば「良」と言わない）で、同じ順位の中では余裕が最も小さいケース
 //! （同じなら先のケース）。行は、文を決めた判定（`check`）とケース（`decisive_case`）を名指す。
 //! 余裕の定義と比べ方は `sat_analysis::spec`（`Check::with_margin`・`margin_order`）だけにあり、ここは比べるだけ（値や文から作り直さない）。
-//! 解析とバジェットはケースごとに 1 回だけ実行する（同じ解析・ケースは要求をまたいで使い回す）。
+//! 設計は 1 回だけ読み（[`Session`]）、解析とバジェットはケースごとに 1 回だけ実行する（同じ解析・ケースは要求をまたいで使い回す。
+//! 要求を外した設計は下書きとして読み込み済みの設計から作り、同じ外し方の要求は同じ下書きを使う）。適合表の中で設計が編集されても、1 つの表に違う revision は混ざらない。
 //!
 //! 判定の基準は要求が持つ（`fune_model::design::criteria`）。同じ基準に効く要求が複数あれば、解析とバジェットは最も厳しいものを使うので、
 //! **各要求の行は、その要求の制約だけを基準にして判定し直す**（同じ基準に効くほかの要求を外した設計で実行する。保存はしない）。
 //! だから緩い要求は、厳しい要求が満たされていれば満たされ、厳しい要求が違反でもその要求自身の制約を満たしていれば良になる。
 //! 判定のキーは、要求の `check` が接頭辞として当たるもの（`margin` は `margin:<回線>@<局>` のすべて。`key_covers`）を集める。
 
-use crate::analysis::run_analysis;
-use crate::budget::budget;
+use crate::analysis::run_cached;
+use crate::budget::budget_cached;
 use crate::dto::{
-    AnalysisRunResult, AnalysisRunStatus, BudgetKind, BudgetPropellant, BudgetRequest, BudgetView,
-    CheckView, ComplianceCase, ComplianceReport, ComplianceRow, ComplianceSummary, DecisiveCheck,
-    NotVerifiedReason, QuantityView, RunAnalysisRequest,
+    AnalysisRunResult, AnalysisRunStatus, BudgetKind, BudgetPropellant, BudgetView, CheckView,
+    ComplianceCase, ComplianceReport, ComplianceRow, ComplianceSummary, DecisiveCheck,
+    NotVerifiedReason, QuantityView,
 };
 use crate::error::Result;
 use crate::query::requirements::constraint_view;
+use crate::session::Session;
 use crate::workspace::Workspace;
 use fune_model::design::{Design, Requirement, key_covers};
 use sat_analysis::spec::{Verdict, margin_order};
-use std::collections::BTreeMap;
+use std::rc::Rc;
 
 /// 出た判定のキーを `detail` に並べる最大の数。
 const KEYS_SHOWN: usize = 6;
 
 /// 要求適合表を作る（保存済みの設計。ID 順）。
 pub fn compliance(ws: &Workspace) -> Result<ComplianceReport> {
-    let design = ws.snapshot()?.design;
-    let mut runs = Runs::default();
-    let rows: Vec<ComplianceRow> = design
+    let session = Session::open(ws, &[])?;
+    let rows: Vec<ComplianceRow> = session
+        .snapshot()
+        .design
         .requirements
         .values()
-        .map(|r| row(ws, &design, r, &mut runs))
+        .map(|r| row(&session, r))
         .collect();
     let summary = summarize(&rows);
     Ok(ComplianceReport { rows, summary })
@@ -51,17 +54,8 @@ pub fn fails(report: &ComplianceReport, deny_unverified: bool) -> bool {
     report.summary.violation > 0 || (deny_unverified && report.summary.not_verified > 0)
 }
 
-/// 同じ解析・ケースの実行を使い回す入れ物。
-#[derive(Default)]
-struct Runs {
-    analyses: BTreeMap<RunKey, Result<AnalysisRunResult>>,
-    budgets: BTreeMap<(BudgetKind, Option<String>, Vec<String>), Result<BudgetView>>,
-}
-
-/// 解析の実行の使い回しの鍵（解析・ケース・外した要求）。
-type RunKey = (String, Option<String>, Vec<String>);
-
-fn row(ws: &Workspace, design: &Design, r: &Requirement, runs: &mut Runs) -> ComplianceRow {
+fn row(session: &Rc<Session>, r: &Requirement) -> ComplianceRow {
+    let design = &session.snapshot().design;
     let mut cases: Vec<ComplianceCase> = if let (true, Some(input)) = (r.verify.is_empty(), r.input)
     {
         let detail = Some(format!("Gives the analysis input `{input}`"));
@@ -71,7 +65,7 @@ fn row(ws: &Workspace, design: &Design, r: &Requirement, runs: &mut Runs) -> Com
     } else {
         quantified_cases(design, r)
             .into_iter()
-            .map(|case| judge(ws, design, r, case, runs))
+            .map(|case| judge(session, r, case))
             .collect()
     };
     let decided = decisive_index(&cases).map(|i| {
@@ -153,39 +147,25 @@ fn unverified(
     }
 }
 
-fn judge(
-    ws: &Workspace,
-    design: &Design,
-    r: &Requirement,
-    case: Option<String>,
-    runs: &mut Runs,
-) -> ComplianceCase {
+fn judge(session: &Rc<Session>, r: &Requirement, case: Option<String>) -> ComplianceCase {
+    let design = &session.snapshot().design;
     if let Some(c) = case.as_deref()
         && !design.cases.contains_key(c)
     {
         let detail = Some(format!("Analysis case `{c}` is not defined"));
         return unverified(case, NotVerifiedReason::UnknownTarget, detail);
     }
-    // 同じ基準に効くほかの要求を外して、この要求の制約だけで判定する
-    let without = design.criterion_siblings(r);
+    // 同じ基準に効くほかの要求を外して、この要求の制約だけで判定する（外した設計は読み込み済みの設計から作る）
+    let draft = session.draft(&remove_ops(&design.criterion_siblings(r)));
     if let Some(kind) = r.verify.budget {
-        return judge_budget(ws, kind, case, without, runs);
+        return judge_budget(draft, kind, case);
     }
     let Some(analysis) = r.verify.analysis.as_deref() else {
         return unverified(case, NotVerifiedReason::NoLink, None);
     };
-    let key = (analysis.to_owned(), case.clone(), without.clone());
-    let run = runs.analyses.entry(key).or_insert_with(|| {
-        let req = RunAnalysisRequest {
-            case: case.clone(),
-            ops: remove_ops(&without),
-            ..RunAnalysisRequest::default()
-        };
-        run_analysis(ws, analysis, &req)
-    });
-    match run {
+    match draft.and_then(|d| run_cached(&d, analysis, case.as_deref())) {
         Err(e) => unverified(case, NotVerifiedReason::UnknownTarget, Some(e.to_string())),
-        Ok(result) => judge_analysis(result, r.verify.check.as_deref(), case),
+        Ok(result) => judge_analysis(&result, r.verify.check.as_deref(), case),
     }
 }
 
@@ -257,24 +237,15 @@ fn judge_analysis(
 }
 
 fn judge_budget(
-    ws: &Workspace,
+    draft: Result<Rc<Session>>,
     kind: BudgetKind,
     case: Option<String>,
-    without: Vec<String>,
-    runs: &mut Runs,
 ) -> ComplianceCase {
-    let key = (kind, case.clone(), without.clone());
-    let run = runs.budgets.entry(key).or_insert_with(|| {
-        let req = BudgetRequest {
-            case: case.clone(),
-            ops: remove_ops(&without),
-        };
-        budget(ws, kind, &req)
-    });
-    let b = match run {
+    let b = match draft.and_then(|d| budget_cached(&d, kind, case.as_deref())) {
         Err(e) => return unverified(case, NotVerifiedReason::Failed, Some(e.to_string())),
         Ok(b) => b,
     };
+    let b: &BudgetView = &b;
     if !b.missing.is_empty() {
         let paths: Vec<&str> = b.missing.iter().map(|m| m.path.as_str()).collect();
         let detail = Some(paths.join(", "));

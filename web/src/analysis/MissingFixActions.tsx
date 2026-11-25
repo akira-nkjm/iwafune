@@ -2,7 +2,11 @@ import { useState } from "react";
 import { Link } from "react-router";
 import type { DesignView, MissingInput } from "@/api/types";
 import { useT } from "@/i18n";
+import { AddModeDialog } from "@/ops/add-mode/AddModeDialog";
 import { AddPartDialog } from "@/ops/add-part/AddPartDialog";
+import { AddStationDialog } from "@/ops/add-station/AddStationDialog";
+import { ManeuverDialog } from "@/ops/maneuver/ManeuverDialog";
+import { emptyManeuverText } from "@/ops/maneuver/maneuver-form";
 import { MissingPartDialog } from "./MissingPartDialog";
 import { MissingPickDialog } from "./MissingPickDialog";
 import { MissingValueDialog } from "./MissingValueDialog";
@@ -24,12 +28,55 @@ function actionLabel(
       return a.fix.kind === "assign_part" ? t.assignPart : t.setOnPart;
     case "add_part":
       return t.addPart;
+    case "add_item":
+      return t.addItem[a.list];
+  }
+}
+
+/** 操作の並びの key（候補の種類と、候補が持つコマンドか行き先で一意） */
+function keyOf(a: RowAction): string {
+  switch (a.kind) {
+    case "link":
+      return `${a.to}-${a.label.addItem}`;
+    case "add_item":
+      return `${a.kind}-${a.command}`;
+    default:
+      return `${a.kind}-${a.fix.command}`;
+  }
+}
+
+/** 一覧の追加のダイアログ（各ページの追加ボタンと同じもの。足りない入力が ID を名指ししていれば、欄の初期値にする） */
+function AddItemDialog({
+  action,
+  design,
+  onOpenChange,
+}: {
+  action: Extract<RowAction, { kind: "add_item" }>;
+  design: DesignView | undefined;
+  onOpenChange: (open: boolean) => void;
+}) {
+  switch (action.list) {
+    case "ground_station":
+      return <AddStationDialog initialId={action.id} onOpenChange={onOpenChange} />;
+    case "mode":
+      return design && <AddModeDialog table={design.modes} open onOpenChange={onOpenChange} />;
+    case "maneuver":
+      return (
+        design && (
+          <ManeuverDialog
+            design={design}
+            initial={{ ...emptyManeuverText(), id: action.id ?? "" }}
+            adding
+            onOpenChange={onOpenChange}
+          />
+        )
+      );
   }
 }
 
 /**
  * 足りない入力の行の操作。API が返した直し方の候補（`MissingInput.fixes`）ごとに、その場のダイアログ（値を入れる・選ぶ）か、
- * 部品の追加・割り当てのダイアログ、既存のページへのリンク（一覧の追加）を出す。対象の文字列は読まない。
+ * 部品の追加・割り当てのダイアログ、一覧の追加のダイアログ（モード・マヌーバ・地上局）、既存のページへのリンク（通信の回線・解析ケースの追加）を出す。対象の文字列は読まない。
  */
 export function MissingFixActions({
   input,
@@ -44,7 +91,7 @@ export function MissingFixActions({
   return (
     <>
       {rowActions(input).map((a) => {
-        const key = a.kind === "link" ? `${a.to}-${a.label.addItem}` : `${a.kind}-${a.fix.command}`;
+        const key = keyOf(a);
         if (a.kind === "link")
           return (
             <Link key={key} to={a.to} className={ACTION}>
@@ -67,6 +114,9 @@ export function MissingFixActions({
           onDone={() => setOpen(null)}
           narrow={{ kinds: open.fix.kinds, catalogItems: open.fix.catalog_items }}
         />
+      )}
+      {open?.kind === "add_item" && (
+        <AddItemDialog action={open} design={design} onOpenChange={close} />
       )}
       {open?.kind === "pick" && design && (
         <MissingPickDialog fix={open.fix} design={design} onOpenChange={close} />

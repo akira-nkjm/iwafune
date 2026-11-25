@@ -9,12 +9,13 @@
 //! | 部品の属性・フィールド | `SetValue`（部品がカタログ品を選んでいれば品の側の書き先も。量には入力の例、列挙・真偽には選べる値） |
 //! | 設定 | `SetValue`（次元は `setting_dimension`。`conditions.launch` の欄が列挙の属性と同じ名前なら、選べる値は属性定義の語彙）。回線の部品・アンテナの欄は `PickRef`（部品）、打ち上げ機・ディスペンサーは `PickRef`（カタログ品）、`data_downlink` は `PickRef`（回線）、軌道の `maneuver` は `PickRef`（日付つきの遷移を持つマヌーバ）。軌道の `source` は候補なし（対象外の理由） |
 //! | 役割のどれかの部品 | その役割の部品が無ければ `AddPart` と `AssignPart`、有って値が無ければ `SetValueOnPart` |
-//! | マヌーバの `thruster` | `PickRef`（部品） |
+//! | マヌーバの `thruster`・スラスタの `tank`（推薬を取るタンク） | `PickRef`（部品。`tank` の候補は役割 `propellant_tank`） |
 //! | モード・マヌーバ・地上局・回線・ケースの一覧の空 | `AddListItem` |
 //!
 //! どの候補も既存の Op になる（新しい編集の道は作らない）。
 
 use crate::dto::AttrInput;
+use fune_model::design::refs::TANK_ATTR;
 use fune_model::design::setting_dims::{
     ANY, pattern_matches, setting_curve_dimensions, setting_dimension,
 };
@@ -27,6 +28,9 @@ use fune_ops::{Op, cli::quote, to_cli};
 use fune_projection::{Fix, ListKind, MissingInput};
 
 mod input;
+use crate::workspace::Snapshot;
+
+mod assign;
 mod refs;
 mod value;
 
@@ -36,40 +40,42 @@ use refs::pick_part;
 use value::{VALUE, example_of, set_attr, set_value};
 
 /// 不足入力の一覧に、設計を見て決めた直し方の候補を付ける。サービスが不足入力を返す所はすべてこれを通す。
-pub fn complete(
-    design: &Design,
-    resolved: &Resolved,
-    missing: Vec<MissingInput>,
-) -> Vec<MissingInput> {
+pub fn complete(s: &Snapshot, missing: Vec<MissingInput>) -> Vec<MissingInput> {
     missing
         .into_iter()
         .map(|mut m| {
-            m.fixes = fixes_for(design, resolved, &m);
+            m.fixes = fixes_for(s, &m);
             m
         })
         .collect()
 }
 
 /// 不足入力 1 件の直し方の候補。
-pub fn fixes_for(design: &Design, resolved: &Resolved, m: &MissingInput) -> Vec<Fix> {
+pub fn fixes_for(s: &Snapshot, m: &MissingInput) -> Vec<Fix> {
+    let design = &s.design;
     let Some(target) = &m.target else {
         return Vec::new();
     };
     match target {
+        Target::Param(ParamPath::Attr { attr, .. }) if attr.as_str() == TANK_ATTR => {
+            vec![tank_of_thruster(design, (target, m))]
+        }
         Target::Param(ParamPath::Attr { part, attr, state }) => {
             vec![attr_fix(design, (target, m), part, attr, state.as_deref())]
         }
         Target::Param(p @ ParamPath::Field { .. }) => vec![set_value(m, p.clone(), None)],
         Target::Param(ParamPath::Setting(s)) => setting_fixes(design, (target, m), s),
-        Target::AnyPart { roles, attr } => any_part(design, resolved, roles, attr.as_deref()),
-        Target::Modes => vec![add_item(ListKind::Mode, "fune mode add <ID>")],
+        Target::AnyPart { roles, attr } => any_part(s, roles, attr.as_deref()),
+        Target::Modes => vec![add_item(ListKind::Mode, None, "fune mode add <ID>")],
         Target::Maneuvers => vec![add_item(
             ListKind::Maneuver,
+            None,
             "fune maneuver add <ID> --category <category> --method <method>",
         )],
         Target::Case { id, field: None } => {
             vec![add_item(
                 ListKind::Case,
+                Some(id),
                 &format!("fune case set {}", quote(id)),
             )]
         }
@@ -124,15 +130,19 @@ fn setting_fixes(design: &Design, site: (&Target, &MissingInput), s: &SettingPat
         || pattern_matches(SettingScope::Analysis, &["comm", "link"], s)
     {
         let command = "fune link add <ID> --direction <down|up> --part <part> --band <band>";
-        return vec![add_item(ListKind::CommLink, command)];
+        return vec![add_item(ListKind::CommLink, None, command)];
     }
     if pattern_matches(SettingScope::Conditions, &["ground"], s) {
-        return vec![add_item(ListKind::GroundStation, "fune ground add <ID>")];
+        return vec![add_item(
+            ListKind::GroundStation,
+            None,
+            "fune ground add <ID>",
+        )];
     }
     if pattern_matches(SettingScope::Conditions, &["ground", ANY], s) {
-        let id = s.segments.get(1).map_or("<ID>", String::as_str);
-        let command = format!("fune ground add {}", quote(id));
-        return vec![add_item(ListKind::GroundStation, &command)];
+        let id = s.segments.get(1).map(String::as_str);
+        let command = format!("fune ground add {}", quote(id.unwrap_or("<ID>")));
+        return vec![add_item(ListKind::GroundStation, id, &command)];
     }
     // 軌道の出どころ（`source`）は書かなくてよい欄で、足りない入力として挙がるのは「この解析には対象外」の理由だけ（直す候補は無い）
     if pattern_matches(SettingScope::Conditions, &["orbit", "source"], s) {
@@ -165,9 +175,10 @@ fn setting_fixes(design: &Design, site: (&Target, &MissingInput), s: &SettingPat
     vec![fix]
 }
 
-fn add_item(list: ListKind, command: &str) -> Fix {
+fn add_item(list: ListKind, id: Option<&str>, command: &str) -> Fix {
     Fix::AddListItem {
         list,
+        id: id.map(str::to_owned),
         command: command.to_owned(),
     }
 }
@@ -192,6 +203,14 @@ fn maneuver_thruster(design: &Design, site: (&Target, &MissingInput), id: &str) 
         });
     let roles = [Role::PropulsionThruster, Role::Thruster];
     vec![pick_part(design, site, &roles, parts, command)]
+}
+
+/// スラスタが推薬を取るタンク（属性 `tank`）の候補: 役割 `propellant_tank` の部品。
+fn tank_of_thruster(design: &Design, site: (&Target, &MissingInput)) -> Fix {
+    let roles = [Role::PropellantTank];
+    let parts = parts_of_roles(design, &roles);
+    let command = format!("fune set {} <part>", quote(&site.1.path));
+    pick_part(design, site, &roles, parts, command)
 }
 
 /// 今のマヌーバのスラスタを置き換え欄にした `fune maneuver set` のコマンド（`fune_ops::to_cli` が書く）。
@@ -228,7 +247,8 @@ fn parts_of_roles(design: &Design, roles: &[Role]) -> Vec<String> {
 }
 
 /// 「どれかの部品」の不足の候補（役割と属性の組で分かれる）。
-fn any_part(design: &Design, resolved: &Resolved, roles: &[Role], attr: Option<&str>) -> Vec<Fix> {
+fn any_part(s: &Snapshot, roles: &[Role], attr: Option<&str>) -> Vec<Fix> {
+    let (design, resolved) = (&s.design, &s.resolved);
     let have = parts_of_roles(design, roles);
     match attr {
         Some(attr) if !have.is_empty() => {
@@ -247,7 +267,7 @@ fn any_part(design: &Design, resolved: &Resolved, roles: &[Role], attr: Option<&
         }
         // 役割の部品が既にあるときの不足は、部品ごとの不足（属性の値）として別に出るので、ここでは足さない
         _ if roles.is_empty() || !have.is_empty() => Vec::new(),
-        _ => role_missing(design, roles),
+        _ => role_missing(s, roles),
     }
 }
 
@@ -261,7 +281,8 @@ fn has_value(resolved: &Resolved, part: &str, attr: &str) -> bool {
 }
 
 /// 役割の部品が 1 つも無いときの候補: 部品を足す・既にある部品を役割のものに替える。
-fn role_missing(design: &Design, roles: &[Role]) -> Vec<Fix> {
+fn role_missing(s: &Snapshot, roles: &[Role]) -> Vec<Fix> {
+    let design = &s.design;
     let kinds = kinds_of_roles(design, roles);
     let kind_text = match kinds.as_slice() {
         [one] => quote(one),
@@ -286,11 +307,13 @@ fn role_missing(design: &Design, roles: &[Role]) -> Vec<Fix> {
         catalog_items,
         command: format!("fune part add <ID> --kind {kind_text}"),
     }];
-    if !others.is_empty() {
+    // 替えて通る部品と種別だけ（計画で決める）。1 つも無ければ、この候補は出さない
+    let (parts, kinds) = assign::narrow(s, others, kinds);
+    if !parts.is_empty() {
         out.push(Fix::AssignPart {
             roles: roles.to_vec(),
             kinds,
-            parts: others,
+            parts,
             command: format!("fune set <part>.kind {kind_text}"),
         });
     }

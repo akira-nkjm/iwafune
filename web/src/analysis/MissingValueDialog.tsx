@@ -73,7 +73,7 @@ export function MissingValueDialog({
       )}
       <Field
         label={t.label}
-        htmlFor="missing-value"
+        htmlFor={quantityInput ? undefined : "missing-value"}
         error={made.error}
         hint={hintOf(quantityInput ? null : fix.dimension, fix.example, t, dimensionLabel)}
       >
