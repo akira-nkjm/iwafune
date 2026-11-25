@@ -1,5 +1,5 @@
 //! 電源のモードごとの電力の表示（`SystemModeView.power`）。電源の解析 4 つ（負荷・軌道発電・電力収支・サイジング）を
-//! 型付きで回し（`analysis::run_typed_in`。ケースの解決と不足入力・失敗の扱いは解析の入口と同じ）、その入力・出力を型のまま
+//! 型付きで回し（`analysis::typed_run`。実行の記憶 `Session` から使い回す。ケースの解決と不足入力・失敗の扱いは解析の入口と同じ）、その入力・出力を型のまま
 //! 表示の組み立てに渡す（JSON に書いて読み直さない）。**電源のモードの見方が使う解析の一覧はここだけ。**
 //!
 //! | モジュール | 責務 |
@@ -8,11 +8,13 @@
 //! | `budget` | 負荷・発電・充放電の集計を積み上げ棒の区間に写す |
 //! | `charts` | グラフのチャンネルと共通横軸・時間帯の定義 |
 use crate::Result;
-use crate::analysis::{TypedRun, run_typed_in};
+use crate::analysis::{TypedRun, typed_run};
 use crate::dto::{ModeValuesView, PowerModeView, SystemModeView};
+use crate::session::Session;
 use crate::workspace::Snapshot;
 use sat_analysis::power::{EnergyBalance, ModeLoad, OrbitGeneration, Sizing};
 use sat_analysis::spec::Verdict;
+use std::rc::Rc;
 
 mod budget;
 mod charts;
@@ -20,27 +22,27 @@ mod modes;
 
 /// 電源の解析 4 つの型付きの実行結果。
 struct Runs {
-    load: TypedRun<ModeLoad>,
-    orbit: TypedRun<OrbitGeneration>,
-    balance: TypedRun<EnergyBalance>,
-    sizing: TypedRun<Sizing>,
+    load: Rc<TypedRun<ModeLoad>>,
+    orbit: Rc<TypedRun<OrbitGeneration>>,
+    balance: Rc<TypedRun<EnergyBalance>>,
+    sizing: Rc<TypedRun<Sizing>>,
 }
 
 /// 保存済みの（または下書きを当てた）設計の電源の解析を回し、モードごとの表示を `views`（部品別の値の表）に足す。
 /// 解析の不足入力・失敗は得られた解析だけで組み立てる（元の理由は各解析の結果が持つ）。
 pub(super) fn attach(
-    snapshot: &Snapshot,
+    session: &Session,
     case: Option<&str>,
     views: &mut Vec<SystemModeView>,
 ) -> Result<()> {
     let runs = Runs {
-        load: run_typed_in(snapshot, case)?,
-        orbit: run_typed_in(snapshot, case)?,
-        balance: run_typed_in(snapshot, case)?,
-        sizing: run_typed_in(snapshot, case)?,
+        load: typed_run(session, case)?,
+        orbit: typed_run(session, case)?,
+        balance: typed_run(session, case)?,
+        sizing: typed_run(session, case)?,
     };
     let mut modes = assemble(&runs);
-    sort_modes(snapshot, &mut modes);
+    sort_modes(session.snapshot(), &mut modes);
     for mode in modes {
         match views.iter_mut().find(|v| v.id == mode.id) {
             Some(view) => view.power = Some(mode),

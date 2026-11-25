@@ -364,7 +364,7 @@ Every analysis implements `sat_analysis::spec::Analysis`.
 
 An analysis runs as follows (`fune_service::analysis::run_analysis`. `fune analyze <ID>` and `POST /analyses/{id}` call it).
 
-1. Load the design and build Resolved (if there are `ops`, apply them without writing).
+1. Load the design and build Resolved (if there are `ops`, apply them without writing). A request that runs several analyses or budgets (the requirement compliance table, the report export, the Power mode view) loads and checks the design once in a `fune_service::session::Session`, which keeps the result of each analysis and budget per case and reuses it; a single analysis opens a session of its own.
 2. fune-projection builds that analysis's `Input` from a context that includes the analysis case (`cases/<ID>.toml`; the default if omitted).
    The correspondence between analysis IDs and projections is in one place, `fune_projection::dispatch`.
 3. If any input is missing, it returns `missing_inputs` without calling the analysis. `missing_inputs` expresses what is missing as a parameter path (`RW_X.max_momentum`, `conditions.orbit.altitude`) and a reason,

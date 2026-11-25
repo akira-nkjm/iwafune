@@ -15,7 +15,7 @@ use fune_report::model::{Align, Cell, Column, Row, RowStyle, Table};
 use sat_analysis::spec::Verdict;
 use serde_json::Value;
 
-pub(super) fn build(ctx: &Ctx<'_>, case: Option<&str>, out: &mut Out) -> Result<()> {
+pub(super) fn build(ctx: &Ctx, case: Option<&str>, out: &mut Out) -> Result<()> {
     let result = run(ctx, "thermal.steady", case)?;
     let case = effective(&result, case);
     remember_case(out, &case);
@@ -93,7 +93,7 @@ fn kind_label(lang: ReportLang, kind: Option<&str>) -> &'static str {
     )
 }
 
-fn columns(ctx: &Ctx<'_>, cases: &[Value], unit: &str, kind: Option<&str>) -> Vec<Column> {
+fn columns(ctx: &Ctx, cases: &[Value], unit: &str, kind: Option<&str>) -> Vec<Column> {
     let temp = Some(label_of(unit));
     let col = |header: String, unit: Option<String>, align| Column {
         header,
@@ -178,7 +178,7 @@ fn verdict_cell(lang: ReportLang, env: &Value) -> &'static str {
         .map_or("", |v| verdict_text(lang, v))
 }
 
-fn notes(ctx: &Ctx<'_>, output: &Value) -> Vec<String> {
+fn notes(ctx: &Ctx, output: &Value) -> Vec<String> {
     let q = |key: &str| {
         get(output, "margin")
             .and_then(|m| num(m, key))

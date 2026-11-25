@@ -18,10 +18,12 @@
 
 use crate::dto::{ReportExport, ReportItem, ReportRequest, ReportUnavailable};
 use crate::error::{Result, ServiceError};
+use crate::session::Session;
 use crate::workspace::{Snapshot, Workspace};
 use fune_report::model::{Figure, ReportData, SCHEMA, Table, ValueEntry};
 use fune_report::{ReportLang, build_files};
 use sat_analysis::spec::Analysis;
+use std::rc::Rc;
 
 mod column;
 mod common;
@@ -46,11 +48,18 @@ struct Out {
     cases: Vec<String>,
 }
 
-/// 書き出しの間、組み立てが共有する値。
-struct Ctx<'a> {
-    ws: &'a Workspace,
+/// 書き出しの間、組み立てが共有する値。設計は 1 回だけ読み（`session`）、解析とバジェットは同じ設計の記憶から使い回す
+/// （書き出しの途中で設計が編集されても、1 つの出力に違う revision は混ざらない）。
+struct Ctx {
+    session: Rc<Session>,
     lang: ReportLang,
-    snapshot: Snapshot,
+}
+
+impl Ctx {
+    /// 書き出す設計（読み込みと検査は済んでいる）。
+    fn snapshot(&self) -> &Snapshot {
+        self.session.snapshot()
+    }
 }
 
 /// 書き出し先の既定（プロジェクトの根からの相対。CLI の `--out` の既定）。派生のファイルなので、設計のリポジトリでは無視してよい。
@@ -81,8 +90,9 @@ pub fn parse_item(text: &str) -> Result<ReportItem> {
 /// 表・図・値を組み立て、書き出すファイルの内容を返す。入力が足りない項目は「算出できません」の注記つきで書き出し、
 /// `unavailable` に並べる（全体を失敗にしない）。同じ入力なら同じバイト列になる。
 pub fn export(ws: &Workspace, req: &ReportRequest) -> Result<ReportExport> {
-    let snapshot = ws.snapshot()?;
-    let cases = request_cases(&snapshot, req)?;
+    let session = Session::open(ws, &[])?;
+    let snapshot = session.snapshot();
+    let cases = request_cases(snapshot, req)?;
     let items: Vec<ReportItem> = ReportItem::ALL
         .into_iter()
         .filter(|i| req.items.is_empty() || req.items.contains(i))
@@ -96,9 +106,8 @@ pub fn export(ws: &Workspace, req: &ReportRequest) -> Result<ReportExport> {
         .clone()
         .unwrap_or_else(|| snapshot.design.project.meta.name.clone());
     let ctx = Ctx {
-        ws,
+        session,
         lang: req.lang,
-        snapshot,
     };
     let mut out = Out::default();
     for &item in &items {
@@ -126,12 +135,7 @@ pub fn export(ws: &Workspace, req: &ReportRequest) -> Result<ReportExport> {
 }
 
 /// 項目 1 つを組み立てる（ケースによる項目はケースごとに繰り返す）。
-fn build_item(
-    ctx: &Ctx<'_>,
-    item: ReportItem,
-    cases: &[Option<String>],
-    out: &mut Out,
-) -> Result<()> {
+fn build_item(ctx: &Ctx, item: ReportItem, cases: &[Option<String>], out: &mut Out) -> Result<()> {
     match item {
         ReportItem::Mass => mass::build(ctx, out),
         ReportItem::ModePower => power::build(ctx, out),

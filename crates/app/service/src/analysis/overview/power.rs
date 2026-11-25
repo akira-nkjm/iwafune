@@ -11,10 +11,10 @@
 
 use super::{overview, share_of_largest};
 use crate::analysis::labels::label;
-use crate::analysis::run_typed_in;
+use crate::analysis::run_cached;
 use crate::dto::{AnalysisLabel, AnalysisRunResult, OverviewBar, OverviewChart, OverviewReference};
+use crate::session::Session;
 use crate::units::quantity_auto;
-use crate::workspace::Snapshot;
 use meter::{LimitKind, Meter, area_bar, capacity_bar, dod_bar};
 use sat_analysis::power::{
     EnergyBalance, EnergyBalanceOutput, ModeLoad, ModeLoadOutput, OrbitGeneration,
@@ -27,8 +27,9 @@ use serde::{Serialize, de::DeserializeOwned};
 mod meter;
 
 /// 電源の解析の結果なら、概要の行に棒グラフと隠す表を足す。電源でない解析・出力の無い結果は何もしない。
-/// `snapshot` と `case` は、隠す表のために同じ設計・ケースで別の解析を回すのに使う（入力を丸ごと与えた実行は `snapshot` が無く、隠さない）。
-pub(super) fn add(result: &mut AnalysisRunResult, snapshot: Option<&Snapshot>, case: Option<&str>) {
+/// `session` と `case` は、隠す表のために同じ設計・ケースで別の解析を回すのに使う（入力を丸ごと与えた実行は `session` が無く、隠さない。
+/// 同じ解析・ケースを `session` がもう回していれば、その結果を使い回す）。
+pub(super) fn add(result: &mut AnalysisRunResult, session: Option<&Session>, case: Option<&str>) {
     let Some(output) = result.output.clone() else {
         return;
     };
@@ -39,7 +40,7 @@ pub(super) fn add(result: &mut AnalysisRunResult, snapshot: Option<&Snapshot>, c
             let out: Option<EnergyBalanceOutput> = read(&output);
             let hidden = out
                 .as_ref()
-                .zip(snapshot)
+                .zip(session)
                 .map(|(out, s)| hidden_tables(out, s, case))
                 .unwrap_or_default();
             (out.as_ref().map(energy_balance), hidden)
@@ -65,25 +66,51 @@ fn read<T: DeserializeOwned>(output: &serde_json::Value) -> Option<T> {
 /// | `eclipses` | `power.orbit_generation` の `eclipses` |
 fn hidden_tables(
     balance: &EnergyBalanceOutput,
-    snapshot: &Snapshot,
+    session: &Session,
     case: Option<&str>,
 ) -> Vec<Vec<String>> {
     let mut hidden = Vec::new();
-    let same_as_load = run_typed_in::<ModeLoad>(snapshot, case)
-        .ok()
-        .and_then(|r| r.output)
-        .is_some_and(|load| same_table(&balance.mode_loads.modes, &load.modes));
+    let same_as_load = same_as(
+        session,
+        ModeLoad::ID,
+        case,
+        "modes",
+        &balance.mode_loads.modes,
+    );
     if same_as_load {
         hidden.push(vec!["mode_loads".to_owned(), "modes".to_owned()]);
     }
-    let same_as_orbit = run_typed_in::<OrbitGeneration>(snapshot, case)
-        .ok()
-        .and_then(|r| r.output)
-        .is_some_and(|orbit| same_table(&balance.eclipses, &orbit.eclipses));
+    let same_as_orbit = same_as(
+        session,
+        OrbitGeneration::ID,
+        case,
+        "eclipses",
+        &balance.eclipses,
+    );
     if same_as_orbit {
         hidden.push(vec!["eclipses".to_owned()]);
     }
     hidden
+}
+
+/// 同じ設計・ケースで解析 `id` を回した出力の欄 `field` が、`table` と API に載る形で同じか。解析は `session` の記憶から使い回す
+/// （同じ解析・ケースをほかの呼び出し側がもう回していれば、その結果。回せない・出力が無いときは同じとしない）。
+fn same_as<T: Serialize>(
+    session: &Session,
+    id: &str,
+    case: Option<&str>,
+    field: &str,
+    table: &T,
+) -> bool {
+    run_cached(session, id, case)
+        .ok()
+        .and_then(|r| {
+            r.output
+                .as_ref()
+                .and_then(|o| o.get(field))
+                .map(|other| same_table(table, other))
+        })
+        .unwrap_or(false)
 }
 
 /// 2 つの表が API に載る形で同じか（書き出せなければ違うとする）。
