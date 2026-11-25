@@ -14,6 +14,10 @@
 
 mod axes;
 mod cell;
+mod chain;
+#[cfg(test)]
+mod flyby_tests;
+mod grid;
 mod output;
 #[cfg(test)]
 mod tests;
@@ -25,17 +29,20 @@ use super::sequence::Leg;
 use crate::spec::{Analysis, AnalysisArea, AnalysisError, AnalysisKind, System};
 use axes::Axes;
 pub use axes::{
-    DEFAULT_STEPS, DEFAULT_TIME_OF_FLIGHT_FACTORS, LaunchWindowSettings, LaunchWindowSpan,
-    MAX_CELLS,
+    DEFAULT_FLYBY_STEPS, DEFAULT_STEPS, DEFAULT_TIME_OF_FLIGHT_FACTORS, LaunchWindowSettings,
+    LaunchWindowSpan, MAX_CELLS, MAX_FLYBY_CELLS,
 };
 use cell::{CellValues, Evaluator};
+use chain::Counts;
+use grid::Grid;
 pub use output::{
-    LaunchWindowGrid, LaunchWindowLayer, LaunchWindowNote, LaunchWindowOutput, LaunchWindowPoint,
-    LaunchWindowPointKind, LaunchWindowQuantity, LaunchWindowResult, LaunchWindowWritten,
+    LaunchWindowFlybySearch, LaunchWindowGrid, LaunchWindowLayer, LaunchWindowNote,
+    LaunchWindowOutput, LaunchWindowPoint, LaunchWindowPointKind, LaunchWindowQuantity,
+    LaunchWindowResult, LaunchWindowWritten,
 };
 use sat_astro::ephem::EphemerisSource;
 use sat_astro::time::Epoch;
-use sat_units::typed::{Angle, NamedKind, Qty, SpecificEnergy, Velocity};
+use sat_units::typed::Qty;
 use serde::{Deserialize, Serialize};
 
 /// `propulsion.launch_window` の入力: 推進系の入力（`propulsion.maneuvers` と同じ）と探索の設定。
@@ -63,91 +70,7 @@ fn point(
         v_inf_arrival: Qty::from_raw(v.v_inf_arrival_m_s),
         departure_declination: Qty::from_raw(v.declination_rad),
         delta_v: Qty::from_raw(v.delta_v_m_s),
-    }
-}
-
-/// 格子の値（出発 × 到着の順）と、解いた点の集計。
-struct Grid {
-    n_arr: usize,
-    c3: Vec<Option<f64>>,
-    v_dep: Vec<Option<f64>>,
-    v_arr: Vec<Option<f64>>,
-    declination: Vec<Option<f64>>,
-    delta_v: Vec<Option<f64>>,
-    evaluated: u32,
-    solved: u32,
-    all_de440: bool,
-    /// ΔV 最小・C3 最小の点（添字と値。同じ値なら先に解いた点）
-    best_dv: Option<((usize, usize), CellValues)>,
-    best_c3: Option<((usize, usize), CellValues)>,
-}
-
-impl Grid {
-    fn new(n_dep: usize, n_arr: usize) -> Self {
-        let blank = || vec![None; n_dep * n_arr];
-        Self {
-            n_arr,
-            c3: blank(),
-            v_dep: blank(),
-            v_arr: blank(),
-            declination: blank(),
-            delta_v: blank(),
-            evaluated: 0,
-            solved: 0,
-            all_de440: true,
-            best_dv: None,
-            best_c3: None,
-        }
-    }
-
-    fn record(&mut self, (i, j): (usize, usize), v: CellValues) {
-        let k = i * self.n_arr + j;
-        self.c3[k] = Some(v.c3_m2_s2);
-        self.v_dep[k] = Some(v.v_inf_departure_m_s);
-        self.v_arr[k] = Some(v.v_inf_arrival_m_s);
-        self.declination[k] = Some(v.declination_rad);
-        self.delta_v[k] = Some(v.delta_v_m_s);
-        self.solved += 1;
-        self.all_de440 &= v.ephemeris == EphemerisSource::De440;
-        if self
-            .best_dv
-            .is_none_or(|(_, b)| v.delta_v_m_s < b.delta_v_m_s)
-        {
-            self.best_dv = Some(((i, j), v));
-        }
-        if self.best_c3.is_none_or(|(_, b)| v.c3_m2_s2 < b.c3_m2_s2) {
-            self.best_c3 = Some(((i, j), v));
-        }
-    }
-
-    /// 出発 `i`・到着 `j` の 4 近傍のどれかが格子の外か、解けていない点か。
-    fn on_edge(&self, (i, j): (usize, usize), n_dep: usize) -> bool {
-        let solved = |i: Option<usize>, j: Option<usize>| match (i, j) {
-            (Some(i), Some(j)) if i < n_dep && j < self.n_arr => {
-                self.delta_v[i * self.n_arr + j].is_some()
-            }
-            _ => false,
-        };
-        !(solved(i.checked_sub(1), Some(j))
-            && solved(Some(i + 1), Some(j))
-            && solved(Some(i), j.checked_sub(1))
-            && solved(Some(i), Some(j + 1)))
-    }
-
-    fn layers(&self) -> Vec<LaunchWindowLayer> {
-        use LaunchWindowQuantity as Q;
-        let layer = |kind, dimension: &str, values: &Vec<Option<f64>>| LaunchWindowLayer {
-            kind,
-            dimension: dimension.to_owned(),
-            values: values.clone(),
-        };
-        vec![
-            layer(Q::DeltaV, Velocity::name(), &self.delta_v),
-            layer(Q::C3, SpecificEnergy::name(), &self.c3),
-            layer(Q::VInfDeparture, Velocity::name(), &self.v_dep),
-            layer(Q::VInfArrival, Velocity::name(), &self.v_arr),
-            layer(Q::DepartureDeclination, Angle::name(), &self.declination),
-        ]
+        flyby_dates: v.flyby_dates.clone(),
     }
 }
 
@@ -158,6 +81,64 @@ fn is_interplanetary(leg: &Leg<'_>) -> bool {
         && from != to
         && from.parent().is_some()
         && from.parent() == to.parent()
+}
+
+/// 格子の点 `(di, aj)` の値。直接の遷移は 1 回解く（`Evaluator::at`）。通過があれば、通過の日を最適にした値
+/// （[`chain::best_for_cell`]。実現できる日付が無ければ `Ok(None)`）。
+fn cell(
+    ev: &mut Evaluator,
+    counts: &mut Counts,
+    (departure, arrival): (Epoch, Epoch),
+) -> Result<Option<CellValues>, AnalysisError> {
+    if ev.flyby_count() == 0 {
+        counts.chain_solves += 1;
+        ev.at(departure, arrival).map(Some)
+    } else {
+        chain::best_for_cell(ev, counts, (departure, arrival))
+    }
+}
+
+/// 軸の全点（飛行時間が範囲に入る点）を解いて格子に入れる。解けた点がひとつも無ければ最初のエラー。
+fn scan(
+    ev: &mut Evaluator,
+    axes: &Axes,
+    counts: &mut Counts,
+    maneuver: &str,
+) -> Result<Grid, AnalysisError> {
+    let mut grid = Grid::new(axes.departures.len(), axes.arrivals.len());
+    let mut first_error = None;
+    for di in 0..axes.departures.len() {
+        for aj in 0..axes.arrivals.len() {
+            if !axes.in_range(di, aj) {
+                continue;
+            }
+            grid.evaluated += 1;
+            match cell(ev, counts, (axes.departures[di], axes.arrivals[aj])) {
+                Ok(Some(v)) => grid.record((di, aj), v),
+                Ok(None) => {}
+                Err(e) => {
+                    first_error.get_or_insert(e);
+                }
+            }
+        }
+    }
+    if grid.evaluated == 0 {
+        return Err(AnalysisError::InvalidInput(format!(
+            "Maneuver {maneuver}: no point of the launch window grid has a time of flight in range"
+        )));
+    }
+    if grid.best_dv.is_none() {
+        return Err(first_error.unwrap_or_else(|| {
+            AnalysisError::InvalidInput(if counts.infeasible_cells > 0 {
+                format!(
+                    "Maneuver {maneuver}: no launch window grid point has flybys that can be flown at the minimum altitude"
+                )
+            } else {
+                format!("Maneuver {maneuver}: no launch window grid point could be solved")
+            })
+        }));
+    }
+    Ok(grid)
 }
 
 /// 区間（日付を外した公称の列）の探索。`written` は入力のマヌーバに書かれた日付。
@@ -175,43 +156,45 @@ fn search(
         input.propulsion.initial_orbit.epoch,
     )?;
     let mut ev = Evaluator::new(leg.planned.from, &input.propulsion.maneuvers[i]);
-    let (n_dep, n_arr) = (axes.departures.len(), axes.arrivals.len());
-    let mut grid = Grid::new(n_dep, n_arr);
-    let mut first_error = None;
-    for di in 0..n_dep {
-        for aj in 0..n_arr {
-            if !axes.in_range(di, aj) {
-                continue;
-            }
-            grid.evaluated += 1;
-            match ev.at(axes.departures[di], axes.arrivals[aj]) {
-                Ok(v) => grid.record((di, aj), v),
-                Err(e) => {
-                    first_error.get_or_insert(e);
-                }
-            }
-        }
-    }
-    if grid.evaluated == 0 {
+    if ev.flyby_count() > chain::MAX_FLYBYS {
         return Err(AnalysisError::InvalidInput(format!(
-            "Maneuver {}: no point of the launch window grid has a time of flight in range",
-            leg.maneuver.id
+            "Maneuver {}: the launch window search handles at most {} flybys ({} written)",
+            leg.maneuver.id,
+            chain::MAX_FLYBYS,
+            ev.flyby_count()
         )));
     }
-    let (Some((dv_at, dv)), Some((c3_at, c3))) = (grid.best_dv, grid.best_c3) else {
-        return Err(first_error.unwrap_or_else(|| {
-            AnalysisError::InvalidInput(format!(
-                "Maneuver {}: no launch window grid point could be solved",
-                leg.maneuver.id
-            ))
-        }));
+    let mut counts = Counts::default();
+    let grid = scan(&mut ev, &axes, &mut counts, &leg.maneuver.id)?;
+    let (Some(((dv_di, dv_aj), dv)), Some((c3_at, c3))) =
+        (grid.best_dv.clone(), grid.best_c3.clone())
+    else {
+        return Err(AnalysisError::InvalidInput(format!(
+            "Maneuver {}: no launch window grid point could be solved",
+            leg.maneuver.id
+        )));
     };
     let id = leg.maneuver.id.as_str();
-    let at = |kind, (di, aj): (usize, usize), v: &CellValues| {
-        point((id, kind), (axes.departures[di], axes.arrivals[aj]), v)
+    // 通過があれば、格子の極小の点から全部の日付を詰める（直接の遷移は格子の最小のまま）
+    let (dv_dates, dv) = if ev.flyby_count() == 0 {
+        ((axes.departures[dv_di], axes.arrivals[dv_aj]), dv)
+    } else {
+        let starts = grid
+            .local_minima(chain::REFINE_STARTS, axes.departures.len())
+            .into_iter()
+            .map(|((di, aj), via)| (axes.departures[di], axes.arrivals[aj], via))
+            .collect();
+        match chain::refine_best(&mut ev, &mut counts, &axes, starts) {
+            Some((d, a, v)) if v.objective_m_s <= dv.objective_m_s => ((d, a), v),
+            _ => ((axes.departures[dv_di], axes.arrivals[dv_aj]), dv),
+        }
     };
-    let min_dv = at(LaunchWindowPointKind::MinDeltaV, dv_at, &dv);
-    let min_c3 = at(LaunchWindowPointKind::MinC3, c3_at, &c3);
+    let min_dv = point((id, LaunchWindowPointKind::MinDeltaV), dv_dates, &dv);
+    let min_c3 = point(
+        (id, LaunchWindowPointKind::MinC3),
+        (axes.departures[c3_at.0], axes.arrivals[c3_at.1]),
+        &c3,
+    );
     let mut notes = Vec::new();
     let ephemeris = if grid.all_de440 {
         EphemerisSource::De440
@@ -222,28 +205,24 @@ fn search(
     if dv.declination_rad.abs() > leg.planned.from.inclination_rad {
         notes.push(LaunchWindowNote::DeclinationAboveInclination);
     }
-    if grid.on_edge(dv_at, n_dep) {
+    if grid.on_edge((dv_di, dv_aj), axes.departures.len()) {
         notes.push(LaunchWindowNote::MinimumAtGridEdge);
     }
-    let written = written.map(|w| {
-        let p = ev.at(w.departure, w.arrival).ok().map(|v| {
-            point(
-                (id, LaunchWindowPointKind::Written),
-                (w.departure, w.arrival),
-                &v,
-            )
-        });
-        if p.is_none() {
-            notes.push(LaunchWindowNote::WrittenDatesUnsolved);
-        }
-        let above = |f: &dyn Fn(&LaunchWindowPoint) -> f64| p.as_ref().map(f);
-        LaunchWindowWritten {
-            delta_v_above_minimum: above(&|p| p.delta_v.value() - min_dv.delta_v.value())
-                .map(Qty::from_raw),
-            c3_above_minimum: above(&|p| p.c3.value() - min_c3.c3.value()).map(Qty::from_raw),
-            point: p,
-        }
+    if dv.not_ballistic {
+        notes.push(LaunchWindowNote::UnpoweredFlybyNotBallistic);
+    }
+    if counts.refine_capped {
+        notes.push(LaunchWindowNote::RefinementIncomplete);
+    }
+    let flyby_search = (ev.flyby_count() > 0).then(|| LaunchWindowFlybySearch {
+        bodies: ev.flyby_bodies(),
+        chain_solves: counts.chain_solves,
+        infeasible_solves: counts.infeasible_solves,
+        infeasible_cells: counts.infeasible_cells,
+        refine_evaluations: counts.refine_evals,
+        unpowered_residual: Qty::from_raw(dv.uncounted_flyby_dv_m_s),
     });
+    let written = written.map(|w| written_result(&mut ev, id, w, (&min_dv, &min_c3), &mut notes));
     Ok(LaunchWindowResult {
         maneuver: leg.maneuver.id.clone(),
         from,
@@ -258,12 +237,44 @@ fn search(
         },
         evaluated_cells: grid.evaluated,
         solved_cells: grid.solved,
+        flyby_search,
         minimum_delta_v: Some(min_dv),
         minimum_c3: Some(min_c3),
         written,
         ephemeris,
         notes,
     })
+}
+
+/// マヌーバに書かれた日付（通過の日も書かれたもの）での値と、最小との差。
+fn written_result(
+    ev: &mut Evaluator,
+    id: &str,
+    w: &DatedTransferInput,
+    (min_dv, min_c3): (&LaunchWindowPoint, &LaunchWindowPoint),
+    notes: &mut Vec<LaunchWindowNote>,
+) -> LaunchWindowWritten {
+    let via = ev.written_flyby_dates();
+    let solved = ev.at_via(w.departure, &via, w.arrival).ok();
+    if solved.is_none() {
+        notes.push(LaunchWindowNote::WrittenDatesUnsolved);
+    } else if solved.as_ref().is_some_and(|v| !v.feasible) {
+        notes.push(LaunchWindowNote::WrittenFlybyInfeasible);
+    }
+    let p = solved.map(|v| {
+        point(
+            (id, LaunchWindowPointKind::Written),
+            (w.departure, w.arrival),
+            &v,
+        )
+    });
+    let above = |f: &dyn Fn(&LaunchWindowPoint) -> f64| p.as_ref().map(f);
+    LaunchWindowWritten {
+        delta_v_above_minimum: above(&|p| p.delta_v.value() - min_dv.delta_v.value())
+            .map(Qty::from_raw),
+        c3_above_minimum: above(&|p| p.c3.value() - min_c3.c3.value()).map(Qty::from_raw),
+        point: p,
+    }
 }
 
 /// 日付の探索（出発の日 × 到着の日）。
@@ -282,18 +293,6 @@ impl Analysis for LaunchWindow {
     type Output = LaunchWindowOutput;
 
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
-        // 日付を探索するのは出発と到着の 2 つ。途中の通過（スイングバイ）の日は探索しないので、断る
-        if let Some(m) = input
-            .propulsion
-            .maneuvers
-            .iter()
-            .find(|m| m.transfer.as_ref().is_some_and(|t| !t.flybys.is_empty()))
-        {
-            return Err(AnalysisError::InvalidInput(format!(
-                "Maneuver {}: the launch window search covers the two dates of a transfer without flybys; it does not search the dates of a swing-by transfer (remove the flybys to search, or set the dates by hand)",
-                m.id
-            )));
-        }
         // マヌーバの前の軌道は日付によらないので、日付を外した公称の列から取る（日付が不正でも探索はできる）
         let mut undated = input.propulsion.clone();
         undated.maneuvers.iter_mut().for_each(|m| m.transfer = None);

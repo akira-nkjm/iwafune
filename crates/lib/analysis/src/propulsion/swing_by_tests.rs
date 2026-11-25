@@ -183,17 +183,6 @@ fn finite_burn_time_with_a_launcher_departure_ignores_the_flyby_burn() {
     );
 }
 
-/// 日付の探索は、通過のあるマヌーバを無視せずに断る。
-#[test]
-fn the_window_search_refuses_a_swing_by_transfer() {
-    let e = LaunchWindow::run(&LaunchWindowInput {
-        propulsion: feasible_input(),
-        settings: LaunchWindowSettings::default(),
-    })
-    .unwrap_err();
-    assert!(e.to_string().contains("swing-by"), "{e}");
-}
-
 /// 多体の確認は脚ごと（通過の前後はつなげない）: 脚の番号・天体・日付が脚のもので、注記が付く。
 #[test]
 fn transfer_check_runs_leg_by_leg() {
