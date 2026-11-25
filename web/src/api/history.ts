@@ -1,11 +1,18 @@
-import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  type QueryClient,
+  type UseMutationOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getT } from "@/i18n";
 import { recordChange } from "@/lib/history";
 import { type ApiError, api } from "./client";
+import { keys, retiredBetween } from "./keys";
 import { q } from "./queries";
 import { refreshDerived } from "./refresh";
-import type { HistoryAction, HistoryStepResult, HistoryView } from "./types";
+import type { DesignView, HistoryAction, HistoryStepResult, HistoryView } from "./types";
 
 /** 取り消し・やり直しの直前に呼ぶ処理（画面が持つ保存待ちの状態を捨てるため） */
 const beforeStep = new Set<() => void>();
@@ -23,9 +30,17 @@ export function useHistoryView(): HistoryView | undefined {
   return useQuery(q.history()).data;
 }
 
-/** 設計から導出する問い合わせを読み直す（編集と同じ範囲） */
+/**
+ * 設計から導出する問い合わせを読み直す（編集と同じ範囲）。
+ * 取り消し・やり直しは何が消えたかを返さないので、設計を先に読み直して前後を比べ、消えた・名前が戻った対象を
+ * 指す問い合わせは編集と同じく読み直さない（読み直すと、無い対象を読みに行って 404 になる）。
+ */
 async function refresh(qc: QueryClient) {
-  await refreshDerived(qc);
+  const before = qc.getQueryData<DesignView>(keys.design);
+  const after = before
+    ? await qc.fetchQuery({ ...q.design(), staleTime: 0 }).catch(() => null)
+    : null;
+  await refreshDerived(qc, before && after ? retiredBetween(before, after) : undefined);
 }
 
 /** 取り消し・やり直しの記録の見出し（元の編集に対応する CLI のコマンドの先頭。無ければ変わったファイル） */
@@ -42,7 +57,14 @@ function summaryOf(r: HistoryStepResult): string {
  */
 export function useHistoryStep() {
   const qc = useQueryClient();
-  return useMutation<HistoryStepResult, ApiError, HistoryAction>({
+  return useMutation(historyStepOptions(qc));
+}
+
+/** 取り消し・やり直しの mutation の設定（`useHistoryStep` と、hook を通さない検査が使う） */
+export function historyStepOptions(
+  qc: QueryClient,
+): UseMutationOptions<HistoryStepResult, ApiError, HistoryAction> {
+  return {
     mutationFn: (action) => {
       for (const callback of beforeStep) callback();
       return api<HistoryStepResult>(`/${action}`, { method: "POST" });
@@ -63,5 +85,5 @@ export function useHistoryStep() {
       }
       toast.error(t.stepFailed(action === "redo"), { description: e.message });
     },
-  });
+  };
 }
