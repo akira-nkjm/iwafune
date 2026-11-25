@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { DesignView, System } from "@/api/types";
 import { AocsModes } from "./aocs/AocsModes";
+import { AddLinkButton } from "./comm/AddLinkButton";
 import { PowerModes } from "./power/PowerModes";
 import { PowerSeries } from "./power/PowerSeries";
 
@@ -17,11 +18,13 @@ export interface DedicatedViews {
   modes?: (props: DedicatedProps) => ReactNode;
   /** 時系列のタブ */
   series?: (props: DedicatedProps) => ReactNode;
+  /** ページの右上の操作（ケースの選択の前に並ぶ。その系の一覧に足すボタンなど） */
+  actions?: (props: DedicatedProps) => ReactNode;
 }
 
 /**
  * **専用の表示を持つ系の登録表（系の名前で分岐するのはここだけ）。** 共通のコード（`SystemTabs`）はこの表に問い合わせ、
- * 系の名前とは比べない。電源は解析を回した系別のモード表示と時系列、AOCS は姿勢・機器・モード別解析のカード。
+ * 系の名前とは比べない。電源は解析を回した系別のモード表示と時系列、AOCS は姿勢・機器・モード別解析のカード、通信は回線を足すボタン。
  * 専用の表示を足すときは、ここに 1 行足す（xtask の `web_systems` が、ほかの所の系の名前の比較を断る）。
  */
 export const DEDICATED_VIEWS = {
@@ -31,6 +34,9 @@ export const DEDICATED_VIEWS = {
   },
   aocs: {
     modes: ({ design }) => (design ? <AocsModes design={design} /> : null),
+  },
+  comm: {
+    actions: ({ design }) => (design ? <AddLinkButton design={design} /> : null),
   },
 } as const satisfies Partial<Record<System, DedicatedViews>>;
 

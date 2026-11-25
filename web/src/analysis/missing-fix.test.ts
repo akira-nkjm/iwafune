@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import type { DesignView, Fix, ManeuverView, MissingInput } from "@/api/types";
+import type { DesignView, Fix, ListKind, ManeuverView, MissingInput } from "@/api/types";
 import { choiceLabel } from "@/kit/forms/choice-label";
 import { fixture } from "@/test/fixture";
 import { type PartFix, partSetText, pickEdit, rowActions, valueSetText } from "./missing-fix";
@@ -65,25 +65,26 @@ it("候補の種類ごとに、その場の編集か既存のページへの道�
     "part",
     "part",
     "add_item",
-    "link",
+    "add_item",
   ]);
-  const links = actions.flatMap((a) => (a.kind === "link" ? [a.to] : []));
-  expect(links).toEqual(["/project/settings"]);
   expect(rowActions(missing([]))).toEqual([]);
 });
 
-it("一覧の追加: ダイアログのある一覧（モード・マヌーバ・地上局）はその場で開き、名指しされた ID を引き継ぐ。無い一覧（回線・ケース）はページへ", () => {
-  const add = (
-    list: "mode" | "maneuver" | "ground_station" | "comm_link" | "case",
-    id: string | null,
-  ) => rowActions(missing([{ kind: "add_list_item", list, id, command: "" }]))[0];
+it("一覧の追加: どの一覧（モード・マヌーバ・地上局・回線・ケース）もその場のダイアログで開き、名指しされた ID を引き継ぐ", () => {
+  const add = (list: ListKind, id: string | null) =>
+    rowActions(missing([{ kind: "add_list_item", list, id, command: "" }]))[0];
   expect(add("maneuver", null)).toMatchObject({ kind: "add_item", list: "maneuver", id: null });
   expect(add("ground_station", "SVALBARD_GS")).toMatchObject({
     kind: "add_item",
     list: "ground_station",
     id: "SVALBARD_GS",
   });
-  expect(add("case", "HOT")).toMatchObject({ kind: "link", to: "/conditions/cases" });
+  expect(add("comm_link", "s_down")).toMatchObject({
+    kind: "add_item",
+    list: "comm_link",
+    id: "s_down",
+  });
+  expect(add("case", "HOT")).toMatchObject({ kind: "add_item", list: "case", id: "HOT" });
 });
 
 it("値の書き込み先: 部品の上書きは部品のパス、カタログ品は品とその中のパスで送る", () => {

@@ -17,6 +17,7 @@
 //!
 //! 箱は干渉の確認と同じ `OrientedBox`・`InterferenceBox`。
 
+pub mod cells;
 pub mod directions;
 pub mod exposed;
 pub mod geometry;

@@ -184,9 +184,11 @@ pub(crate) struct Surface {
     /// ほかの部品に覆われていない割合（1 = 覆われていない）。覆われた面積は、アルベド・惑星の赤外の入熱と宇宙への放射をやめる
     /// （直達日射は日照割合が覆いを含む）。影を数えないとき（覆いを調べないとき）は 1
     pub exposed: f64,
-    /// 入力の外面（`ThermalNetwork::surfaces`）の添字。板を升に分けると 1 つの外面が升ごとの複数の `Surface` になるので、
-    /// 日照割合（影）は入力の外面ごとに 1 つ求め、升には面積の割合で配った直達日射が同じ割合で掛かる
+    /// 入力の外面（`ThermalNetwork::surfaces`）の添字。板を升に分けると 1 つの外面が升ごとの複数の `Surface` になる
     pub input: usize,
+    /// 板の面を升に分けたときの、升の通し番号（`PlateGrid::index`）。日照割合・覆い・向き合いは升の長方形ごとに求める
+    /// （[`LitSurfaces::lit_cell`]）。升に分けない面（板でない部品、板の縁の面、影を数えないとき）は `None` で、面全体で 1 つの値
+    pub cell: Option<usize>,
 }
 
 /// 添字に直した熱ネットワーク（SI の f64）。
@@ -259,28 +261,45 @@ impl Compiled {
             c.capacity.push(cap);
             c.fixed.push(fixed);
         }
-        let mut couplings = couplings::resolve(net)?;
+        let (mut couplings, view_cells) = couplings::resolve_with_cells(net)?;
         let mut unlocated = std::collections::BTreeMap::new();
-        for l in &couplings.conductive {
-            let g = nonneg(l.conductance.value(), &l.a, &l.b)?;
-            let geometric = matches!(
-                l.source,
-                ThermalCouplingSource::Mount | ThermalCouplingSource::Contact
-            );
-            c.cond
-                .extend(plan.spread((&l.a, &l.b), g, geometric, &mut unlocated)?);
-        }
-        for l in &couplings.radiative {
-            let r = nonneg(l.exchange_area.value(), &l.a, &l.b)?;
-            c.rad
-                .extend(plan.spread((&l.a, &l.b), SIGMA_SB * r, false, &mut unlocated)?);
-        }
+        c.spread_couplings(&plan, &couplings, &view_cells, &mut unlocated)?;
         c.cond.extend(plan.inplane());
         couplings.plates = plan.used(&c.cond, &c.capacity, &unlocated);
         c.couplings = couplings;
         c.add_surfaces(net)?;
         c.nodes = plan.nodes;
         Ok(c)
+    }
+
+    /// 使う結合（伝導と放射）を升の対に配って `cond`・`rad` に加える。形態係数から出した放射は、升の組の割合（`view_cells`）で配る。
+    fn spread_couplings(
+        &mut self,
+        plan: &subdivide::Plan,
+        couplings: &ThermalCouplings,
+        view_cells: &std::collections::BTreeMap<(String, String), view_factors::CellMatrix>,
+        unlocated: &mut std::collections::BTreeMap<String, std::collections::BTreeSet<String>>,
+    ) -> Result<(), AnalysisError> {
+        for l in &couplings.conductive {
+            let g = nonneg(l.conductance.value(), &l.a, &l.b)?;
+            let geometric = matches!(
+                l.source,
+                ThermalCouplingSource::Mount | ThermalCouplingSource::Contact
+            );
+            self.cond
+                .extend(plan.spread((&l.a, &l.b), g, geometric, unlocated)?);
+        }
+        for l in &couplings.radiative {
+            let r = nonneg(l.exchange_area.value(), &l.a, &l.b)?;
+            let shares = view_cells.get(&(l.a.clone(), l.b.clone()));
+            self.rad.extend(plan.spread_radiation(
+                (&l.a, &l.b),
+                SIGMA_SB * r,
+                shares,
+                unlocated,
+            )?);
+        }
+        Ok(())
     }
 
     /// 節点 `id` の（添字, 面積の割合）。板なら升すべて、そうでなければ 1 つ（割合 1）。

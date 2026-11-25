@@ -24,6 +24,10 @@
 //!
 //! 構成: 規則の実装は [`FaceOccluders`]（面ごとに、向きによらない前処理 = 遮りうる箱の平面より手前の頂点と接地面を 1 度だけ作り、
 //! 向きごとに頂点をずらして影を作る）。面の一覧と向きごとの使い回し・報告は子の `surfaces`（[`LitSurfaces`]）。
+//!
+//! **升に分けた板の面**（#456）: 面の一部（升の長方形 [`FaceCell`]。長方形は子の兄弟 `cells`）についても、同じ関数が日照割合・覆われた割合・向き合う面への形態係数を出す
+//! （影・接地面・覆いの多角形を升の長方形で切り、升の面積で割る。標本点は使わない）。面全体は「升が無い」場合で、同じ演算をたどる（升に分けない設計の数値は変わらない）。
+//! 升の面積で重みづけした日照割合・覆われた割合の和は面全体の値に一致する（和集合の面積は升の和に分けられる）。
 
 use super::super::interference::InterferenceBox;
 use super::super::interference::obb::{BoxFace, OrientedBox};
@@ -33,8 +37,12 @@ use sat_astro::math::planar::{ConvexPolygon, union_measure};
 use serde::{Deserialize, Serialize};
 
 mod covers;
+mod dark;
+mod regions;
 mod surfaces;
+use super::cells::FaceCell;
 use covers::{Cover, Facing, covers_of, facing_of};
+use dark::DarkShapes;
 pub use surfaces::{LitSurfaces, PartLit, ShadowLoss, ShadowingReport};
 
 /// 面に載る部品（面の平面に接する・横切る箱と、面の部品に取り付けられた部品）の接地面を、面の日照にどう数えるか。
@@ -97,6 +105,8 @@ struct Occluder {
 /// 面 1 枚の、遮りうる箱の前処理。向き `d` の影は、頂点を `(d·u, d·v) · h / (n·d)` だけ面の中でずらして凸包を取るだけ。
 #[derive(Debug, Clone)]
 pub struct FaceOccluders {
+    /// 面そのもの（升の長方形を形態係数の長方形に直すのに使う）
+    face: BoxFace,
     normal: Vec3,
     u: Vec3,
     v: Vec3,
@@ -138,6 +148,7 @@ impl FaceOccluders {
             })
             .collect();
         Self {
+            face: *face,
             normal: face.normal,
             u: face.u,
             v: face.v,
@@ -164,6 +175,11 @@ impl FaceOccluders {
         self
     }
 
+    /// 面そのもの。
+    pub fn face(&self) -> &BoxFace {
+        &self.face
+    }
+
     /// 面の面積 [m²]。
     pub fn area(&self) -> f64 {
         self.area
@@ -176,36 +192,18 @@ impl FaceOccluders {
 
     /// [`FaceOccluders::covered_fraction`] を、`keep(箱の番号)` が真の箱だけについて求める。
     pub fn covered_fraction_among(&self, keep: &dyn Fn(usize) -> bool) -> f64 {
-        let regions: Vec<ConvexPolygon> = self
-            .covers
-            .iter()
-            .filter(|c| keep(c.part))
-            .map(|c| c.region.clone())
-            .collect();
-        let covered = union_measure(&regions).area / self.area;
-        if covered <= LIT_SNAP {
-            0.0
-        } else if covered >= 1.0 - LIT_SNAP {
-            1.0
-        } else {
-            covered
-        }
+        self.covered_fraction_in(keep, None)
     }
 
     /// 面の前に平行に向き合う箱への形態係数の和（1 で打ち切る。`keep(箱の番号)` が真の箱だけ。積み重なった箱は重ねて数えるので、多めに出る）。
     pub fn facing_fraction_among(&self, keep: &dyn Fn(usize) -> bool) -> f64 {
-        self.facing
-            .iter()
-            .filter(|f| keep(f.part))
-            .map(|f| f.factor)
-            .sum::<f64>()
-            .min(1.0)
+        self.facing_fraction_in(keep, None)
     }
 
     /// 面が環境（アルベド・惑星の赤外・宇宙）に開いている割合: `(1 − 覆われた割合) × (1 − 向き合う箱への形態係数の和)`
     /// （`keep` が真の箱だけ）。接して覆う範囲と向き合う面が同じ面積に重なっても二重に引かない（積）。
     pub fn exposed_fraction_among(&self, keep: &dyn Fn(usize) -> bool) -> f64 {
-        (1.0 - self.covered_fraction_among(keep)) * (1.0 - self.facing_fraction_among(keep))
+        self.exposed_fraction_in(keep, None)
     }
 
     /// 面に向き合う（接していない）箱の番号。近い順に、形態係数の和が 1 になるまで（それより奥の箱は、手前の箱の陰で効かない）。
@@ -281,17 +279,20 @@ impl FaceOccluders {
     /// [`FaceOccluders::lit_fraction`] を、`keep(箱の番号)` が真の箱（影を作る箱と、覆う箱）だけについて求める
     /// （一部の部品がなかったとしたときの日照割合。熱の外面を持たない部品が遮る分を知るのに使う）。
     pub fn lit_fraction_among(&self, direction: Vec3, keep: &dyn Fn(usize) -> bool) -> f64 {
-        let Some(d) = direction.normalized().filter(|d| d.x.is_finite()) else {
-            return 0.0;
-        };
+        self.dark_shapes(direction, keep)
+            .map_or(0.0, |shapes| shapes.lit(None, self.area))
+    }
+
+    /// 暗い範囲の多角形（面の長方形で切ったもの）。面が光を受けなければ `None`（日照割合 0）。
+    fn dark_shapes(&self, direction: Vec3, keep: &dyn Fn(usize) -> bool) -> Option<DarkShapes> {
+        let d = direction.normalized().filter(|d| d.x.is_finite())?;
         let cos = self.normal.dot(d);
         if cos <= GRAZING_COS {
-            return 0.0;
+            return None;
         }
         let shift = (d.dot(self.u) / cos, d.dot(self.v) / cos);
         // 暗い範囲は、面に載る部品（接地面あり）自身の影から接地面（真下）を除いたもの M \ F と、そのほかの影・覆いの範囲 B の和集合。
         // 接地面は「載る部品が自分の持ち主を遮らない」ことだけを意味し、ほかの部品の影（B）は接地面の下にも落ちる。
-        // |(M \ F) ∪ B| = |M ∪ B ∪ F| − |F ∪ B| + |B|（B が空なら |M ∪ F| − |F|）。
         let (mut m, mut f, mut b) = (Vec::new(), Vec::new(), Vec::new());
         for o in self.occluders.iter().filter(|o| keep(o.part)) {
             let shadow = self.shadow(o, shift);
@@ -309,18 +310,7 @@ impl FaceOccluders {
                 .filter(|c| keep(c.part))
                 .map(|c| c.region.clone()),
         );
-        let all: Vec<ConvexPolygon> = [&m, &f, &b].into_iter().flatten().cloned().collect();
-        let fb: Vec<ConvexPolygon> = [&f, &b].into_iter().flatten().cloned().collect();
-        let covered =
-            (union_measure(&all).area - union_measure(&fb).area + union_measure(&b).area).max(0.0);
-        let lit = 1.0 - covered / self.area;
-        if lit <= LIT_SNAP {
-            0.0
-        } else if lit >= 1.0 - LIT_SNAP {
-            1.0
-        } else {
-            lit
-        }
+        Some(DarkShapes::new(m, f, b))
     }
 }
 

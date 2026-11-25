@@ -10,6 +10,9 @@ describe("専用の表示の登録表", () => {
     expect(dedicatedViews("aocs")?.modes).toBeDefined();
     expect(dedicatedViews("aocs")?.series).toBeUndefined();
     expect(dedicatedViews("thermal")).toBeUndefined();
+    // 通信は専用のタブを持たず、ページの右上に回線を足す操作だけを登録する
+    expect(dedicatedViews("comm")?.actions).toBeDefined();
+    expect(dedicatedViews("comm")?.modes).toBeUndefined();
     expect(tabFillsBody("power", "modes", fixture.defs)).toBe(false);
     expect(tabFillsBody("aocs", "modes", fixture.defs)).toBe(false);
     expect(tabFillsBody("thermal", "modes", fixture.defs)).toBe(true);
@@ -21,6 +24,7 @@ describe("専用の表示の登録表", () => {
     for (const system of Object.keys(DEDICATED_VIEWS) as (keyof typeof DEDICATED_VIEWS)[]) {
       const views = dedicatedViews(system);
       expect(() => views?.modes?.({ design: undefined, kase: null })).not.toThrow();
+      expect(() => views?.actions?.({ design: undefined, kase: null })).not.toThrow();
     }
   });
 });

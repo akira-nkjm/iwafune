@@ -1,12 +1,14 @@
 //! 面の一覧（部品の ID と外向き法線）の、向きごとの日照割合と、その報告。規則と前処理は親の `lit`（[`FaceOccluders`]）。
 
+use super::super::cells::FaceCell;
 use super::super::geometry::{ExternalGeometry, direction_key};
 use super::{FaceOccluders, Footprint, ShadowingInput};
 use sat_astro::math::Vec3;
 use sat_units::typed::{Area, Fraction, Power, Qty};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
+use std::rc::Rc;
 
 /// 面 1 枚の、測った向きの中での日照割合の最小と平均。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,6 +108,12 @@ fn lumped_into(
 
 /// 面の一覧の、向きごとの日照割合。面ごとの前処理と、向きごとの結果の使い回しを持つ。
 /// 固定姿勢の機体では光源の向きが一定なので、向きごとの結果は 1 度だけ解く（[`direction_key`]。浮動小数点の雑音の外で結果は変わらない）。
+/// 向きごと（外面の添字と向きの key）の、升ごとの日照割合の使い回し。
+type CellCache = HashMap<(usize, [i64; 3]), Rc<Vec<f64>>>;
+
+/// 直前に使った升ごとの日照割合（外面の添字・向きの key・外面を持つ部品だけか・升ごとの値）。
+type LastCells = (usize, [i64; 3], bool, Rc<Vec<f64>>);
+
 #[derive(Debug, Clone)]
 pub struct LitSurfaces {
     ids: Vec<String>,
@@ -124,6 +132,18 @@ pub struct LitSurfaces {
     cache: RefCell<HashMap<(usize, [i64; 3]), f64>>,
     /// 外面を持つ部品の影と覆いだけを数えた日照割合の使い回し（[`LitSurfaces::lit_surfaced_only`]）
     cache_surfaced: RefCell<HashMap<(usize, [i64; 3]), f64>>,
+    /// 面ごとの升（板を升に分けた部品の、板の面。升に分けない面は `None`）。面の座標の長方形で、升の通し番号の順
+    cells: Vec<Option<Vec<FaceCell>>>,
+    /// 升ごとの、環境に開いている割合（`cells` と同じ並び。覆いを調べないときは 1）
+    exposed_cells: Vec<Vec<f64>>,
+    /// 升ごとの、環境に開いている割合を、熱の外面を持つ部品の覆いと向き合いだけで数えたもの（`cells` と同じ並び）
+    exposed_surfaced_cells: Vec<Vec<f64>>,
+    /// 升ごとの日照割合の使い回し（向きごと。[`LitSurfaces::lit_cells`]）
+    cache_cells: RefCell<CellCache>,
+    /// 外面を持つ部品の影と覆いだけを数えた、升ごとの日照割合の使い回し
+    cache_cells_surfaced: RefCell<CellCache>,
+    /// 直前に使った升ごとの日照割合（`(外面の添字, 向きの key, 外面を持つ部品だけか, 値)`）。同じ面の升は続けて呼ばれるので、表を引かずに済む
+    last_cells: RefCell<Option<LastCells>>,
 }
 
 impl LitSurfaces {
@@ -134,6 +154,17 @@ impl LitSurfaces {
         input: &ShadowingInput,
         footprint: Footprint,
         surfaces: impl IntoIterator<Item = (&'a str, Vec3)>,
+    ) -> Option<Self> {
+        Self::new_subdivided(input, footprint, surfaces, &BTreeMap::new())
+    }
+
+    /// [`LitSurfaces::new`] に、升に分けた板（部品の ID → 升の数 (u, v)）を加える。板の面（箱の最も薄い軸に垂直な面）は、
+    /// 日照割合・覆われた割合・環境に開いている割合を升ごとに求める（[`LitSurfaces::cell_count`]）。板の縁の面と、板でない部品の面は面全体で 1 つ。
+    pub fn new_subdivided<'a>(
+        input: &ShadowingInput,
+        footprint: Footprint,
+        surfaces: impl IntoIterator<Item = (&'a str, Vec3)>,
+        plates: &BTreeMap<String, [usize; 2]>,
     ) -> Option<Self> {
         if !input.is_enabled() {
             return None;
@@ -166,7 +197,7 @@ impl LitSurfaces {
             })
             .unzip();
         let part_ids: Vec<String> = geometry.parts().iter().map(|p| p.id.clone()).collect();
-        let surfaced = part_ids
+        let surfaced: Vec<bool> = part_ids
             .iter()
             .map(|id| surfaces.iter().any(|(s, _)| s == id))
             .collect();
@@ -181,6 +212,11 @@ impl LitSurfaces {
             .iter()
             .map(|f| f.as_ref().map_or(0.0, FaceOccluders::covered_fraction))
             .collect();
+        let cells = split_cells(&geometry, &ids, &faces, plates);
+        let exposed_cells = exposed_per_cell(&cells, &faces, &|_| true);
+        let exposed_surfaced_cells = exposed_per_cell(&cells, &faces, &|j| {
+            surfaced.get(j).copied().unwrap_or(false)
+        });
         Some(Self {
             ids,
             part_ids,
@@ -191,6 +227,12 @@ impl LitSurfaces {
             surfaced,
             cache: RefCell::new(HashMap::new()),
             cache_surfaced: RefCell::new(HashMap::new()),
+            cells,
+            exposed_cells,
+            exposed_surfaced_cells,
+            cache_cells: RefCell::new(HashMap::new()),
+            cache_cells_surfaced: RefCell::new(HashMap::new()),
+            last_cells: RefCell::new(None),
         })
     }
 
@@ -322,3 +364,6 @@ impl LitSurfaces {
         }
     }
 }
+
+mod cells;
+use cells::{exposed_per_cell, split_cells};

@@ -15,7 +15,7 @@ use super::super::geometry::{ExternalGeometry, SURFACE_TOLERANCE};
 use super::{FACE_MATCH_COS, above_plane};
 use crate::structure::interference::obb::BoxFace;
 use sat_astro::math::planar::ConvexPolygon;
-use sat_astro::view_factor::{Quadrature, rect_view_factor};
+use sat_astro::view_factor::{Quadrature, Rect, rect_view_factor};
 
 /// 面を覆う箱 1 つ。
 #[derive(Debug, Clone)]
@@ -58,6 +58,8 @@ pub(super) fn covers_of(
 pub(super) struct Facing {
     /// 箱の並びの中の番号
     pub part: usize,
+    /// 向き合う面の長方形（升から見る形態係数を求め直すのに使う）
+    pub target: Rect,
     /// 面 → 向き合う面の形態係数 `F`（遮蔽なし。`sat_astro::view_factor::rect_view_factor`）
     pub factor: f64,
     /// 面の平面から向き合う面までの距離 [m]（近い順に並べるのに使う）
@@ -94,10 +96,12 @@ pub(super) fn facing_of(
             if ConvexPolygon::hull(&local).intersection(&rectangle).area() <= 0.0 {
                 return None;
             }
-            let factor = rect_view_factor(&rect, &own.rect(), None, Quadrature::DEFAULT);
+            let target = own.rect();
+            let factor = rect_view_factor(&rect, &target, None, Quadrature::DEFAULT);
             let gap = (own.center - face.center).dot(face.normal);
             (factor > 0.0).then_some(Facing {
                 part: j,
+                target,
                 factor,
                 gap,
             })

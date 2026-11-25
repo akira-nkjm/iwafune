@@ -11,11 +11,13 @@
 //!
 //! 節点の対の値は、2 つの節点に属する部品の面の組の `E_ij` の和（同じ節点の部品どうしは数えない）。向き合う面があるのにすべて遮られた対は 0
 //! （取付の既定値を置き換えて切り離す）。向き合う面の組が 1 つも無い対（接する面だけ・空洞に入らない部品）は値を出さず、下の優先順位の値のまま。
-//! 板を升に分けた節点は、部品の値を升に面積で配る（`subdivide`。升ごとの形態係数は出さない）。
+//! **板を升に分けた節点**（#456）は、面の組の値（面全体の `E_ij`。升に分けない設計と同じ数）を、升と相手の面の `A_c F_cc'`（`cavity_views` の升の組）
+//! の割合で升に配る（`CellMatrix`。配った合計は面全体の値）。板の縁の面（升に分けない面）の組は升の面積の割合で配る。
+//! 升に分けない節点の対は、これまでと同じ値だけを出す。
 
 use super::{ThermalNetwork, ThermalNode};
 use crate::spec::AnalysisError;
-use crate::structure::cavity_views::{CavityViews, cavity_views};
+use crate::structure::cavity_views::{CavityViews, CellExchange, cavity_views_split};
 use crate::structure::interference::InterferenceBox;
 use sat_units::typed::{Area, Qty, Time};
 use serde::{Deserialize, Serialize};
@@ -96,6 +98,16 @@ type Pair = (String, String);
 pub(super) struct PairValue {
     pub exchange_m2: f64,
     pub detail: ThermalViewFactorPair,
+    /// 板を升に分けた端があるときの、升の組への配り方
+    pub cells: Option<CellMatrix>,
+}
+
+/// 節点対の値を升の組に配る割合（合計 1。板でない端は 1 つの「升」）。対のキーの順（昇順の ID の前の節点が行）で、添字は `行の升 * nb + 列の升`。
+#[derive(Debug, Clone, PartialEq)]
+pub(super) struct CellMatrix {
+    pub na: usize,
+    pub nb: usize,
+    pub weight: Vec<f64>,
 }
 
 /// 形態係数から出した節点の対の値と、要約。
@@ -150,7 +162,12 @@ pub(super) fn resolve(
         nodes: Vec::new(),
         elapsed: Qty::from_raw(0.0),
     };
-    let Some(views) = cavity_views(&v.boxes) else {
+    let plates: BTreeMap<String, [usize; 2]> = net
+        .plates
+        .iter()
+        .map(|p| (p.part.clone(), p.cells.map(|c| c as usize)))
+        .collect();
+    let Some(views) = cavity_views_split(&v.boxes, &plates) else {
         used.note = Some(
             "No part lies wholly inside another part's box, so there is no cavity (the structure box that encloses the components)"
                 .to_owned(),
@@ -181,6 +198,7 @@ fn node_pairs(
     used: &mut ThermalViewFactorsUsed,
 ) -> BTreeMap<Pair, PairValue> {
     let nodes = node_of(&net.nodes);
+    let counts = cell_counts(net);
     let mut out: BTreeMap<Pair, PairValue> = BTreeMap::new();
     for fp in &views.pairs {
         let (sa, sb) = (&views.surfaces[fp.a], &views.surfaces[fp.b]);
@@ -191,10 +209,11 @@ fn node_pairs(
         if na == nb {
             continue;
         }
-        let key = if na <= nb {
-            ((*na).to_owned(), (*nb).to_owned())
-        } else {
+        let swap = na > nb;
+        let key = if swap {
             ((*nb).to_owned(), (*na).to_owned())
+        } else {
+            ((*na).to_owned(), (*nb).to_owned())
         };
         let e = gray_pair_exchange(fp.exchange, sa.face.area(), sb.face.area(), eps);
         let slot = out.entry(key).or_insert(PairValue {
@@ -203,16 +222,119 @@ fn node_pairs(
                 area_factor: Qty::from_raw(0.0),
                 face_pairs: 0,
             },
+            cells: None,
         });
         if e > 0.0 {
             slot.exchange_m2 += e;
             slot.detail.area_factor = Qty::from_raw(slot.detail.area_factor.value() + fp.exchange);
             slot.detail.face_pairs += 1;
+            let ends = [
+                counts.get(sa.part.as_str()).copied().unwrap_or(1),
+                counts.get(sb.part.as_str()).copied().unwrap_or(1),
+            ];
+            if ends != [1, 1] {
+                add_cell_shares(slot, views.cell_pairs.get(&(fp.a, fp.b)), e, ends, swap);
+            }
         }
     }
     used.node_pairs = out.len() as u32;
     used.blocked_node_pairs = out.values().filter(|p| p.detail.face_pairs == 0).count() as u32;
+    normalise_cells(&mut out);
     out
+}
+
+/// 板の節点（部品の ID）ごとの升の数。
+fn cell_counts(net: &ThermalNetwork) -> BTreeMap<&str, usize> {
+    net.plates
+        .iter()
+        .map(|p| {
+            (
+                p.part.as_str(),
+                p.cells.iter().map(|c| *c as usize).product(),
+            )
+        })
+        .collect()
+}
+
+/// 節点対の升への配り方に、面の組の値 `e` を足す（`add_face_pair`）。`ends` は面の組の 2 端の節点の升の数、`swap` は節点対のキーの順が面の組の順と逆か。
+fn add_cell_shares(
+    slot: &mut PairValue,
+    split: Option<&CellExchange>,
+    e: f64,
+    ends: [usize; 2],
+    swap: bool,
+) {
+    let (nl, nr) = if swap {
+        (ends[1], ends[0])
+    } else {
+        (ends[0], ends[1])
+    };
+    let cells = slot.cells.get_or_insert_with(|| CellMatrix {
+        na: nl,
+        nb: nr,
+        weight: vec![0.0; nl * nr],
+    });
+    add_face_pair(
+        cells,
+        e,
+        ends,
+        split.map(|c| (c.na, c.nb, c.exchange.as_slice())),
+        swap,
+    );
+}
+
+/// 升への配り方の和を 1 にそろえる（和が 0 なら配り方は無い）。
+fn normalise_cells(out: &mut BTreeMap<Pair, PairValue>) {
+    for p in out.values_mut() {
+        if let Some(c) = &mut p.cells {
+            let total: f64 = c.weight.iter().sum();
+            if total > 0.0 {
+                c.weight.iter_mut().for_each(|w| *w /= total);
+            } else {
+                p.cells = None;
+            }
+        }
+    }
+}
+
+/// 面の組の値 `e`（面全体の交換面積）を、節点の升の組の表 `cells`（正規化の前。値の和 = 節点対の値）に足す。
+/// `ends` は面の組の 2 端の節点の升の数（板でなければ 1）、`split` は面の組の升の値 `(面 a の升の数, 面 b の升の数, A_c F_cc')`
+/// （どちらも升に分けない面の組は `None`）、`swap` は節点対のキーの順が面の組の順と逆か。
+/// 升に分けた面は升の値の割合で、板の節点だが升に分けない面（縁の面）は升の面積の割合で配る。
+fn add_face_pair(
+    cells: &mut CellMatrix,
+    e: f64,
+    ends: [usize; 2],
+    split: Option<(usize, usize, &[f64])>,
+    swap: bool,
+) {
+    let (fa, fb, x) = split.unwrap_or((1, 1, &[1.0]));
+    let total: f64 = x.iter().sum();
+    if total <= 0.0 {
+        return;
+    }
+    for ia in 0..ends[0] {
+        for ib in 0..ends[1] {
+            // 面が升に分かれていれば升の番号、分かれていなければ（面全体で 1 つ）0 と、板の節点なら面積の割合
+            let (ca, wa) = if fa == ends[0] {
+                (ia, 1.0)
+            } else {
+                (0, 1.0 / ends[0] as f64)
+            };
+            let (cb, wb) = if fb == ends[1] {
+                (ib, 1.0)
+            } else {
+                (0, 1.0 / ends[1] as f64)
+            };
+            let w = e * wa * wb * x[ca * fb + cb] / total;
+            let at = if swap {
+                ib * cells.nb + ia
+            } else {
+                ia * cells.nb + ib
+            };
+            cells.weight[at] += w;
+        }
+    }
 }
 
 /// 節点ごとの `1 − Σ_j F_ij`（面積で重みづけ）。
@@ -237,5 +359,7 @@ fn node_residuals(net: &ThermalNetwork, views: &CavityViews) -> Vec<ThermalViewF
         .collect()
 }
 
+#[cfg(test)]
+mod cells_tests;
 #[cfg(test)]
 mod tests;

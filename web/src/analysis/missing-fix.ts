@@ -1,5 +1,4 @@
 import type { CommandText, DesignView, Fix, ListKind, MissingInput, SetText } from "@/api/types";
-import { paths } from "@/lib/nav";
 
 /** 値を入れる候補（その場のダイアログ） */
 export type ValueFix = Extract<Fix, { kind: "set_value" }>;
@@ -11,40 +10,16 @@ export type PartFix = Extract<Fix, { kind: "set_value_on_part" | "assign_part" }
 /** 役割の部品を足す候補（部品の追加ダイアログを絞って開く） */
 export type AddPartFix = Extract<Fix, { kind: "add_part" }>;
 
-/** 一覧の追加候補のうち、その場のダイアログを持つ一覧（モード・マヌーバ・地上局。ほかの一覧は既存のページへ行く） */
-export type DialogList = Extract<ListKind, "mode" | "maneuver" | "ground_station">;
+/** 一覧の追加候補の一覧（どれもその場のダイアログを持つ。モード・マヌーバ・地上局・通信の回線・解析ケース） */
+export type DialogList = ListKind;
 
-/** 候補が開く画面（その場のダイアログを持たない候補は、既存のページへ行く。候補の種類で決め、文字列は読まない） */
+/** 候補が開く画面（候補の種類で決め、文字列は読まない） */
 export type RowAction =
   | { kind: "value"; fix: ValueFix }
   | { kind: "pick"; fix: PickFix }
   | { kind: "part"; fix: PartFix }
   | { kind: "add_part"; fix: AddPartFix }
-  | { kind: "add_item"; list: DialogList; id: string | null; command: string }
-  | { kind: "link"; label: { addItem: ListKind }; to: string };
-
-/** 一覧への追加の画面（その場のダイアログを持たない一覧 → 既存のページ。通信の回線と解析ケースは、足す入力の欄がページに無い） */
-function listPage(list: Exclude<ListKind, DialogList>): string {
-  switch (list) {
-    case "comm_link":
-      return paths.settings();
-    case "case":
-      return paths.cases();
-  }
-}
-
-/** 一覧の追加候補の操作（ダイアログのある一覧はその場で、無い一覧は既存のページへ） */
-function listAction(fix: Extract<Fix, { kind: "add_list_item" }>): RowAction {
-  switch (fix.list) {
-    case "mode":
-    case "maneuver":
-    case "ground_station":
-      return { kind: "add_item", list: fix.list, id: fix.id, command: fix.command };
-    case "comm_link":
-    case "case":
-      return { kind: "link", label: { addItem: fix.list }, to: listPage(fix.list) };
-  }
-}
+  | { kind: "add_item"; list: DialogList; id: string | null; command: string };
 
 /** 候補 1 つの操作（その場の編集か、既存の画面への道） */
 function actionOf(fix: Fix): RowAction {
@@ -59,7 +34,7 @@ function actionOf(fix: Fix): RowAction {
     case "add_part":
       return { kind: "add_part", fix };
     case "add_list_item":
-      return listAction(fix);
+      return { kind: "add_item", list: fix.list, id: fix.id, command: fix.command };
   }
 }
 

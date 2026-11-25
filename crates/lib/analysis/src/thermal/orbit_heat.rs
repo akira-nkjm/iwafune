@@ -3,6 +3,7 @@
 //! 入射の幾何は `sat_astro::illumination`（太陽の cos 則と日照率、中心天体の形態係数、太陽光の強さ）を使い、
 //! 軌道上の向きは `sat_astro::timeline` のサンプルから取る。ここでは吸収率・放射率を掛けて節点に配るだけ。
 //! **直達日射だけ**に、面の日照割合（ほかの部品の影。`structure::external_geometry::lit`。網に部品の箱があるとき）を掛ける。
+//! 板を升に分けた節点の外面は、日照割合・覆われた割合・向き合う面への形態係数を升の長方形ごとに求める（`Surface::cell`。#456）。
 //! アルベドと惑星の赤外は広がった光源（空の半球の大きな部分）なので、影を数えない。
 //! アルベドは「形態係数 × max(0, 衛星の位置と太陽方向の cos)」で近似する（概念設計の精度）。天体の赤外放射は
 //! 同じ cos（直下点の太陽天頂角）で天体ごとのモデル（`thermal::planet`）から求める。環境の値は `thermal::environment`。
@@ -127,20 +128,33 @@ pub(crate) fn absorbed_with(
             // 光を受ける面だけ影を評価する（受けない面は直達日射が 0 なので、日照割合は効かない）
             (Some(shading), Blockers::All) => (
                 if g.sunlit > 0.0 && s.normal.dot(g.sun_dir) > 0.0 {
-                    shading.lit(s.input, g.sun_dir)
+                    match s.cell {
+                        Some(c) => shading.lit_cell(s.input, c, g.sun_dir),
+                        None => shading.lit(s.input, g.sun_dir),
+                    }
                 } else {
                     1.0
                 },
                 s.exposed,
             ),
-            (Some(shading), Blockers::SurfacedOnly) => (
-                if g.sunlit > 0.0 && s.normal.dot(g.sun_dir) > 0.0 {
-                    shading.lit_surfaced_only(s.input, g.sun_dir)
-                } else {
-                    1.0
-                },
-                shading.exposed_surfaced_only(s.input),
-            ),
+            (Some(shading), Blockers::SurfacedOnly) => match s.cell {
+                Some(c) => (
+                    if g.sunlit > 0.0 && s.normal.dot(g.sun_dir) > 0.0 {
+                        shading.lit_surfaced_only_cell(s.input, c, g.sun_dir)
+                    } else {
+                        1.0
+                    },
+                    shading.exposed_surfaced_only_cell(s.input, c),
+                ),
+                None => (
+                    if g.sunlit > 0.0 && s.normal.dot(g.sun_dir) > 0.0 {
+                        shading.lit_surfaced_only(s.input, g.sun_dir)
+                    } else {
+                        1.0
+                    },
+                    shading.exposed_surfaced_only(s.input),
+                ),
+            },
         };
         q[s.node] += surface_absorbed(s, lit, exposed, env, g);
     }
@@ -164,6 +178,8 @@ pub(crate) fn timeline_geometry(
 mod external;
 pub(crate) use external::{exposure_heat, mean_absorbed, sample_shadowing, shadow_loss_check};
 
+#[cfg(test)]
+mod cell_shading_tests;
 #[cfg(test)]
 mod mounted_surface_tests;
 #[cfg(test)]

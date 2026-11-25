@@ -47,10 +47,10 @@ it("候補のある行は操作を出し、候補の無い行は出さない", (
     />,
   );
   expect(html).toContain(`>${t.enterValue}</button>`);
-  // ダイアログのある一覧（モード）はボタン、無い一覧（ケース）はページへのリンク
+  // どの一覧（モード・ケース）の追加も、その場のダイアログを開くボタン
   expect(html).toContain(`>${t.addItem.mode}</button>`);
-  expect(html).toContain(`>${t.addItem.case}</a>`);
-  expect(html.match(/<button/g)).toHaveLength(2);
+  expect(html).toContain(`>${t.addItem.case}</button>`);
+  expect(html.match(/<button/g)).toHaveLength(3);
 });
 
 it("カタログ品を指す欄の行は、カタログ品を選ぶ操作を出す", () => {
