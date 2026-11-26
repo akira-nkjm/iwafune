@@ -70,6 +70,8 @@ typed_dimensions![
     MagneticFlux,
     AbsorbedDose,
     AbsorbedDoseRate,
+    ParticleFlux,
+    ParticleFluence,
     Impulse,
 ];
 

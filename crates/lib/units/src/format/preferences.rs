@@ -237,6 +237,8 @@ pub(super) const PREFERENCES: &[Preference] = &[
         "Gy/yr",
         &[("mGy/yr", 1.0), ("Gy/yr", 1.0), ("kGy/yr", 1.0)],
     ),
+    pref("ParticleFlux", "cm^-2/s", &[("cm^-2/s", 1.0)]),
+    pref("ParticleFluence", "cm^-2", &[("cm^-2", 1.0)]),
     pref(
         "Impulse",
         "N*s",

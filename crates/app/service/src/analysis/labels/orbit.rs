@@ -8,6 +8,7 @@ use sat_analysis::orbit::{
     ShieldingSource,
 };
 use sat_astro::atmosphere::space_weather::{SolarActivity, WeatherSource};
+use sat_astro::radiation::{SolarCondition, Species};
 
 pub(super) fn solar_activity(a: SolarActivity) -> AnalysisLabel {
     match a {
@@ -22,6 +23,20 @@ pub(super) fn geometry_span_basis(b: GeometrySpanBasis) -> AnalysisLabel {
         GeometrySpanBasis::OneOff => label("軌道の 1 回限りの期間", "The orbit's one-off span"),
         GeometrySpanBasis::PhaseDuration => label("フェーズの期間", "The phase duration"),
         GeometrySpanBasis::OneCycle => label("軌道の 1 周", "One orbit"),
+    }
+}
+
+pub(super) fn species(s: Species) -> AnalysisLabel {
+    match s {
+        Species::Proton => label("陽子（AP-8）", "Protons (AP-8)"),
+        Species::Electron => label("電子（AE-8）", "Electrons (AE-8)"),
+    }
+}
+
+pub(super) fn solar_condition(c: SolarCondition) -> AnalysisLabel {
+    match c {
+        SolarCondition::Minimum => label("太陽活動極小（1964）", "Solar minimum (1964)"),
+        SolarCondition::Maximum => label("太陽活動極大（1970）", "Solar maximum (1970)"),
     }
 }
 

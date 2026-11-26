@@ -9,8 +9,8 @@ use fune_service::dto::{DataStatus, SpaceWeatherLookup};
 pub fn run(cmd: &DataCmd, out: &Out) -> anyhow::Result<u8> {
     let status = match cmd {
         DataCmd::Status => data::data_status()?,
-        DataCmd::Fetch { id } => {
-            let s = data::fetch(id)?;
+        DataCmd::Fetch { id, from } => {
+            let s = data::fetch(id, from.as_deref())?;
             out.ok(format!("Fetched {id} and verified its SHA-256"));
             s
         }

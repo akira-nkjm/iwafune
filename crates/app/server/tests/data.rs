@@ -11,8 +11,33 @@ async fn data_status() {
     let (_tmp, r) = demo_router();
     let (s, d) = call(&r, "GET", "/api/v1/data/status", None).await;
     assert_eq!(s, StatusCode::OK, "{d}");
-    assert_eq!(d["items"][0]["id"], "de440");
-    assert_eq!(d["items"][1]["id"], "space_weather");
+    let ids: Vec<&str> = d["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|i| i["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(ids[0], "de440");
+    // 放射線帯のデータ（地図・古い地磁気モデル・IGRF）は表の行で、宇宙天気はその後ろ
+    for id in [
+        "ap8min",
+        "ap8max",
+        "ae8min",
+        "ae8max",
+        "jensen_cain_1960",
+        "gsfc_1966",
+        "igrf14",
+    ] {
+        assert!(ids.contains(&id), "{id} is missing from {ids:?}");
+    }
+    assert_eq!(*ids.last().unwrap(), "space_weather");
+    let ap8 = d["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["id"] == "ap8min")
+        .unwrap();
+    assert!(ap8["license"].as_str().unwrap().contains("PT-11B"));
     let (s, e) = call(&r, "POST", "/api/v1/data/nope/fetch", None).await;
     assert_eq!(s, StatusCode::NOT_FOUND, "{e}");
 }

@@ -295,8 +295,13 @@ pub enum UnitsCmd {
 pub enum DataCmd {
     /// State of the cached data
     Status,
-    /// Fetch data into the cache (e.g. `fune data fetch de440` (needs gh), `fune data fetch space_weather` (needs curl))
-    Fetch { id: String },
+    /// Fetch data into the cache (e.g. `fune data fetch de440` (needs gh), `fune data fetch space_weather` (needs curl), `fune data fetch radiation` for the trapped-radiation data set)
+    Fetch {
+        id: String,
+        /// Install from a directory that holds the files (named as in the release) instead of fetching; size and SHA-256 are checked as for a fetch
+        #[arg(long)]
+        from: Option<std::path::PathBuf>,
+    },
     /// Look up space weather (F10.7, Ap) for a date (e.g. `fune data space-weather 2003-10-29`)
     SpaceWeather {
         /// ISO 8601 epoch (a date alone is fine)

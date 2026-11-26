@@ -130,6 +130,10 @@ pub type __AbsorbedDose = Dim<Two, Zero, NegativeTwo, Zero, Zero, Zero, Zero, Ze
 #[doc(hidden)]
 pub type __AbsorbedDoseRate = Dim<Two, Zero, NegativeThree, Zero, Zero, Zero, Zero, Zero, Zero>;
 #[doc(hidden)]
+pub type __ParticleFlux = Dim<NegativeTwo, Zero, NegativeOne, Zero, Zero, Zero, Zero, Zero, Zero>;
+#[doc(hidden)]
+pub type __ParticleFluence = Dim<NegativeTwo, Zero, Zero, Zero, Zero, Zero, Zero, Zero, Zero>;
+#[doc(hidden)]
 pub type __Impulse = Dim<One, One, NegativeOne, Zero, Zero, Zero, Zero, Zero, Zero>;
 
 /// Dimensionless quantity (for example `1`).
@@ -259,5 +263,9 @@ pub type MagneticFlux = __MagneticFlux;
 pub type AbsorbedDose = __AbsorbedDose;
 /// Absorbed-dose-rate dimension (`L^2 T^-3`, for example `Gy/yr`; the radiation environment of an orbit).
 pub type AbsorbedDoseRate = __AbsorbedDoseRate;
+/// Particle-flux dimension (`L^-2 T^-1`, for example `cm^-2/s`; the omnidirectional flux of trapped particles).
+pub type ParticleFlux = __ParticleFlux;
+/// Particle-fluence dimension (`L^-2`, for example `cm^-2`; the time integral of a particle flux).
+pub type ParticleFluence = __ParticleFluence;
 /// Impulse (linear momentum) dimension (`M L T^-1`, for example `N*s`)。推進の総インパルス・最小インパルスビットに使う。
 pub type Impulse = __Impulse;

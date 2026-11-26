@@ -12,9 +12,10 @@ pub async fn status() -> Result<Json<DataStatus>, ApiError> {
     run(data::data_status).await
 }
 
-/// POST `/data/{id}/fetch`（例: `/data/de440/fetch`）
+/// POST `/data/{id}/fetch`（例: `/data/de440/fetch`）。ディレクトリから取り込む `--from` は CLI だけの選択肢
+/// （サーバーのマシンの上の場所を HTTP から渡させない。CONTRIBUTING.md の例外）
 pub async fn fetch(Path(id): Path<String>) -> Result<Json<DataStatus>, ApiError> {
-    run(move || data::fetch(&id)).await
+    run(move || data::fetch(&id, None)).await
 }
 
 /// GET `/data/space_weather?date=2003-10-29&activity=moderate`
