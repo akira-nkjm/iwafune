@@ -1,10 +1,13 @@
 //! モード・ネット・図・設定の Op の解釈（前提の確認 → store の編集）。
 
 use super::check_keys::refuse_removing_checked_thermal_node;
+use super::referrers::refuse_if_referenced;
 use crate::error::OpError;
 use crate::op::{ModeCell, ModePosition, Op, ViewNodePos};
 use fune_model::Design;
-use fune_model::design::{AnalysisSystem, Mode, ModeSegment, Net, StartRef, StateAssign, ViewNode};
+use fune_model::design::{
+    AnalysisSystem, Mode, ModeSegment, Net, Referent, StartRef, StateAssign, ViewNode,
+};
 use fune_model::id::{Id, clash, validate_entity_id};
 use fune_model::path::{self, ParamPath, SettingPath, SettingScope};
 use fune_model::value::SettingValue;
@@ -22,6 +25,7 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
         } => create_mode(edits, design, id, label, description, copy_from.as_deref()),
         Op::RemoveMode { id } => {
             existing_mode(design, id)?;
+            refuse_if_referenced("Mode", id, &design.references(Referent::Mode(id)))?;
             edits.remove(&layout::mode_file(id))?;
             if let Some(modes) = &design.project.modes {
                 let order: Vec<_> = modes.order.iter().filter(|m| *m != id).cloned().collect();

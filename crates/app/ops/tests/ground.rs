@@ -374,3 +374,50 @@ fn rename_is_refused_while_a_shared_catalog_item_uses_the_definition() {
         assert!(err.contains("shared catalog items (lab/w)"), "{err}");
     }
 }
+
+/// 緯度・経度・最低仰角が範囲の外の局は、足すときも設定で書き換えるときも拒まれる（診断に範囲の理由が載る）。
+#[test]
+fn out_of_range_coordinates_are_rejected() {
+    let bad = |lat: f64, lon: f64, el: f64| Op::CreateGroundStation {
+        id: "BAD_GS".into(),
+        label: None,
+        latitude: Some(Quantity::new(lat, "deg")),
+        longitude: Some(Quantity::new(lon, "deg")),
+        altitude: None,
+        min_elevation: Some(Quantity::new(el, "deg")),
+    };
+    for (op, text) in [
+        (bad(95.0, 10.0, 5.0), "Latitude must be from -90 to 90 deg"),
+        (
+            bad(10.0, 400.0, 5.0),
+            "Longitude must be from -180 to 360 deg",
+        ),
+        (
+            bad(10.0, 10.0, 95.0),
+            "minimum elevation must be from 0 to 90 deg",
+        ),
+    ] {
+        let Err(OpError::Rejected { diagnostics }) = plan(&snapshot(), &[op]) else {
+            panic!("not rejected: {text}");
+        };
+        assert!(
+            diagnostics
+                .iter()
+                .any(|d| d.code == "setting.range" && d.message.contains(text)),
+            "{text}: {diagnostics:?}"
+        );
+    }
+    // 経度を 0〜360 で書く流儀（東経 200 度）は受ける
+    assert!(plan(&snapshot(), &[bad(10.0, 200.0, 5.0)]).is_ok());
+    // 既にある局の緯度を範囲の外へ書き換えるのも拒む
+    let set = Op::SetSetting {
+        path: "conditions.ground.TOKYO_GS.latitude".into(),
+        value: Some(fune_model::value::SettingValue::Quantity(Quantity::new(
+            95.0, "deg",
+        ))),
+    };
+    assert!(matches!(
+        plan(&snapshot(), &[set]),
+        Err(OpError::Rejected { .. })
+    ));
+}

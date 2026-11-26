@@ -61,7 +61,7 @@ fn case_removal_matches_cli_and_refuses_referenced_cases() {
     assert!(!out.status.success());
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
-        stderr.contains("default case") && stderr.contains("R_STORAGE"),
+        stderr.contains("`default_case` in analysis/common.toml") && stderr.contains("R_STORAGE"),
         "{stderr}"
     );
     let ws = fune_service::Workspace::open(&http_root).unwrap();

@@ -22,6 +22,7 @@ mod phases;
 mod requirements;
 mod settings;
 mod settings_analysis;
+mod settings_ground;
 mod settings_structure;
 mod settings_thermal;
 mod sources;
@@ -69,6 +70,7 @@ pub fn check(design: &Design) -> Vec<Diagnostic> {
     budget::check_budget(&mut ctx);
     let entries = design.setting_entries();
     settings::check_conditions(&mut ctx, &entries);
+    settings_ground::check_ground_stations(&mut ctx, &entries);
     launch::check_launch(&mut ctx);
     settings_analysis::check_analysis(&mut ctx, &entries);
     moved::check_moved_settings(&mut ctx, &entries);

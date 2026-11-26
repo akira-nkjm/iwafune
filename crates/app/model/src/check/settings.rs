@@ -161,9 +161,6 @@ pub(super) fn check_conditions(ctx: &mut Ctx, entries: &[SettingEntry]) {
         s.dimensions(entries);
         check_orbit(&mut s, o);
     }
-    for id in design.conditions.ground.keys() {
-        scope(ctx, SettingPath::conditions(&["ground", id])).dimensions(entries);
-    }
     if design.conditions.launch.is_some() {
         scope(ctx, SettingPath::conditions(&["launch"])).dimensions(entries);
     }

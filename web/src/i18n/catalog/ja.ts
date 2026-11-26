@@ -123,6 +123,7 @@ export const catalogJa = {
       summaryAdd: (name: string) => `共有カタログ ${name} を足す`,
       remove: (name: string) => `${name} を外す`,
       removeTitle: (name: string) => `共有カタログ ${name} を外す`,
+      removeConfirm: "外す",
       removeDesc:
         "fune.toml から外します。catalog.lock の記録は次の取得で外れます。部品やハーネスがこのカタログの品を使っていれば外せません。",
       summaryRemove: (name: string) => `共有カタログ ${name} を外す`,
