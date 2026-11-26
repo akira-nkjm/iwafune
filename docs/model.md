@@ -266,7 +266,8 @@ design_margin     = 2.0                             # radiation design margin RD
 **The table is read log-linearly**: linear in thickness and logarithmic in dose rate (so midway between two points it is the geometric mean of their rates), decided once in `sat_astro::math::interpolate` and echoed as `interpolation`. **There is no extrapolation**: a part whose shielding is outside a leg's table is *not evaluated* (no total, no verdict, a warning check `dose:<part>`); the nearest end value is never used.
 Margin = `tolerance / (total × RDM) − 1` (`spec::ratio_margin`); negative is a violation. A part without a tolerance gets its dose and no verdict. Example: 10 Gy/yr for 2 yr is 20 Gy; with a tolerance of 100 Gy and RDM 2 the margin is 100 / 40 − 1 = 1.5.
 A leg with no duration or no environment table is listed in `legs[].status` and left out of the totals, with the warning check `phases_left_out` (the totals are then lower bounds). The output also gives, per leg, the rate and dose at a reference shielding (the thinnest evaluated part), `reference_shielding`, and the part with the least margin (`worst`).
-The KPI is the minimum margin. Missing inputs: a part with `tid_tolerance` or `shielding`, an environment table, and (for the mission leg) the mission duration, each with a fix. No requirement keys the dose: the tolerance is a property of the part and the margin factor a design value, so a requirement can only verify the analysis as a whole (`verify.analysis = "orbit.total_dose"`).
+The KPI is the minimum margin. Missing inputs: a part with `tid_tolerance` or `shielding`, an environment table (or the data of `fune data fetch radiation`, from which the trapped-particle environment of the leg's orbit is computed), and (for the mission leg) the mission duration, each with a fix.
+**Environment source.** A table of the user always wins. A leg without one gets, when the radiation and SHIELDOSE-2 data are installed and the leg has a duration, the table of `orbit.trapped_dose` for that leg's orbit (the larger of solar minimum and maximum at each thickness; trapped protons and electrons only). `legs[].environment_source` says which (`user_table`, `computed_trapped`), and a computed table adds the warning check `environment_source`: the totals are then lower bounds (no solar protons, no cosmic rays). No requirement keys the dose: the tolerance is a property of the part and the margin factor a design value, so a requirement can only verify the analysis as a whole (`verify.analysis = "orbit.total_dose"`).
 
 #### Trapped particle flux (`orbit.trapped_flux`)
 
@@ -274,6 +275,12 @@ The KPI is the minimum margin. Missing inputs: a part with `tid_tolerance` or `s
 and the mission fluence (mean flux × the mission duration). Its input is built from the design orbit (one day of samples; the case's β applies as for the other orbit analyses) and the mission duration; it has no settings and no part data.
 The AP-8/AE-8 data files are not part of a design: without them the analysis is a missing input whose reason says `fune data fetch radiation`. No dose or shielding depth is computed (the dose of a part stays the user's table of `orbit.total_dose`).
 The models, the field each map is paired with, the limits and the data sources are in [trapped-radiation.md](trapped-radiation.md).
+
+#### Trapped particle dose versus shielding depth (`orbit.trapped_dose`)
+
+`orbit.trapped_dose` is `AnalysisArea::Condition(ConditionTopic::Orbit)`. It converts the orbit-averaged AP-8/AE-8 spectra into the dose rate in silicon behind aluminium shielding with SHIELDOSE-2, for solar minimum and maximum: per case a table of aluminium thickness → protons, electrons, bremsstrahlung and total (SI dose rate, shown per year).
+Its input is the same as `orbit.trapped_flux` (one day of the design orbit; the case's β applies) plus optional `thicknesses`, `geometry` (default the centre of a solid aluminium sphere) and `nuclear` (default none); it has no design settings and no part data, and the output's `used` records what was used. It covers trapped particles only.
+Without the data files (`fune data fetch radiation`) it is a missing input. `orbit.total_dose` uses its table for a leg without an environment table of its own (see above). Method, geometry normalisation (the factor 2 of the sphere), limits and verification are in [trapped-radiation.md](trapped-radiation.md).
 
 #### Altitude decay by atmospheric drag and orbit maintenance (`orbit.decay`)
 

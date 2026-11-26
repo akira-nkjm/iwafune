@@ -220,6 +220,7 @@ pub const ANALYSIS_IDS: &[&str] = &[
     "orbit.decay",
     "orbit.geometry",
     "orbit.trapped_flux",
+    "orbit.trapped_dose",
     "orbit.total_dose",
     "power.mode_load",
     "power.solar_sunlit",

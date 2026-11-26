@@ -7,7 +7,9 @@ use crate::{Context, MissingInputs};
 use fune_model::Target;
 use fune_model::design::setting_dims::{self as dims, ORBIT_DOSE_RATE_BY_SHIELDING};
 use fune_model::path::SettingPath;
-use sat_analysis::orbit::{DoseDepthPoint, DoseLegInput, DosePartInput, TotalDoseInput};
+use sat_analysis::orbit::{
+    DoseDepthPoint, DoseLegInput, DosePartInput, EnvironmentSource, TotalDoseInput,
+};
 use sat_units::typed::{Length, Qty, Time};
 
 /// 属性: 部品の遮蔽厚さ（等価アルミ）。
@@ -70,23 +72,58 @@ fn legs(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<DoseLegInput> {
                 let c = ctx.in_phase(p);
                 let target = Target::phase(p.id.as_str(), Some("duration"));
                 ctx.note(target.clone());
+                let duration = qty_opt::<Time>(p.duration.as_ref(), target, m);
+                let (environment, environment_source) = environment(&c, duration.is_some(), m);
                 DoseLegInput {
                     phase: Some(p.id.as_str().to_owned()),
-                    duration: qty_opt::<Time>(p.duration.as_ref(), target, m),
-                    environment: environment(&c, m),
+                    duration,
+                    environment,
+                    environment_source,
                 }
             })
             .collect();
     }
+    let duration = ctx.mission_duration();
+    let (environment, environment_source) = environment(ctx, duration.is_some(), m);
     vec![DoseLegInput {
         phase: None,
-        duration: ctx.mission_duration(),
-        environment: environment(ctx, m),
+        duration,
+        environment,
+        environment_source,
     }]
 }
 
-/// 効いている軌道の環境の表（SI の点の並び）。書かれていなければ `None`（足りない入力は [`not_usable`]）。
-fn environment(c: &Context<'_>, m: &mut MissingInputs) -> Option<Vec<DoseDepthPoint>> {
+/// 効いている軌道の環境の表（SI の点の並び）と出どころ。**利用者の表（`dose_rate_by_shielding`）が常に優先**。書かれていなければ、
+/// 放射線帯と SHIELDOSE-2 のデータがそろっていて区間に期間があればその区間の軌道の捕捉粒子の表（`orbit.trapped_dose`）、無ければ `None`（足りない入力は [`not_usable`]）。
+fn environment(
+    c: &Context<'_>,
+    has_duration: bool,
+    m: &mut MissingInputs,
+) -> (Option<Vec<DoseDepthPoint>>, Option<EnvironmentSource>) {
+    if let Some(table) = user_table(c, m) {
+        return (Some(table), Some(EnvironmentSource::UserTable));
+    }
+    let wrote = c
+        .orbit_settings()
+        .is_some_and(|o| o.dose_rate_by_shielding.is_some());
+    if wrote {
+        // 書かれているが読めない（不足入力は記録済み）。計算した表で置き換えない
+        return (None, None);
+    }
+    // 期間の無い区間は総線量から除かれるので、数秒かかる計算をしない
+    let computed = if has_duration {
+        super::computed_environment(c)
+    } else {
+        None
+    };
+    match computed {
+        Some(table) => (Some(table), Some(EnvironmentSource::ComputedTrapped)),
+        None => (None, None),
+    }
+}
+
+/// 利用者の環境の表。書かれていなければ `None`。
+fn user_table(c: &Context<'_>, m: &mut MissingInputs) -> Option<Vec<DoseDepthPoint>> {
     let key = ORBIT_DOSE_RATE_BY_SHIELDING.path();
     let target = c.orbit_target(
         &key.segments[1..]
@@ -112,7 +149,16 @@ fn not_usable(ctx: &Context<'_>) -> MissingInputs {
     let by_phase = phases.iter().any(|p| p.duration.is_some());
     let key = ORBIT_DOSE_RATE_BY_SHIELDING.path();
     let keys: Vec<&str> = key.segments[1..].iter().map(String::as_str).collect();
-    let reason = "Dose rate versus shielding thickness (an environment table)";
+    let missing = super::dose_data_missing();
+    let reason = if missing.is_empty() {
+        "Dose rate versus shielding thickness (an environment table; the trapped-particle model could not give one for this orbit)".to_owned()
+    } else {
+        format!(
+            "Dose rate versus shielding thickness (an environment table), or the trapped-radiation data to compute one from the orbit (missing: {}; install with: {})",
+            missing.join(", "),
+            super::trapped_flux::INSTALL_HINT
+        )
+    };
     if by_phase {
         for p in phases {
             let c = ctx.in_phase(p);
@@ -120,7 +166,7 @@ fn not_usable(ctx: &Context<'_>) -> MissingInputs {
                 .orbit_settings()
                 .is_some_and(|o| o.dose_rate_by_shielding.is_some());
             if !has {
-                m.push(c.orbit_target(&keys), reason);
+                m.push(c.orbit_target(&keys), reason.clone());
             }
         }
     } else {

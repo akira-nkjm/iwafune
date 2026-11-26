@@ -70,6 +70,7 @@ registry!(
     crate::orbit::Geometry,
     crate::orbit::TotalDose,
     crate::orbit::TrappedFlux,
+    crate::orbit::TrappedDose,
     power::ModeLoad,
     power::SolarSunlit,
     power::OrbitGeneration,

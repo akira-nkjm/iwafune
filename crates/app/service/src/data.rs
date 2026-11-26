@@ -7,7 +7,7 @@
 //! |---|---|
 //! | `release` | リリース配布のデータの共通の仕組み（表の 1 行 = [`Dataset`]。取得・SHA-256 の照合・状態・登録）。データを足すときは表に 1 行と登録する関数を足す |
 //! | `de440` | 表の最初の行（DE440 の暦表）と、sat-astro への登録 |
-//! | `radiation` | 放射線帯の地図（AP-8・AE-8）・古い地磁気モデルの係数・IGRF の行と、sat-astro への登録。群の ID `radiation` で 7 件をまとめて扱う |
+//! | `radiation` | 放射線帯の地図（AP-8・AE-8）・古い地磁気モデルの係数・IGRF・遮蔽線量の表（SHIELDOSE-2）の行と、sat-astro への登録。群の ID `radiation` で 8 件をまとめて扱う |
 //! | [`space_weather`] | 宇宙天気（CelesTrak SW-All）。毎日更新されるので取得のたびに取得日時と SHA-256 を記録し、どの版を使ったかを返す |
 //! | `verify` | ファイルの印（大きさ・更新時刻）が変わらない間、求めた結果を使い回す覚え |
 
@@ -43,7 +43,7 @@ pub fn cache_dir() -> Result<PathBuf> {
 }
 
 /// リリース配布のデータの表。**データを足すときはここに 1 行足す**（状態・取得・起動時の登録はこの表で決まる）。
-static RELEASE_DATASETS: [&Dataset; 8] = [
+static RELEASE_DATASETS: [&Dataset; 9] = [
     &de440::DE440,
     &radiation::AP8_MIN,
     &radiation::AP8_MAX,
@@ -52,6 +52,7 @@ static RELEASE_DATASETS: [&Dataset; 8] = [
     &radiation::JENSEN_CAIN,
     &radiation::GSFC_1966,
     &radiation::IGRF14,
+    &radiation::SHIELDOSE2,
 ];
 
 /// データの状態（`GET /data/status`、`fune data status`）。ファイルの SHA-256 も確かめる
@@ -89,7 +90,7 @@ pub fn install_cached_datasets() {
 ///
 /// `from` があれば、ネットワークの代わりにそのディレクトリにあるファイル（リリースの成果物と同じ名前）を取り込む
 /// （配布が済んでいないデータや、ネットワークの無い環境のため。**CLI だけの選択肢**で、HTTP は渡さない: サーバーのマシンの上の場所を HTTP から指させない。大きさと SHA-256 は取得したときと同じに確かめる。
-/// 宇宙天気は取り込めない）。`id` に群の ID `radiation` を与えると、放射線帯のデータ 7 件をまとめて扱う。
+/// 宇宙天気は取り込めない）。`id` に群の ID `radiation` を与えると、放射線帯のデータ 8 件をまとめて扱う。
 pub fn fetch(id: &str, from: Option<&Path>) -> Result<DataStatus> {
     if from.is_some() && id == space_weather::ID {
         return Err(ServiceError::Data(

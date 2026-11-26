@@ -1,4 +1,4 @@
-//! 放射線帯の束縛粒子の地図（AP-8・AE-8）と、地図が前提にする古い地磁気モデルの係数、IGRF の配布ファイルの行と、
+//! 放射線帯の束縛粒子の地図（AP-8・AE-8）と、地図が前提にする古い地磁気モデルの係数、IGRF、遮蔽線量の表（SHIELDOSE-2）の配布ファイルの行と、
 //! sat-astro（`sat_astro::radiation::registry`）への登録。**ファイルの意味・形式は sat-astro が持ち、ここはバイト列を渡すだけ。**
 //!
 //! 配布の元: NASA の NSSDC データセット PT-11B（NASA CCMC の ModelWeb のアーカイブにあるものを無変更で再配布する）と IAGA の IGRF。
@@ -6,14 +6,15 @@
 
 use super::release::{Dataset, ReleaseSpec};
 use sat_astro::geomag::{GaussModel, IgrfTable};
-use sat_astro::radiation::registry::{install_field, install_igrf, install_map};
+use sat_astro::radiation::registry::{install_field, install_igrf, install_map, install_shielding};
+use sat_astro::radiation::shielding::ShieldingData;
 use sat_astro::radiation::{BeltField, TrappedMap, TrappedModel};
 
 /// この群のデータをまとめて取得・取り込むときの ID（`fune data fetch radiation`）。
 pub(super) const GROUP_ID: &str = "radiation";
 
 /// 群に含まれる行の ID（表の順）。
-pub(super) const GROUP_IDS: [&str; 7] = [
+pub(super) const GROUP_IDS: [&str; 8] = [
     "ap8min",
     "ap8max",
     "ae8min",
@@ -21,10 +22,13 @@ pub(super) const GROUP_IDS: [&str; 7] = [
     "jensen_cain_1960",
     "gsfc_1966",
     "igrf14",
+    "shieldose2",
 ];
 
 const REPO: &str = "akira-nkjm/iwafune";
 const TAG: &str = "data-radiation-v1";
+/// 遮蔽線量の表のリリースのタグ（地図とは別のリリース。表の行ごとにタグを持つので、群でまとめて取得しても特別な扱いは要らない）。
+const SHIELDING_TAG: &str = "data-shielding-v1";
 
 /// NSSDC PT-11B の出所と参考文献（地図と古い磁場の係数に共通）。
 macro_rules! nssdc {
@@ -66,6 +70,11 @@ fn install_jensen_cain(bytes: Vec<u8>) -> std::result::Result<(), String> {
 fn install_gsfc(bytes: Vec<u8>) -> std::result::Result<(), String> {
     let model = GaussModel::from_gsfc1266_bytes(&bytes, 1970.0).map_err(|e| e.to_string())?;
     install_field(BeltField::Gsfc1266To1970, model).map_err(|e| e.to_string())
+}
+
+fn install_shieldose2(bytes: Vec<u8>) -> std::result::Result<(), String> {
+    let data = ShieldingData::from_bytes(&bytes).map_err(|e| e.to_string())?;
+    install_shielding(data).map_err(|e| e.to_string())
 }
 
 fn install_igrf_bytes(bytes: Vec<u8>) -> std::result::Result<(), String> {
@@ -155,4 +164,16 @@ pub(super) static IGRF14: Dataset = Dataset::new(ReleaseSpec {
     used_by: "Present-day geomagnetic field (IGRF-14, 1900 to 2030)",
     license: "International Association of Geomagnetism and Aeronomy (2024), IGRF-14, Zenodo, doi:10.5281/zenodo.14012302, CC BY 4.0; Beggan et al. 2026, doi:10.1186/s40623-025-02360-0",
     installer: install_igrf_bytes,
+});
+
+pub(super) static SHIELDOSE2: Dataset = Dataset::new(ReleaseSpec {
+    id: "shieldose2",
+    file: "shieldose2.dat",
+    repo: REPO,
+    tag: SHIELDING_TAG,
+    sha256: "d234ecad50cfc24f1ccdd5574530c9bc39a30f81c6ec20aeabe092d2e896d671",
+    size: 711_646,
+    used_by: "Dose behind aluminium shielding from the trapped-particle spectra (orbit.trapped_dose, orbit.total_dose)",
+    license: "SHIELDOSE-2 dose data bases (PROTBAS2, ELBRBAS2), S. M. Seltzer, NIST, NISTIR 5477 (1994); values extracted unchanged from the IRBEM library (github.com/PRBEM/IRBEM, prot_and_elbr_bas2.f, LGPL-3.0-or-later), including its 2013 correction of the bremsstrahlung tables",
+    installer: install_shieldose2,
 });

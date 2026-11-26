@@ -21,6 +21,7 @@ fn leg(phase: &str, years: Option<f64>, table: Option<Vec<DoseDepthPoint>>) -> D
         phase: Some(phase.to_owned()),
         duration: years.map(|y| Qty::from_raw(y * YEAR)),
         environment: table,
+        environment_source: None,
     }
 }
 
@@ -213,4 +214,64 @@ fn a_dose_over_the_tolerance_is_a_violation() {
     // 15 / (10 × 2) − 1 = −0.25
     close(o.parts[0].margin.unwrap().value(), -0.25);
     assert_eq!(o.parts[0].verdict, Some(Verdict::Violation));
+}
+
+/// 環境の表の出どころ: 無指定は利用者の表、計算した表なら `ComputedTrapped` が出力と警告の判定に出る。表の無い区間は `None`。
+#[test]
+fn environment_source_is_reported_per_leg_and_computed_tables_are_flagged() {
+    let table = vec![
+        DoseDepthPoint {
+            shielding: Qty::from_raw(1.0e-3),
+            rate: Qty::from_raw(1.0e-6),
+        },
+        DoseDepthPoint {
+            shielding: Qty::from_raw(5.0e-3),
+            rate: Qty::from_raw(1.0e-7),
+        },
+    ];
+    let mut computed = leg("transfer", Some(1.0), Some(table.clone()));
+    computed.environment_source = Some(EnvironmentSource::ComputedTrapped);
+    let legs = vec![
+        leg("user", Some(1.0), Some(table)),
+        computed,
+        leg("none", Some(1.0), None),
+    ];
+    let out = TotalDose::run(&input(legs, vec![part("a", Some(2.0), Some(100.0))])).expect("run");
+    let sources: Vec<_> = out.legs.iter().map(|l| l.environment_source).collect();
+    assert_eq!(
+        sources,
+        [
+            Some(EnvironmentSource::UserTable),
+            Some(EnvironmentSource::ComputedTrapped),
+            None
+        ]
+    );
+    let check = out
+        .checks
+        .iter()
+        .find(|c| c.key == "environment_source")
+        .expect("check");
+    assert!(
+        check.message.contains("transfer") && !check.message.contains("(user"),
+        "{}",
+        check.message
+    );
+    assert!(check.message.contains("no solar energetic protons"));
+    // 利用者の表だけなら、この判定は出ない
+    let table = vec![
+        DoseDepthPoint {
+            shielding: Qty::from_raw(1.0e-3),
+            rate: Qty::from_raw(1.0e-6),
+        },
+        DoseDepthPoint {
+            shielding: Qty::from_raw(5.0e-3),
+            rate: Qty::from_raw(1.0e-7),
+        },
+    ];
+    let out = TotalDose::run(&input(
+        vec![leg("u", Some(1.0), Some(table))],
+        vec![part("a", Some(2.0), None)],
+    ))
+    .expect("run");
+    assert!(out.checks.iter().all(|c| c.key != "environment_source"));
 }

@@ -1,6 +1,6 @@
 //! `orbit.total_dose` の判定（部品ごとの余裕・評価できなかった部品・総線量から除いた区間）。
 
-use super::{DoseLeg, DoseLegStatus, DoseNotEvaluated, DosePart};
+use super::{DoseLeg, DoseLegStatus, DoseNotEvaluated, DosePart, EnvironmentSource};
 use crate::spec::{Check, Verdict, quantity_text};
 use sat_units::typed::{AbsorbedDoseKind, Dimensionless, Length};
 
@@ -45,6 +45,7 @@ pub(super) fn checks(parts: &[DosePart], legs: &[DoseLeg], rdm: f64) -> Vec<Chec
             _ => {}
         }
     }
+    out.extend(computed_environment_check(legs));
     let skipped: Vec<&str> = legs
         .iter()
         .filter(|l| l.status != DoseLegStatus::Evaluated)
@@ -62,4 +63,28 @@ pub(super) fn checks(parts: &[DosePart], legs: &[DoseLeg], rdm: f64) -> Vec<Chec
         ));
     }
     out
+}
+
+/// 計算した環境の表（捕捉粒子だけ）を使った区間があれば、その警告（無ければ空）。
+fn computed_environment_check(legs: &[DoseLeg]) -> Option<Check> {
+    let computed: Vec<&str> = legs
+        .iter()
+        .filter(|l| {
+            l.status == DoseLegStatus::Evaluated
+                && l.environment_source == Some(EnvironmentSource::ComputedTrapped)
+        })
+        .map(|l| l.phase.as_deref().unwrap_or("(design orbit)"))
+        .collect();
+    if computed.is_empty() {
+        return None;
+    }
+    Some(Check::new(
+        "environment_source",
+        "Environment of the total",
+        Verdict::Warning,
+        format!(
+            "The environment of {} is computed from the AP-8/AE-8 trapped-particle models only (no solar energetic protons, no galactic cosmic rays), so the totals are lower bounds; give dose_rate_by_shielding to use your own table",
+            computed.join(", ")
+        ),
+    ))
 }

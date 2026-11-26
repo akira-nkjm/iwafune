@@ -4,6 +4,7 @@ pub mod eclipse_season;
 pub mod geometry;
 pub mod sun_distance;
 pub mod total_dose;
+pub mod trapped_dose;
 pub mod trapped_flux;
 pub use decay::{OrbitDecay, OrbitDecayInput, OrbitDecayOutput};
 pub use eclipse_season::{
@@ -20,7 +21,12 @@ pub use sun_distance::{
 pub use total_dose::{
     DEFAULT_DESIGN_MARGIN, DesignMarginSource, DoseDepthPoint, DoseInterpolation, DoseLeg,
     DoseLegInput, DoseLegStatus, DoseNotEvaluated, DosePart, DosePartInput, DosePhase, DoseWorst,
-    ShieldingSource, TotalDose, TotalDoseInput, TotalDoseOutput,
+    EnvironmentSource, ShieldingSource, TotalDose, TotalDoseInput, TotalDoseOutput,
+};
+pub use trapped_dose::{
+    DEFAULT_THICKNESSES_MM, DoseGeometry, DoseSettingSource, NuclearAttenuation, TrappedDose,
+    TrappedDoseCase, TrappedDoseInput, TrappedDoseOutput, TrappedDosePoint,
+    TrappedDoseSpectrumUsed, TrappedDoseUsed, compute as trapped_dose_with,
 };
 pub use trapped_flux::{
     TrappedFlux, TrappedFluxCase, TrappedFluxInput, TrappedFluxOutput, TrappedFluxPoint,
