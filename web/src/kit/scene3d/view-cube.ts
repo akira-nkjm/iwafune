@@ -5,11 +5,11 @@ import type { V3 } from "./types";
  * ビューキューブの 26 の向きの表（単一の置き場）と、押したときのカメラの姿勢の計算。three の数学だけで書き、DOM と描画には触れない。
  *
  * 向き `direction` は「注視点からカメラへ向かう」単位ベクトル（面 = その軸、辺 = 2 つの面の法線の和、角 = 3 つの面の法線の和を正規化）。
- * 上の向き `up` の約束（押したあとは傾きのない、まっすぐな画面になる）:
+ * 上の向き `up` の約束（区画ごとの基準の向き。傾きのない、まっすぐな画面になる）:
  * - 側面（PX・MX・PY・MY）とその辺（Z を含まない辺）、および Z を含む辺・PZ 側の角は、+Z を視線に垂直な面へ射影した向きを上にする（水平線が水平になる）
  * - MZ 側の角は −Z を射影した向きを上にする。角から出る 3 本の辺が Y 字（Z の辺が画面の下へ伸び、角の Z の面が上）に見える
- * - 角を押したときは、Y 字に見える 3 つの向き（表の上の向きと、視線まわりに ±120° 回した向き）のうち、今の向きにいちばん近いものへ動く
- *   （`poseForView`。Z が上とは限らない。動きを小さくする）
+ * - 押したときは、基準の向きを視線まわりに 1 刻みずつ回した向き（面と辺は 90° ごとの 4 つ、角は Y 字に見える 120° ごとの 3 つ）のうち、
+ *   今の向きにいちばん近いものへ動く（`poseForView`。Z が上とは限らない。動きを小さくする。どれもまっすぐな画面）
  * - PZ（真上から見下ろす）と MZ（真下から見上げる）は +Z が視線と平行で射影できないので、どちらも +Y を上にする
  *   （PZ の面から PY 側の辺へ傾けた向きと、MZ の面から MY 側の辺へ傾けた向きに連続する）
  */
@@ -102,23 +102,37 @@ export function lookQuaternion(direction: V3, up: V3): Quaternion {
 
 /** 角から見て Y 字のままになる、視線まわりの回転の角 [rad]（辺が 3 本なので 120° ごと） */
 const CORNER_TURN = (2 * Math.PI) / 3;
+/** 面・辺から見てまっすぐなままになる、視線まわりの回転の角 [rad] */
+const SQUARE_TURN = Math.PI / 2;
+
+/** 区画を見る向きのまま、画面がまっすぐに見える姿勢のすべて（基準の向きが先頭。面と辺は 4 つ、角は 3 つ） */
+export function uprightQuaternions(view: CubeView): Quaternion[] {
+  const base = lookQuaternion(view.direction, view.up);
+  const step = view.kind === "corner" ? CORNER_TURN : SQUARE_TURN;
+  const count = Math.round((2 * Math.PI) / step);
+  const axis = new Vector3(0, 0, 1);
+  return Array.from({ length: count }, (_, k) =>
+    base.clone().multiply(new Quaternion().setFromAxisAngle(axis, k * step)),
+  );
+}
 
 /**
  * 区画を押したときの到達の姿勢: 注視点と距離はそのまま、表の向きから注視点を見る。
- * 面と辺は表の上の向き。角は、Y 字に見える 3 つの向きのうち今の姿勢からの回転がいちばん小さいもの（同じなら表の上の向き）。
+ * 上の向きは、まっすぐに見える姿勢（`uprightQuaternions`）のうち今の姿勢からの回転がいちばん小さいもの（同じなら基準の向き）。
  */
 export function poseForView(view: CubeView, from: CameraPose): CameraPose {
-  const base = lookQuaternion(view.direction, view.up);
-  let quaternion = base;
-  if (view.kind === "corner") {
-    const roll = new Vector3(0, 0, 1);
-    for (const k of [1, -1]) {
-      const q = base.clone().multiply(new Quaternion().setFromAxisAngle(roll, k * CORNER_TURN));
-      // 差が角の計算の分解能（1e-8 程度）より大きいときだけ乗り換える
-      if (q.angleTo(from.quaternion) < quaternion.angleTo(from.quaternion) - 1e-6) quaternion = q;
+  let quaternion: Quaternion | null = null;
+  for (const q of uprightQuaternions(view)) {
+    // 差が角の計算の分解能（1e-8 程度）より大きいときだけ乗り換える
+    if (!quaternion || q.angleTo(from.quaternion) < quaternion.angleTo(from.quaternion) - 1e-6) {
+      quaternion = q;
     }
   }
-  return { target: from.target.clone(), quaternion, distance: from.distance };
+  return {
+    target: from.target.clone(),
+    quaternion: quaternion ?? lookQuaternion(view.direction, view.up),
+    distance: from.distance,
+  };
 }
 
 /**
