@@ -2,6 +2,6 @@
 import type { ForceConfig } from "./ForceConfig";
 
 /**
- * 伝搬の方法。
+ * 伝播の方法。
  */
 export type Propagator = { "method": "kepler" } | { "method": "j2" } | { "method": "numerical", forces: ForceConfig, };

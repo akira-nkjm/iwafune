@@ -1,4 +1,4 @@
-//! 季節解析の代表標本からケースを作る共通入口。永続化は既存の SetCase / apply。
+//! 季節解析の代表サンプルからケースを作る共通入口。永続化は既存の SetCase / apply。
 use crate::Workspace;
 use crate::dto::CaseFromEclipseRequest;
 use crate::error::{Result, ServiceError};

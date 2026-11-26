@@ -1,5 +1,5 @@
 //! 地球から、他の天体（月・惑星・太陽）を回る衛星までの距離の範囲と、太陽–地球–探査機の角（SEP）の最小。
-//! 距離と角は地心から（`timeline::geometry` の標本。中心天体の地心位置は [`crate::ephem`]、衛星は中心天体からの相対位置）。
+//! 距離と角は地心から（`timeline::geometry` のサンプル。中心天体の地心位置は [`crate::ephem`]、衛星は中心天体からの相対位置）。
 //! 地上局までではなく地心までとみなす（地球の半径 6378 km の差。月で 1.7 %、火星以遠で 0.01 % 以下）。
 
 use crate::AstroError;
@@ -11,7 +11,7 @@ use crate::timeline::geometry::{
 };
 use crate::timeline::sample_times;
 
-/// 距離の最小・最大と、その時刻（標本の刻みで見つけた値）。あわせて SEP の最小と、SEP がしきい値を下回る時間。
+/// 距離の最小・最大と、その時刻（サンプルの刻みで見つけた値）。あわせて SEP の最小と、SEP がしきい値を下回る時間。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct EarthRange {
     /// 最小の距離 [m]
@@ -22,11 +22,11 @@ pub struct EarthRange {
     pub max_m: f64,
     /// 最大の距離になった時刻
     pub max_epoch: Epoch,
-    /// 太陽–地球–探査機の角（SEP）の最小 [rad]（標本の前後を詰めた値。合に最も近い）
+    /// 太陽–地球–探査機の角（SEP）の最小 [rad]（サンプルの前後を詰めた値。合に最も近い）
     pub sep_min_rad: f64,
     /// SEP が最小になった時刻
     pub sep_min_epoch: Epoch,
-    /// SEP がしきい値を下回っていた時間 [s]（標本の間は直線で結ぶ。`time_below_s`）
+    /// SEP がしきい値を下回っていた時間 [s]（サンプルの間は直線で結ぶ。`time_below_s`）
     pub sep_below_s: f64,
 }
 
@@ -47,8 +47,8 @@ pub fn earth_range(
 /// 軌道 `orbit` の中心天体が地球でも同じ式で求まる（地心距離そのもの）。刻みの間の極値は拾わないので、
 /// 刻みは中心天体を回る軌道の周期より十分細かくする（衛星の周回による変動は中心天体の軌道半径以下）。
 /// 距離と角は `geometry_at`（`timeline::geometry`。**距離・角度を出すのはそこだけ**）、距離の最小・最大の選び方は
-/// [`extreme_indices`]（同値は最初の標本）、SEP の最小は `refined_extremes`。
-/// 弧の連鎖の軌道（スイングバイのある巡航）は、境の時刻も標本に加える（`times_with_breaks`。境の無い軌道の標本は変わらない）。
+/// [`extreme_indices`]（同値は最初のサンプル）、SEP の最小は `refined_extremes`。
+/// 弧の連鎖の軌道（スイングバイのある巡航）は、境の時刻もサンプルに加える（`times_with_breaks`。境の無い軌道のサンプルは変わらない）。
 pub fn earth_range_with_sep(
     orbit: &Trajectory,
     start: Epoch,
@@ -56,7 +56,7 @@ pub fn earth_range_with_sep(
     step_s: f64,
     sep_threshold_rad: f64,
 ) -> Result<EarthRange, AstroError> {
-    // 弧の連鎖の境（スイングバイの日）は標本に加える（距離の最小・最大が境にあっても取りこぼさない。境の無い軌道は変わらない）
+    // 弧の連鎖の境（スイングバイの日）はサンプルに加える（距離の最小・最大が境にあっても取りこぼさない。境の無い軌道は変わらない）
     let times = times_with_breaks(
         &sample_times(span_s, step_s)?,
         &breakpoints_from(orbit, start),

@@ -1,4 +1,4 @@
-//! 開始の選び方（指定の開始・許された範囲でずらす・指定なし）を、標本の格子の上で手計算と比べる。
+//! 開始の選び方（指定の開始・許された範囲でずらす・指定なし）を、サンプルの格子の上で手計算と比べる。
 
 use super::*;
 
@@ -6,7 +6,7 @@ const DT: f64 = 10.0;
 const PERIOD: f64 = 600.0;
 
 /// 刻み 10 s・3000 s、周期 600 s。周期の中の 0〜400 s が日照・400〜600 s が日陰。
-/// 食明けは 600・1200・1800・2400・3000 s、食入りは 400・1000・1600・2200・2800 s。
+/// 蝕明けは 600・1200・1800・2400・3000 s、蝕入りは 400・1000・1600・2200・2800 s。
 fn grid() -> (Vec<f64>, Vec<bool>) {
     let t: Vec<f64> = (0..=300).map(|k| f64::from(k) * DT).collect();
     let lit = t.iter().map(|x| x.rem_euclid(PERIOD) < 400.0).collect();
@@ -57,7 +57,7 @@ fn start_samples_cover_one_orbit_before_the_recovery_orbit() {
 #[test]
 fn a_fixed_start_is_evaluated_only_there() {
     let (t, lit) = grid();
-    // 食明け 1800 s + 50 s → 1850 s（1700〜2300 s に入る食明けはこの 1 つだけ）
+    // 蝕明け 1800 s + 50 s → 1850 s（1700〜2300 s に入る蝕明けはこの 1 つだけ）
     let s = select_starts(
         &t,
         &lit,
@@ -68,7 +68,7 @@ fn a_fixed_start_is_evaluated_only_there() {
     assert_eq!(s.timing, DurationTiming::Fixed);
     assert_eq!(s.starts.iter().map(|&k| t[k]).collect::<Vec<_>>(), [1850.0]);
     assert_eq!(s.note, None);
-    // 食入り 2200 s、オフセット 0
+    // 蝕入り 2200 s、オフセット 0
     let s = select_starts(
         &t,
         &lit,
@@ -77,7 +77,7 @@ fn a_fixed_start_is_evaluated_only_there() {
         &timing(TimeWindow::Any, Some(at(EclipseEvent::EclipseEntry, 0.0))),
     );
     assert_eq!(s.starts.iter().map(|&k| t[k]).collect::<Vec<_>>(), [2200.0]);
-    // 負のオフセット: 1800 − 100 = 1700 s（ずらす 1 周の最初の標本）
+    // 負のオフセット: 1800 − 100 = 1700 s（ずらす 1 周の最初のサンプル）
     let s = select_starts(
         &t,
         &lit,
@@ -135,7 +135,7 @@ fn unsatisfiable_timing_falls_back_to_the_search_with_a_reason() {
             .unwrap()
             .contains("does not fit in any sunlit window")
     );
-    // 食が無ければ食明けは決まらない
+    // 蝕が無ければ蝕明けは決まらない
     let all_lit = vec![true; t.len()];
     let s = select_starts(
         &t,
@@ -151,7 +151,7 @@ fn unsatisfiable_timing_falls_back_to_the_search_with_a_reason() {
 #[test]
 fn a_fixed_start_outside_the_window_is_flagged() {
     let (t, lit) = grid();
-    // 食明けは日照の始まりなので、日陰の窓（eclipse）とは合わない
+    // 蝕明けは日照の始まりなので、日陰の窓（eclipse）とは合わない
     let s = select_starts(
         &t,
         &lit,
@@ -175,12 +175,12 @@ fn a_fixed_start_outside_the_window_is_flagged() {
 fn the_sequence_origin_follows_the_first_event() {
     let (t, lit) = grid();
     assert_eq!(sequence_origin(&t, &lit, None), (0.0, None));
-    // 最初の食明け 600 s + 120 s
+    // 最初の蝕明け 600 s + 120 s
     let (o, note) = sequence_origin(&t, &lit, Some(&at(EclipseEvent::EclipseExit, 120.0)));
     assert_eq!((o, note), (720.0, None));
     let (o, _) = sequence_origin(&t, &lit, Some(&at(EclipseEvent::EclipseEntry, -30.0)));
     assert_eq!(o, 370.0);
-    // 食が無ければ解析の始めに戻して理由を返す
+    // 蝕が無ければ解析の始めに戻して理由を返す
     let (o, note) = sequence_origin(
         &t,
         &vec![true; t.len()],

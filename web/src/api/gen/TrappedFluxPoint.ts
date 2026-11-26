@@ -13,7 +13,7 @@ energy_mev: number,
  */
 mean_flux: number, 
 /**
- * 標本の中の最大のフラックス
+ * サンプルの中の最大のフラックス
  */
 peak_flux: number, 
 /**

@@ -24,6 +24,6 @@ origin: number,
 segments: Array<EnergyBalanceSegment>, 
 /**
  * 並びに沿って負荷と姿勢則を切り替えた収支（`id` は `sequence`）。
- * `load_sunlit`・`load_eclipse` は日照中・日陰中の標本の平均、判定は並びに沿って回したときのもの
+ * `load_sunlit`・`load_eclipse` は日照中・日陰中のサンプルの平均、判定は並びに沿って回したときのもの
  */
 balance: EnergyBalanceCaseResult, };

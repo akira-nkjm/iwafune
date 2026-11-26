@@ -6,7 +6,7 @@ import type { DecayWeatherOrigins } from "./DecayWeatherOrigins";
  */
 export type DecayWeatherSummary = { 
 /**
- * 標本の数
+ * サンプルの数
  */
 samples: number, 
 /**

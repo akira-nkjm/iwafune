@@ -54,7 +54,7 @@ pub fn timeline_over(
     Some(TimelineSpec::from_sampling(sampling, law?))
 }
 
-/// 期間の取り方 `span` の標本の取り方（β はケースの指定）。姿勢則の要らない集計（地磁気の平均）に使う。
+/// 期間の取り方 `span` のサンプルの取り方（β はケースの指定）。姿勢則の要らない集計（地磁気の平均）に使う。
 pub fn sampling_of(
     ctx: &Context<'_>,
     span: SamplingSpan,
@@ -64,13 +64,13 @@ pub fn sampling_of(
     Some(with_case_beta(ctx, sampling(orbit, span), m))
 }
 
-/// 1 日分の標本の取り方（地上局の可視・送信量。β はケースの指定）。
+/// 1 日分のサンプルの取り方（地上局の可視・送信量。β はケースの指定）。
 pub fn day_sampling(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<OrbitSampling> {
     let orbit = ctx.case_trajectory(m)?;
     Some(with_case_beta(ctx, daily_sampling(orbit), m))
 }
 
-/// 標本の取り方にケースの β を当てる。
+/// サンプルの取り方にケースの β を当てる。
 fn with_case_beta(ctx: &Context<'_>, mut s: OrbitSampling, m: &mut MissingInputs) -> OrbitSampling {
     s.beta = case_beta(ctx, m);
     s

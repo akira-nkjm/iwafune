@@ -7,6 +7,6 @@ import type { OrbitSampling } from "./OrbitSampling";
  */
 export type VisibilityInput = { 
 /**
- * 軌道・期間・探索の刻み（AOS・LOS は二分法で詰める）・β（時系列と同じ標本の取り方。開始は軌道の元期）
+ * 軌道・期間・探索の刻み（AOS・LOS は二分法で詰める）・β（時系列と同じサンプルの取り方。開始は軌道の元期）
  */
 sampling: OrbitSampling, stations: Array<GroundStation>, };

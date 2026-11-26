@@ -20,7 +20,7 @@ pub(super) fn plate_detail(
             .map(|n| (n.node.as_str(), f(n)))
             .collect(),
     };
-    // 終わりの温度は節点の温度の系列の最後の標本（系列の key は節点の ID）
+    // 終わりの温度は節点の温度の系列の最後のサンプル（系列の key は節点の ID）
     let end = PlateFieldSource {
         quantity: ThermalPlateQuantity::End,
         case: None,

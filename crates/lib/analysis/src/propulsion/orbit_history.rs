@@ -1,6 +1,6 @@
-//! マヌーバの順の軌道の推移（`propulsion.orbit_history`）。数値伝搬のマヌーバは推力を入れて伝搬した軌道の時系列。
+//! マヌーバの順の軌道の推移（`propulsion.orbit_history`）。数値伝播のマヌーバは推力を入れて伝播した軌道の時系列。
 //!
-//! 推移の作り方は `history`（時刻と軌道の決め方）と `flight`（伝搬）。ここは公称の列（マージンなし）の推移を
+//! 推移の作り方は `history`（時刻と軌道の決め方）と `flight`（伝播）。ここは公称の列（マージンなし）の推移を
 //! 時系列（区間の始めごとの高度・傾斜角・質量）にして出す。
 
 use super::history::OrbitHistory;
@@ -19,7 +19,7 @@ pub struct OrbitHistoryOutput {
     pub history: OrbitHistory,
     /// 最後のマヌーバが終わる時刻（最初の軌道の元期からの経過）
     pub maneuvers_end: Qty<Time>,
-    /// 数値伝搬したマヌーバ（実行の順）
+    /// 数値伝播したマヌーバ（実行の順）
     pub propagated: Vec<String>,
     /// 時系列（区間の始めごと）: `altitude`（平均の長半径 − 赤道半径）・`inclination`・`mass`（推薬を求めたときだけ）
     pub series: Series,
@@ -39,7 +39,7 @@ impl Analysis for OrbitHistoryAnalysis {
     const TITLE_EN: &'static str = "Orbit history";
     const AREA: AnalysisArea = AnalysisArea::System(System::Propulsion);
     const KIND: AnalysisKind = AnalysisKind::TimeSeries;
-    const DESCRIPTION: &'static str = "マヌーバの順に、いつどの軌道にいるか（数値伝搬のマヌーバは推力を入れた伝搬の高度・傾斜角・質量）";
+    const DESCRIPTION: &'static str = "マヌーバの順に、いつどの軌道にいるか（数値伝播のマヌーバは推力を入れた伝播の高度・傾斜角・質量）";
     const DESCRIPTION_EN: &'static str = "Which orbit the spacecraft is on over time, maneuver by maneuver (altitude, inclination and mass from the thrust propagation for propagated maneuvers)";
 
     type Input = PropulsionInput;

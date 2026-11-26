@@ -7,7 +7,7 @@
 //! - ケースは既定で解析期間ずっと続けたとして評価する（[`case`]）。
 //! - 最長継続時間を持つモードのケースは、基本のモードの上でその時間だけ続けたときの最悪で判定し直す（[`duration`]）。
 //! - 最長継続時間の評価の開始は、モードの使う時間帯（`when`）・開始の基準（`start`）に従って選ぶ（[`timing`]。指定が無ければ周回内の最悪）。
-//! - モードの並びがあれば、並びに沿って負荷と姿勢則を切り替えた収支を別に出す（[`sequence`]。並びの先頭は食の出入りに合わせられる）。
+//! - モードの並びがあれば、並びに沿って負荷と姿勢則を切り替えた収支を別に出す（[`sequence`]。並びの先頭は蝕の出入りに合わせられる）。
 //! - 発電に倍率をかけて同じ運用を繰り返し評価する入口（[`ScaledBalance`]）を `power.sizing` の時系列の逆算が使う。
 //! - duty（状態の時間割合）はどれも平均の消費電力として一定にかける（周回内の時間分布は扱わない。結果の `duty` に書く）。
 
@@ -45,7 +45,7 @@ pub struct EnergyBalanceInput {
     /// モードの並び（1 周期分。繰り返して解析期間を覆う）。空なら並びの収支を出さない
     #[serde(default)]
     pub sequence: Vec<EnergyBalanceSegment>,
-    /// 並びの名前と、日照・食に対する先頭の位置（[`timing`]）。省略時は無名で、解析の始めから数える
+    /// 並びの名前と、日照・蝕に対する先頭の位置（[`timing`]）。省略時は無名で、解析の始めから数える
     #[serde(default)]
     pub sequence_timing: SequenceTiming,
     /// 最長継続時間の評価で下に敷く基本のモード。省略時は並びの最初の区間のモード（並びも無ければ連続で評価する）
@@ -141,7 +141,7 @@ pub struct EnergyBalanceOutput {
     pub eclipses: Vec<sat_astro::timeline::Window>,
     /// 時系列（`timeline.attitude` の姿勢則）: `generation`・`sunlit`
     pub series: Series,
-    /// パネルの面の日照割合（ほかの部品の影を引いた割合）の、日照中の標本での最小と平均（`timeline.attitude` の姿勢則）。影を数えたときだけ付く
+    /// パネルの面の日照割合（ほかの部品の影を引いた割合）の、日照中のサンプルでの最小と平均（`timeline.attitude` の姿勢則）。影を数えたときだけ付く
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shadowing: Option<crate::structure::external_geometry::ShadowingReport>,
     /// モードごとのケース。`max_dod` などの欄は解析期間ずっと続けたときの値、判定は `evaluation` の運用で

@@ -1,4 +1,4 @@
-//! 書ける設定が解析に効くか、効かないことが検査で分かること（#162）: 伝搬の種類の写し替えと、使わない設定の警告。
+//! 書ける設定が解析に効くか、効かないことが検査で分かること（#162）: 伝播の種類の写し替えと、使わない設定の警告。
 
 use fune_model::Severity;
 use fune_model::design::{PropagatorKind, UncertaintySide};
@@ -24,7 +24,7 @@ fn propagator_of(kind: PropagatorKind) -> Propagator {
         .propagator
 }
 
-/// kepler と j2 は書いたとおりに伝搬する。numerical は解析に使わず J2 になる（使わないことは check が知らせる）。
+/// kepler と j2 は書いたとおりに伝播する。numerical は解析に使わず J2 になる（使わないことは check が知らせる）。
 #[test]
 fn propagator_kinds_map_to_the_astro_propagator() {
     assert_eq!(propagator_of(PropagatorKind::Kepler), Propagator::Kepler);

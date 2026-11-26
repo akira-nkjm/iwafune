@@ -3,6 +3,6 @@ import type { Quantity } from "./Quantity";
 import type { StartFrom } from "./StartFrom";
 
 /**
- * 食の出入りからの開始の指定（基準の時刻 + `offset`。負なら前。省略は 0）。
+ * 蝕の出入りからの開始の指定（基準の時刻 + `offset`。負なら前。省略は 0）。
  */
 export type StartRef = { from: StartFrom, offset?: Quantity | null, };

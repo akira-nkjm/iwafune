@@ -81,7 +81,7 @@ pub(super) fn duty_of<'a>(
     }
 }
 
-/// 日照中の標本は `sun`、日陰中は `ecl` の負荷の列。
+/// 日照中のサンプルは `sun`、日陰中は `ecl` の負荷の列。
 pub(super) fn lit_load(lit: &[bool], sun: Qty<Power>, ecl: Qty<Power>) -> Vec<f64> {
     lit.iter()
         .map(|&f| if f { sun.value() } else { ecl.value() })
@@ -217,7 +217,7 @@ fn orbit_summaries(
             };
             let seg = orbit_segment(r, soc.len());
             let (start, end) = (*seg.start(), *seg.end());
-            // 標本の区間の長さを周期ちょうどに揃える
+            // サンプルの区間の長さを周期ちょうどに揃える
             let covered = ctx.profile.t[end] - ctx.profile.t[start];
             let scale = if covered > 0.0 {
                 ctx.period_s() / covered

@@ -3,30 +3,30 @@ import type { EclipseSeasonPoint } from "./EclipseSeasonPoint";
 import type { Series } from "./Series";
 
 /**
- * 季節解析の出力。極値の同値は最初の標本を選ぶ。判定・違反は付けない。
+ * 季節解析の出力。極値の同値は最初のサンプルを選ぶ。判定・違反は付けない。
  */
 export type EclipseSeasonOutput = { points: Array<EclipseSeasonPoint>, 
 /**
- * 本影と半影の合計が最大の標本。
+ * 本影と半影の合計が最大のサンプル。
  */
 longest: EclipseSeasonPoint, max_eclipse_duration: number, beta_min: EclipseSeasonPoint, beta_max: EclipseSeasonPoint, 
 /**
- * 蝕が無いと判定した標本の数（端数の最終標本も含む。日数ではない）。
+ * 蝕が無いと判定したサンプルの数（端数の最終サンプルも含む。日数ではない）。
  */
 eclipse_free_samples: number, 
 /**
- * 季節の標本の蝕なしフラグを台形則で積算した期間（推定）。
+ * 季節のサンプルの蝕なしフラグを台形則で積算した期間（推定）。
  */
 eclipse_free_duration: number, step: number, 
 /**
- * 1 周内の影の標本間隔（入力の軌道の周期から。マヌーバで周期が変わる標本日はその軌道の周期から）
+ * 1 周内の影のサンプル間隔（入力の軌道の周期から。マヌーバで周期が変わるサンプル日はその軌道の周期から）
  */
 shadow_step: number, 
 /**
- * 1 周中の太陽位置を標本日の位置に固定する近似。
+ * 1 周中の太陽位置をサンプル日の位置に固定する近似。
  */
 fixed_sun_per_orbit: boolean, 
 /**
- * 標本日の軌道を変えたマヌーバ（実行の順。マヌーバの推移を使わなければ空）
+ * サンプル日の軌道を変えたマヌーバ（実行の順。マヌーバの推移を使わなければ空）
  */
 maneuvers?: Array<string>, series: Series, };

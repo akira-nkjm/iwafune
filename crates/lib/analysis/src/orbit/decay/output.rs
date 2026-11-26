@@ -42,7 +42,7 @@ pub struct DecayUsed {
     pub thruster: Option<String>,
     /// 使える推薬をすべて使ったときの ΔV（ロケット方程式。`propellant` が無ければ `None`）
     pub propulsion_delta_v: Option<Qty<Velocity>>,
-    /// 1 周の標本の数
+    /// 1 周のサンプルの数
     pub orbit_samples: u32,
     /// 積分の刻みの上限
     pub max_step: Qty<Time>,

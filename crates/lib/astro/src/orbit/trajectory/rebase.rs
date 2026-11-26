@@ -1,10 +1,10 @@
 //! 軌道の始めの時刻の付け替え（解析ケースの `epoch`）。**「軌道のこの時刻から始める」を作るのはここだけ**。
 //!
 //! 付け替えた軌道は、元の軌道の `start` 以降と同じ軌道（同じ状態の列）を、`start` を元期として表したもの。
-//! 要素の軌道は要素を `start` まで進め（Kepler・J2 は永年変化、数値伝搬は接触要素）、状態ベクトルの軌道は `start` での状態を元期の状態にし、
+//! 要素の軌道は要素を `start` まで進め（Kepler・J2 は永年変化、数値伝播は接触要素）、状態ベクトルの軌道は `start` での状態を元期の状態にし、
 //! 回転座標系の軌跡は、元期を付け替えて表の位相を持たせる（同じ軌跡）。1 回限りの期間を持つ軌道は期間を残りの長さにする（期間の外は付け替えられない）。
-//! 弧の連鎖は、始めの時刻を含む弧の残りと、それより後の弧になる（境ちょうどは後の弧。`chain.rs`）。付け替えは伝搬を足さない
-//! （要素の軌道は解析式で進め、状態ベクトルの軌道は既存の数値伝搬で `start` まで 1 回進める）。
+//! 弧の連鎖は、始めの時刻を含む弧の残りと、それより後の弧になる（境ちょうどは後の弧。`chain.rs`）。付け替えは伝播を足さない
+//! （要素の軌道は解析式で進め、状態ベクトルの軌道は既存の数値伝播で `start` まで 1 回進める）。
 
 use super::{OrbitSpec, Trajectory};
 use crate::AstroError;
@@ -13,7 +13,7 @@ use crate::time::Epoch;
 use sat_units::typed::Qty;
 
 impl OrbitSpec {
-    /// `start` を元期にした同じ軌道。要素は `start` での値（Kepler・J2 は永年変化を進めた平均要素、数値伝搬は接触要素）。
+    /// `start` を元期にした同じ軌道。要素は `start` での値（Kepler・J2 は永年変化を進めた平均要素、数値伝播は接触要素）。
     /// `start` は元期より前でもよい（要素を遡らせる）。
     pub fn rebased_at(&self, start: Epoch) -> Result<OrbitSpec, AstroError> {
         let dt = start.seconds_since(self.epoch);
@@ -130,7 +130,7 @@ mod tests {
         assert!((a.r_eci - b.r_eci).norm() < tol_m, "{a:?} {b:?}");
     }
 
-    /// 付け替えた軌道の `t` 秒後は、元の軌道の `dt + t` 秒後と同じ（Kepler・J2 は解析式なので桁落ちの範囲、数値伝搬は積分の許容の範囲）。
+    /// 付け替えた軌道の `t` 秒後は、元の軌道の `dt + t` 秒後と同じ（Kepler・J2 は解析式なので桁落ちの範囲、数値伝播は積分の許容の範囲）。
     #[test]
     fn rebased_elements_continue_the_same_orbit() {
         let numerical = Propagator::Numerical {

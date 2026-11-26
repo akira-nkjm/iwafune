@@ -19,7 +19,7 @@ import { localized, useT } from "@/i18n";
 import { toneAt, toneVar } from "@/lib/tone";
 import { NumText, numText } from "@/quantity/chart";
 
-/** 標本を表示だけ間引く。表示値は API の display_scale を掛ける。 */
+/** サンプルを表示だけ間引く。表示値は API の display_scale を掛ける。 */
 /** 同じグラフの線すべての絶対値の最大（表示単位）。ツールチップで丸めの残り（10⁻¹⁶ など）を 0 と出すのに使う */
 function peakOf(channels: readonly Channel[]): number {
   return channels.reduce(

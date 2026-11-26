@@ -35,7 +35,7 @@ load_growth: LoadGrowth | null, cases: Array<EnergyBalanceCase>,
  */
 sequence: Array<EnergyBalanceSegment>, 
 /**
- * 並びの名前と、日照・食に対する先頭の位置（[`timing`]）。省略時は無名で、解析の始めから数える
+ * 並びの名前と、日照・蝕に対する先頭の位置（[`timing`]）。省略時は無名で、解析の始めから数える
  */
 sequence_timing: SequenceTiming, 
 /**

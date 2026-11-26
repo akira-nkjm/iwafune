@@ -30,7 +30,7 @@ pub fn solar_flux_or_nominal_w_m2(sun_distance_m: Option<f64>) -> f64 {
 /// `r_eci_m` は中心天体の中心から衛星への位置 [m]（同じ座標系）。
 ///
 /// 球に対する傾いた平板の形態係数（Lambert 面、片面）。天体の見込み半角を λ（sin λ = R/r）、
-/// 法線と天底のなす角を θ とすると:
+/// 法線とナディアのなす角を θ とすると:
 /// - θ ≤ π/2 − λ（天体全体が面の前にある）: F = cos θ · sin² λ
 /// - θ ≥ π/2 + λ（天体が面の裏）: F = 0
 /// - その間（地平線が面を横切る）: 部分的に見える場合の厳密式（Howell, View Factor Catalog C-9）
@@ -40,7 +40,7 @@ pub fn body_view_factor(normal_eci: Vec3, r_eci_m: Vec3, body_radius_m: f64) -> 
         return 0.0;
     };
     if r <= body_radius_m {
-        // 地表以下: 天底を向く面は天体で覆われる。
+        // 地表以下: ナディアを向く面は天体で覆われる。
         return n.dot(nadir).max(0.0);
     }
     let h = r / body_radius_m; // H = r/R
@@ -98,14 +98,14 @@ mod tests {
     fn non_positive_distance_falls_back_to_one_au_value() {
         assert_eq!(solar_flux_w_m2(0.0), SOLAR_CONSTANT);
         assert_eq!(solar_flux_w_m2(-1.0), SOLAR_CONSTANT);
-        // 太陽が中心天体の軌道でも距離は軌道半径で正（太陽までの距離が 0 になる標本は無い）
+        // 太陽が中心天体の軌道でも距離は軌道半径で正（太陽までの距離が 0 になるサンプルは無い）
         let r = 3.0e10;
         assert!((solar_flux_w_m2(r) / SOLAR_CONSTANT - (AU / r).powi(2)).abs() < 1e-9);
     }
 
     #[test]
     fn nadir_facing_plate_at_550_km() {
-        // 天底向き: F = (R/r)²。550 km で ≈ 0.8526。
+        // ナディア向き: F = (R/r)²。550 km で ≈ 0.8526。
         let r = Vec3::new(R_EARTH + 550e3, 0.0, 0.0);
         let f = earth_view_factor(-Vec3::X, r);
         let expected = (R_EARTH / (R_EARTH + 550e3)).powi(2);
@@ -113,7 +113,7 @@ mod tests {
         assert_eq!(earth_view_factor(Vec3::X, r), 0.0);
     }
 
-    /// 月の 100 km の天底向き: F = (R/r)² = (1737.4/1837.4)² ≈ 0.894（半径だけが違う同じ式）。
+    /// 月の 100 km のナディア向き: F = (R/r)² = (1737.4/1837.4)² ≈ 0.894（半径だけが違う同じ式）。
     #[test]
     fn nadir_facing_plate_over_the_moon() {
         let r = Vec3::new(R_MOON + 100e3, 0.0, 0.0);

@@ -1,6 +1,6 @@
 //! 格子の点 1 つ（出発の日・到着の日の組）の評価。**遷移の解き方も ΔV の数え方も `propulsion.maneuvers` と同じ関数**:
 //! マヌーバの `transfer` にその 2 つの日付を入れて [`plan`]（→ `sat_astro::transfer::dated_transfer` と、
-//! 駐機軌道からの脱出・目標の軌道への捕獲の噴射）を呼ぶだけで、Lambert の設定も ΔV の式もここには無い。
+//! パーキング軌道からの脱出・目標の軌道への捕獲の噴射）を呼ぶだけで、Lambert の設定も ΔV の式もここには無い。
 
 use super::super::input::{DatedTransferInput, FlybyInput, ManeuverInput};
 use super::super::plan::{Ideal, Orbit, plan};
@@ -22,9 +22,9 @@ pub(super) struct CellValues {
     pub ephemeris: EphemerisSource,
     /// 通過の日（出発から到着の順。通過が無ければ空）
     pub flyby_dates: Vec<Epoch>,
-    /// どの通過も、下限の高度で回頭が実現できるか（通過が無ければ真）。偽の点は探索から除く
+    /// どの通過も、下限の高度で偏向が実現できるか（通過が無ければ真）。偽の点は探索から除く
     pub feasible: bool,
-    /// 探索の目安（[m/s]）: ΔV に、動力なしと書かれて ΔV に数えていない通過の「足りない回頭の分」を足したもの。
+    /// 探索の目安（[m/s]）: ΔV に、動力なしと書かれて ΔV に数えていない通過の「足りない偏向の分」を足したもの。
     /// 実現できない日付でも連続に増えるので、探索が実現できる範囲の縁を伝って下りられる（値として出すのは実現できる点だけ）
     pub guide_m_s: f64,
     /// 選ぶ基準（[m/s]）: ΔV に、動力なしと書かれた通過の数えていない近点の噴射（`uncounted_flyby_dv_m_s`）を足したもの。
@@ -151,7 +151,7 @@ fn uncounted_flyby_dv(d: &sat_astro::transfer::DatedTransfer, written: &[FlybyIn
         .sum()
 }
 
-/// 探索の目安: 選ぶ基準（ΔV + 動力なしの通過の数えていない近点の噴射）+ 動力なしの通過の足りない回頭の分（動力ありの通過は、その分が噴射に入っていて ΔV に数えている）。
+/// 探索の目安: 選ぶ基準（ΔV + 動力なしの通過の数えていない近点の噴射）+ 動力なしの通過の足りない偏向の分（動力ありの通過は、その分が噴射に入っていて ΔV に数えている）。
 fn guide(delta_v_m_s: f64, d: &sat_astro::transfer::DatedTransfer, written: &[FlybyInput]) -> f64 {
     let unpowered_shortfall: f64 = d
         .flybys
