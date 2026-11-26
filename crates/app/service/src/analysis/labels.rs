@@ -520,6 +520,8 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "WeatherSource" => parse(value).map(orbit::weather_source),
         "DragAreaSource" => parse(value).map(orbit::drag_area_source),
         "GeometrySpanBasis" => parse(value).map(orbit::geometry_span_basis),
+        "Species" => parse(value).map(orbit::species),
+        "SolarCondition" => parse(value).map(orbit::solar_condition),
         "DesignMarginSource" => parse(value).map(orbit::design_margin_source),
         "ShieldingSource" => parse(value).map(orbit::shielding_source),
         "DoseLegStatus" => parse(value).map(orbit::dose_leg_status),

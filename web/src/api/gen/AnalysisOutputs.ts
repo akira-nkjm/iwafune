@@ -26,6 +26,7 @@ import type { EclipseSeasonOutput } from "./EclipseSeasonOutput";
 import type { OrbitDecayOutput } from "./OrbitDecayOutput";
 import type { GeometryOutput } from "./GeometryOutput";
 import type { TotalDoseOutput } from "./TotalDoseOutput";
+import type { TrappedFluxOutput } from "./TrappedFluxOutput";
 import type { ManeuversOutput } from "./ManeuversOutput";
 import type { DvBudgetOutput } from "./DvBudgetOutput";
 import type { PropellantOutput } from "./PropellantOutput";
@@ -63,6 +64,7 @@ export type AnalysisOutputs = {
   "orbit.decay": OrbitDecayOutput;
   "orbit.geometry": GeometryOutput;
   "orbit.total_dose": TotalDoseOutput;
+  "orbit.trapped_flux": TrappedFluxOutput;
   "propulsion.maneuvers": ManeuversOutput;
   "propulsion.dv_budget": DvBudgetOutput;
   "propulsion.propellant": PropellantOutput;

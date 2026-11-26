@@ -10,6 +10,7 @@
 //! |---|---|
 //! | [`gauss`] | Gauss 係数 g・h（Schmidt 準正規化・年変化・基準半径）と磁束密度 B |
 //! | `gauss_text` | 係数の配布ファイル（文字列形式）の読み書き |
+//! | `legacy` | 古い場（Jensen & Cain 1960・GSFC 12/66）の係数ファイルと IGRF の配布ファイル（[`IgrfTable`]）から `GaussModel` を作る |
 //! | [`lshell`] | 磁力線を追った第 2 不変量 I から McIlwain の L と B/B₀ |
 //! | `dipole_f` | McIlwain の関数 F（中心双極子の積分から数値で求める） |
 
@@ -22,9 +23,11 @@ use crate::time::Epoch;
 mod dipole_f;
 pub mod gauss;
 mod gauss_text;
+mod legacy;
 pub mod lshell;
 
 pub use gauss::{FieldSnapshot, GaussModel, GaussTerm};
+pub use legacy::IgrfTable;
 pub use lshell::{LOptions, LShell, MomentConvention, NoL};
 
 /// 双極子モーメントの向き（ECEF の単位ベクトル。北磁極の反対向き）。
@@ -57,6 +60,11 @@ pub fn field_about_eci_t(central: CentralBody, r_rel_m: Vec3, epoch: Epoch) -> V
     }
 }
 
+/// IGRF・Jensen & Cain・GSFC 12/66 の Gauss 係数の基準半径 [m]（地球の平均半径 6371.2 km）。
+pub const REFERENCE_RADIUS_M: f64 = 6_371_200.0;
+
+#[cfg(test)]
+mod legacy_tests;
 #[cfg(test)]
 mod lshell_tests;
 #[cfg(test)]

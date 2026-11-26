@@ -16,6 +16,7 @@
 //! | [`shadow`] | 地球・月・惑星の影（円柱・円錐）。食の判定はこれだけ |
 //! | [`earth`] | ECI ⇄ ECEF、測地座標、歳差 |
 //! | [`geomag`] | 地磁気（傾斜双極子・Gauss 係数の球面調和モデル・McIlwain の L と B/B₀） |
+//! | [`radiation`] | 放射線帯（AP-8 の陽子・AE-8 の電子）の束縛粒子の地図の読み取りと積分フラックスの補間、地図が前提にする場の組、位置の (L, B/B₀)、読み込んだ地図の登録 |
 //! | [`atmosphere`] | 大気密度（指数大気・NRLMSISE-00）、宇宙天気（F10.7・Ap）の日ごとの表と太陽活動のプリセット |
 //! | [`ground`] | 地上局・見通し角・パスの検出・地上軌跡・斜距離（中心天体の半径） |
 //! | [`attitude`] | 姿勢則（太陽指向・地心指向・慣性固定）→ 機体姿勢 |
@@ -41,12 +42,16 @@ pub mod illumination;
 pub mod math;
 pub mod ode;
 pub mod orbit;
+pub mod radiation;
 pub mod rocket;
 pub mod shadow;
 pub mod time;
 pub mod timeline;
 pub mod transfer;
 pub mod view_factor;
+
+#[cfg(test)]
+mod test_data;
 
 /// sat-astro のエラー。
 #[derive(Debug, thiserror::Error)]

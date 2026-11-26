@@ -245,9 +245,11 @@ Some analyses use data that is not bundled. `fune data status` shows what is cac
 ```bash
 fune data fetch de440           # DE440 ephemeris (needs the GitHub CLI, gh)
 fune data fetch space_weather   # CelesTrak space weather table, F10.7 and Ap (needs curl)
+fune data fetch radiation       # AP-8/AE-8 trapped-radiation tables and geomagnetic coefficients (needs gh;
+                                # or `--from <DIR>` to install from a directory that holds the files)
 ```
 
-Both go to the user cache.
+All of them go to the user cache. The sources and attribution of the radiation data are in [docs/trapped-radiation.md](docs/trapped-radiation.md).
 
 ## Learn more
 
