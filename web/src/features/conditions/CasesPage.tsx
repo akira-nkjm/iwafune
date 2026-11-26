@@ -62,16 +62,18 @@ function CasesTable({ design: d }: { design: DesignView }) {
             <Th>{m.modes}</Th>
             <Th>{m.phase}</Th>
             <Th>{m.epoch}</Th>
-            <Th>{m.file}</Th>
             <Th>{m.caseActions.actions}</Th>
           </>
         }
       >
         {d.cases.map((c) => (
           <tr key={c.id}>
-            <Td mono>{c.id}</Td>
+            {/* ファイルの場所は ID のツールチップに出す（列にすると表が画面の幅を超える） */}
+            <Td mono>
+              <span title={c.file}>{c.id}</span>
+            </Td>
             <Td>{c.label}</Td>
-            <Td className="text-ink-2">{c.description ?? "—"}</Td>
+            <Td className="min-w-[14rem] max-w-[22rem] whitespace-normal text-ink-2">{c.description ?? "—"}</Td>
             <Td mono>{c.modes.join(" → ")}</Td>
             <Td mono>
               <span className="flex items-center gap-1">
@@ -98,9 +100,6 @@ function CasesTable({ design: d }: { design: DesignView }) {
                   <Pencil size={13} />
                 </Button>
               </span>
-            </Td>
-            <Td mono className="text-ink-4">
-              {c.file}
             </Td>
             <Td>
               <div className="flex items-center gap-1.5">
