@@ -112,8 +112,8 @@ pub fn order_parents_first(doc: &mut DocumentMut) {
     }
 }
 
-/// 入れ子の表すべてに [`hide_empty_header`] を当てる。
-fn hide_empty_headers(table: &mut Table) {
+/// 入れ子の表すべてに [`hide_empty_header`] を当てる（`fune fmt` と、編集の書き込み（`Edits::edit`）が同じ定義を使う）。
+pub fn hide_empty_headers(table: &mut Table) {
     for (_, item) in table.iter_mut() {
         if let Item::Table(t) = item {
             hide_empty_headers(t);

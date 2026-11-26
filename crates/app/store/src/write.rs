@@ -151,7 +151,14 @@ impl Edits {
         crate::profile::realign_changed(before.as_table(), doc.as_table_mut());
         // 値の行のある見出しの表（`[attr]`）は、下の見出しの表（`[attr.mass]`）より前に出す（fmt と同じ定義）
         crate::profile::order_parents_first(&mut doc);
-        self.current.insert(path, doc.to_string());
+        // 値の行の無い表の見出し（子の表だけの `[attr]`）は書かない（fmt と同じ定義。最初の `[attr.<名前>]` を足したとき残る）
+        crate::profile::hide_empty_headers(doc.as_table_mut());
+        let mut text = doc.to_string();
+        // 最後の値を消して空になったファイルは、fmt が書く空のファイル（改行 1 つ）にする
+        if text.trim().is_empty() {
+            text = "\n".to_owned();
+        }
+        self.current.insert(path, text);
         Ok(out)
     }
 
