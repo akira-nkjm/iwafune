@@ -1685,7 +1685,7 @@ HTR = { state = "on" }
 - `max_duration` は次元を検査し、CLI の一覧と GUI のモードのヘッダに表示します。`power.energy_balance` は、基準モードの上で、このモードを最大継続時間だけ走らせて判定します
   （§5.1）。解析のスパンやモードの時間の割合（`mode_share`）には影響しません。
 - 数は `sat_analysis::modes::counted_states` だけが評価します。電力は「稼働数 × その状態の平均電力 + 予備の数 × 予備の状態の電力」です。
-  `power.mode_load.total` は日照用、`total_eclipse` は食用です（成長マージンつきは、それぞれ `*_with_growth`）。
+  `power.mode_load.total` は日照用、`total_eclipse` は蝕用です（成長マージンつきは、それぞれ `*_with_growth`）。
   `power.energy_balance` はこれらの日照と蝕の負荷を使います。C&DH は日照の割り当てから同じ数を数えます。
 - 熱のモード負荷は同じ数の評価を使います。この段階では日照の割り当てだけを使い、蝕の上書きと軌道平均による発熱の変化は扱いません。
 - CLI は `fune set RW.redundancy warm`、`fune mode set NOMINAL RW on --active 3 --spare-state idle`、
