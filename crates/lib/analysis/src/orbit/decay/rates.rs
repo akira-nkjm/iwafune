@@ -1,6 +1,6 @@
 //! 1 周で平均した抗力の効果（長半径の変化率・軌道を保つ ΔV の率・平均密度）。
 //!
-//! 長半径 `a`・RAAN を与えた 1 周を二体で標本化し（`sat_astro::orbit::OrbitSpec::states_at`）、各点で
+//! 長半径 `a`・RAAN を与えた 1 周を二体でサンプル化し（`sat_astro::orbit::OrbitSpec::states_at`）、各点で
 //! 共回転大気に対する相対速度（`force::earth_relative_wind_eci`）・NRLMSISE-00 の密度（`atmosphere::earth_density_kg_m3`）・
 //! 抗力の加速度（`force::drag_force` に `Cd·A/m`）を求める。Gauss の惑星方程式（エネルギーの式）
 //! `da/dt = 2a²/μ · (v · a_D)` と、進行方向の抗力を打ち消す推力の大きさ `−v̂ · a_D` を周回平均
@@ -13,7 +13,7 @@ use sat_astro::orbit::{OrbitElements, OrbitSpec, Propagator};
 use sat_astro::timeline::sample_times;
 use sat_units::typed::Qty;
 
-/// 1 周の標本の数（等時間間隔。台形則の周回平均は周期関数で速く収束する）。
+/// 1 周のサンプルの数（等時間間隔。台形則の周回平均は周期関数で速く収束する）。
 pub const ORBIT_SAMPLES: usize = 12;
 
 /// 1 周で平均した抗力の効果。

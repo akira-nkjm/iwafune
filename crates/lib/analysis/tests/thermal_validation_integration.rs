@@ -1,5 +1,5 @@
-//! 熱解析の検証（4）: 時間積分そのもの（適応刻み・日陰の境・ヒータの切り替えの時刻・標本の刻みへの依存・剛い系）。
-//! 非定常は `sat_astro::ode::Dop853`（適応刻み）で、外部入熱は標本の間も連続に求め、日陰の境・ヒータの切り替えで積分を分ける。
+//! 熱解析の検証（4）: 時間積分そのもの（適応刻み・日陰の境・ヒータの切り替えの時刻・サンプルの刻みへの依存・剛い系）。
+//! 非定常は `sat_astro::ode::Dop853`（適応刻み）で、外部入熱はサンプルの間も連続に求め、日陰の境・ヒータの切り替えで積分を分ける。
 
 mod common;
 
@@ -111,7 +111,7 @@ fn conical_shadow_converges_within_a_few_tolerances() {
     assert!(errors[4] < errors[0] / 10.0, "{errors:?}");
 }
 
-/// 円柱影の食の出入りの時刻（幾何の定義どおり: 位置の太陽方向に垂直な成分 = 地球半径）。
+/// 円柱影の蝕の出入りの時刻（幾何の定義どおり: 位置の太陽方向に垂直な成分 = 地球半径）。
 fn cylinder_edge(tl: &TimelineSpec, t0: f64, t1: f64) -> f64 {
     let orbit = tl.resolved_orbit().unwrap();
     let perp = |t: f64| {
@@ -126,9 +126,9 @@ fn cylinder_edge(tl: &TimelineSpec, t0: f64, t1: f64) -> f64 {
 }
 
 /// 日陰の境: 太陽だけで温まる板（ε ≈ 0 なので放射せず、温度の傾き = 入熱 / 熱容量 が日照中は一定、日陰では 0）。
-/// 食に入る標本の間隔の温度変化 ΔT = (Q/C)·(t_entry − t_k) から、温度が上がるのをやめた時刻を逆算し、幾何から求めた
-/// 円柱影への入りの時刻と比べる（日陰を出る時刻も同様）。標本の刻みは 60 s だが、時刻は 2e-4 s（観測 4e-5 s。残りは ε = 1e-6 の放射）で一致する
-/// （sample-and-hold なら、境は標本の時刻に量子化されて最大 60 s ずれる）。
+/// 蝕に入るサンプルの間隔の温度変化 ΔT = (Q/C)·(t_entry − t_k) から、温度が上がるのをやめた時刻を逆算し、幾何から求めた
+/// 円柱影への入りの時刻と比べる（日陰を出る時刻も同様）。サンプルの刻みは 60 s だが、時刻は 2e-4 s（観測 4e-5 s。残りは ε = 1e-6 の放射）で一致する
+/// （sample-and-hold なら、境はサンプルの時刻に量子化されて最大 60 s ずれる）。
 #[test]
 fn temperature_stops_rising_at_the_analytic_eclipse_entry_and_exit() {
     let (alpha, a, mass) = (0.9, 0.01, 0.5);
@@ -143,7 +143,7 @@ fn temperature_stops_rising_at_the_analytic_eclipse_entry_and_exit() {
     let (t, v) = (&out.series.t, values(&out.series, "n"));
     let rate = alpha * SOLAR * a / c;
     let full = rate * step;
-    // 食に入る標本の間隔: 温度変化が満額より小さくなった最初と、そのあと再び動き始めた最初
+    // 蝕に入るサンプルの間隔: 温度変化が満額より小さくなった最初と、そのあと再び動き始めた最初
     let entry_k = (0..v.len() - 1)
         .find(|&k| v[k + 1] - v[k] < 0.999 * full)
         .expect("the orbit has an eclipse");
@@ -158,12 +158,12 @@ fn temperature_stops_rising_at_the_analytic_eclipse_entry_and_exit() {
         (entry - entry_exact).abs() < 2e-4 && (exit - exit_exact).abs() < 2e-4,
         "entry {entry} vs {entry_exact}, exit {exit} vs {exit_exact}"
     );
-    // 食の間は温度が動かない（入熱 0、放射は ε = 1e-6 で無視できる）
+    // 蝕の間は温度が動かない（入熱 0、放射は ε = 1e-6 で無視できる）
     assert!((v[exit_k] - v[entry_k + 1]).abs() < 1e-4);
 }
 
-/// 標本の刻みへの依存（利用者に見える効果）: 同じ系を標本の刻み 10 s と 120 s で走らせて、共通の時刻（120 s ごと）の温度は
-/// 3e-5 K 以内で同じ（観測 8e-6 K。残りは半影の入口と出口の積分誤差）。日陰の出入り・入射角の変化は標本の間も連続に扱うので、刻みは出力の間隔でしかない
+/// サンプルの刻みへの依存（利用者に見える効果）: 同じ系をサンプルの刻み 10 s と 120 s で走らせて、共通の時刻（120 s ごと）の温度は
+/// 3e-5 K 以内で同じ（観測 8e-6 K。残りは半影の入口と出口の積分誤差）。日陰の出入り・入射角の変化はサンプルの間も連続に扱うので、刻みは出力の間隔でしかない
 /// （sample-and-hold なら、120 s の刻みは入熱の段が最大 120 s 遅れて、板は数 K ずれる）。
 #[test]
 fn results_do_not_depend_on_the_sample_step() {
@@ -192,7 +192,7 @@ fn results_do_not_depend_on_the_sample_step() {
 }
 
 /// 非線形の放射緩和の厳密解: C dT/dt = ε σ A (T_e⁴ − T⁴) の解は、F(x) = atan x + ½ ln|(1 + x)/(1 − x)|（x = T/T_e）として
-/// F(x(t)) = F(x(0)) + 2 T_e³ ε σ A t / C。平衡より下（100 K）と上（700 K）の両方から、各標本で F の残差を温度に直して比べる。
+/// F(x(t)) = F(x(0)) + 2 T_e³ ε σ A t / C。平衡より下（100 K）と上（700 K）の両方から、各サンプルで F の残差を温度に直して比べる。
 /// 許容 1e-8 K（#297 の線形化した 1 次遅れでは、非線形性のために 0.006 K までしか確かめられなかった）。
 #[test]
 fn nonlinear_radiative_relaxation_matches_the_exact_solution() {
@@ -236,8 +236,8 @@ fn heater(on_below: f64, off_above: f64, power: f64) -> ThermalHeater {
     }
 }
 
-/// ヒータの切り替えは標本の刻みに量子化されない: 日陰のある軌道の板に、帯 [270, 285] K・5 W のヒータをつけて、
-/// 標本の刻み 10 s と 120 s で走らせる。標本の温度はどちらも帯の下限を割らず（許容 1e-5 K）、
+/// ヒータの切り替えはサンプルの刻みに量子化されない: 日陰のある軌道の板に、帯 [270, 285] K・5 W のヒータをつけて、
+/// サンプルの刻み 10 s と 120 s で走らせる。サンプルの温度はどちらも帯の下限を割らず（許容 1e-5 K）、
 /// 切り替えの回数・デューティ・共通の時刻の温度（1e-4 K。観測 4e-6 K）が一致する。
 #[test]
 fn heater_switching_does_not_depend_on_the_sample_step() {
@@ -275,7 +275,7 @@ fn heater_switching_does_not_depend_on_the_sample_step() {
         }
     }
     assert!(worst < 1e-4, "{worst}");
-    // 日陰で冷えても帯の下限（270 K）を割らない（5 W は 270 K の板の放射 2.6 W より大きい）。切り替えが標本の刻みに量子化されると、
+    // 日陰で冷えても帯の下限（270 K）を割らない（5 W は 270 K の板の放射 2.6 W より大きい）。切り替えがサンプルの刻みに量子化されると、
     // 刻み 120 s の間の温度変化の分だけ割る
     for v in [&v_fine, &v_coarse] {
         let lo = v.iter().fold(f64::MAX, |l, x| l.min(*x));

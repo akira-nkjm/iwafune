@@ -1,5 +1,5 @@
 //! ロケット方程式（Tsiolkovsky）。**推薬と ΔV の換算・推薬の流量はここだけ**（アンロードの推薬の ΔV 換算と、ΔV バジェットと、
-//! 推力を入れた数値伝搬が共有する）。
+//! 推力を入れた数値伝播が共有する）。
 //!
 //! `Δv = v_e · ln(m₀ / (m₀ − m_p))`、有効排気速度 `v_e = Isp · g₀`。値は SI（m/s・kg・s）。
 
@@ -50,7 +50,7 @@ pub fn burn_time(thrust_n: f64, exhaust_velocity_m_s: f64, propellant_kg: f64) -
 }
 
 /// 推力 `thrust_n` [N]・有効排気速度 `exhaust_velocity_m_s` [m/s] の推薬の流量 [kg/s]: `ṁ = F / v_e`。
-/// 推力の入った数値伝搬が質量を減らすのに使う（[`burn_time`] と同じ流量）。排気速度が正でなければ 0。
+/// 推力の入った数値伝播が質量を減らすのに使う（[`burn_time`] と同じ流量）。排気速度が正でなければ 0。
 pub fn mass_flow_kg_s(thrust_n: f64, exhaust_velocity_m_s: f64) -> f64 {
     if exhaust_velocity_m_s > 0.0 && exhaust_velocity_m_s.is_finite() {
         thrust_n / exhaust_velocity_m_s

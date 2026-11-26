@@ -202,7 +202,7 @@ pub struct ModeTable {
     pub active_sequence: Option<String>,
 }
 
-/// 食の出入りからの位置の指定（開始の基準・並びの先頭の位置）。
+/// 蝕の出入りからの位置の指定（開始の基準・並びの先頭の位置）。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ModeStartView {
     pub from: fune_model::design::StartFrom,

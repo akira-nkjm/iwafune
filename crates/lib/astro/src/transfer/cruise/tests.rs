@@ -46,7 +46,7 @@ fn sun_only_states(t: &DatedTransfer, times: &[f64]) -> Vec<OrbitState> {
     .expect("propagation")
 }
 
-/// (a) 太陽だけの力で Lambert の出発の状態を飛行時間だけ伝搬すると、Lambert の到着の位置と速度に戻る
+/// (a) 太陽だけの力で Lambert の出発の状態を飛行時間だけ伝播すると、Lambert の到着の位置と速度に戻る
 /// （Lambert の解は太陽の点質量の円錐曲線そのもの）。許容は、積分器の相対許容誤差 1e-11 に飛行時間の間のステップ数
 /// （~10²）を掛けた 1e-9 を、到着の距離（~2.3e11 m）に当てた 230 m と、速度は 1e-9 × 3e4 m/s = 3e-5 m/s の倍。
 #[test]
@@ -79,7 +79,7 @@ fn sun_only_conserves_energy_and_angular_momentum() {
     }
 }
 
-/// 太陽だけの伝搬が通る Lambert の軌道の上で、惑星の摂動の加速度の最大 [m/s²]（太陽中心の第三体の項の和の大きさ）。
+/// 太陽だけの伝播が通る Lambert の軌道の上で、惑星の摂動の加速度の最大 [m/s²]（太陽中心の第三体の項の和の大きさ）。
 fn max_perturbation(t: &DatedTransfer, forces: &ForceConfig) -> f64 {
     let times: Vec<f64> = (0..=30)
         .map(|i| f64::from(i) * t.transfer_time_s / 30.0)
@@ -97,7 +97,7 @@ fn max_perturbation(t: &DatedTransfer, forces: &ForceConfig) -> f64 {
         .fold(0.0, f64::max)
 }
 
-/// (b) 惑星（木星・金星・土星など）を入れても、太陽だけの伝搬（(a)。到着のずれは ~0）からのずれは小さい。
+/// (b) 惑星（木星・金星・土星など）を入れても、太陽だけの伝播（(a)。到着のずれは ~0）からのずれは小さい。
 /// 見積もり: 摂動の加速度の最大 `a_max`（上の関数）が飛行時間 `T` の間はたらくと、速度の変化 `a T`、位置の変化
 /// `a T²/2`。軌道の力学では along-track に ~6 倍（速度の変化が長半径を変えて周期がずれる: `δr ≈ 3 δv T`）まで
 /// 増えるので、上限を `3 a_max T²` とする（上限であって、実際は加速度の符号の変化と平均で 1 桁以上小さい）。
@@ -163,7 +163,7 @@ fn check_reports_arrival_closest_approach_and_trajectory() {
     assert!(dv < 50.0, "{dv}");
 }
 
-/// 太陽だけの伝搬の、火星の中心からの距離 [m]。
+/// 太陽だけの伝播の、火星の中心からの距離 [m]。
 fn sun_only_distance(t: &DatedTransfer, times: &[f64]) -> Vec<f64> {
     sun_only_states(t, times)
         .iter()

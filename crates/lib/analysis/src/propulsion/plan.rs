@@ -2,14 +2,14 @@
 //!
 //! - 軌道は近地点・遠地点の半径と傾斜角で持つ（近点線は揃っているとみなす。RAAN の変化は扱わない）。
 //! - 目標の軌道は、書いた要素だけを前の軌道から変える（`altitude` は近地点と遠地点の両方）。
-//! - インパルス・有限燃焼: 2 回噴射の遷移（中間の遠地点を書けばバイエリプティック）。平面変更は遠い方の噴射に合わせる。
+//! - インパルス・有限噴射: 2 回噴射の遷移（中間の遠地点を書けばバイエリプティック）。平面変更は遠い方の噴射に合わせる。
 //! - 低推力: Edelbaum の式（円軌道どうし。円でなければ長半径の円で近似したと注記する）。
 //! - 目標に別の天体（`target.body`）を書いたとき: パッチドコニックの遷移（`sat_astro::transfer::patched_conic`。
 //!   出発の軌道の近点で脱出し、目標の天体を回る軌道の近点で捕獲する）。軌道は中心天体ごと持つ。
 //!   `transfer`（出発・到着の日）があれば、遷移は両端の天体のその日の位置からの Lambert（`sat_astro::transfer::dated_transfer`。
 //!   噴射は同じく軌道の近点。結果は [`super::dated`]）。途中のスイングバイ（`transfer.flybys`）は、前後の脚をつなぎ、通過ごとの近点の噴射を
 //!   出発と到着の噴射の間に足す（`sat_astro::transfer::dated_transfer_via`。動力なしと宣言した通過は数えない）。
-//! - 数値伝搬: 最初は低推力と同じ見積もり。伝搬の結果（[`Ideal::Propagated`]）で `sequence` が置き換える。
+//! - 数値伝播: 最初は低推力と同じ見積もり。伝播の結果（[`Ideal::Propagated`]）で `sequence` が置き換える。
 
 use super::input::{
     DatedTransferInput, DepartureProvider, ManeuverInput, OrbitTarget, TransferMethod,
@@ -40,7 +40,7 @@ pub enum ManeuverNote {
     LowThrustCircularApproximation,
     /// スラスタが無いので ΔV だけを求め、推薬・噴射時間は求めない
     NoThruster,
-    /// 有限燃焼の噴射が軌道の半周を超えるので、損失を見込まずインパルスの ΔV を使った
+    /// 有限噴射の噴射が軌道の半周を超えるので、損失を見込まずインパルスの ΔV を使った
     FiniteBurnTooLong,
     /// 別の天体へのパッチドコニックの遷移（天体の円軌道どうしのホーマン遷移。打ち上げの窓は見ない）で計算した
     PatchedConic,
@@ -52,7 +52,7 @@ pub enum ManeuverNote {
     DepartureByLauncher,
     /// 天体間の遷移では軌道面の変更（傾斜角）の ΔV を数えない
     PlaneChangeIgnored,
-    /// 数値伝搬が上限の時間までに目標に届かなかった（届いたところまでの値）
+    /// 数値伝播が上限の時間までに目標に届かなかった（届いたところまでの値）
     PropagationNotReached,
     /// ΔV は軌道の計算でなく、設計データに直接書かれた値（軌道は変わらない）
     WrittenDeltaV,
@@ -77,7 +77,7 @@ impl Orbit {
         })
     }
 
-    /// 中心天体と長半径・離心率・傾斜角から（伝搬の終わりの平均の長半径など）。
+    /// 中心天体と長半径・離心率・傾斜角から（伝播の終わりの平均の長半径など）。
     pub fn from_elements(central: CentralBody, a_m: f64, e: f64, inclination_rad: f64) -> Self {
         Self {
             central,
@@ -115,11 +115,11 @@ impl Orbit {
 /// 理想の ΔV（損失・質量によらない部分）。
 #[derive(Debug, Clone, PartialEq)]
 pub(super) enum Ideal {
-    /// インパルスの噴射の列（有限燃焼はこれに損失を足す）
+    /// インパルスの噴射の列（有限噴射はこれに損失を足す）
     Impulsive(ImpulsiveTransfer),
     /// 低推力の連続噴射の ΔV [m/s]
     LowThrust(f64),
-    /// 推力を入れた数値伝搬で求めた ΔV [m/s] と遷移の時間 [s]
+    /// 推力を入れた数値伝播で求めた ΔV [m/s] と遷移の時間 [s]
     Propagated { delta_v_m_s: f64, duration_s: f64 },
 }
 
@@ -144,7 +144,7 @@ pub(super) struct Planned {
     pub dated: Option<DatedTransfer>,
     /// 出発の噴射を打ち上げ機が行う（`ideal` の噴射の列と `sites` から出発の噴射を除いてある。C3・超過速度は `dated` に残る）
     pub launcher_departure: bool,
-    /// `ideal` の噴射の列のうち、途中のスイングバイの噴射の範囲（通過がなければ空。飛行の途中の噴射なので、有限燃焼の遷移の時間に半分ずつ足さない）
+    /// `ideal` の噴射の列のうち、途中のスイングバイの噴射の範囲（通過がなければ空。飛行の途中の噴射なので、有限噴射の遷移の時間に半分ずつ足さない）
     pub mid_burns: std::ops::Range<usize>,
 }
 
@@ -186,7 +186,7 @@ pub(super) fn plan(from: Orbit, m: &ManeuverInput) -> Result<Planned, AnalysisEr
             }
             None => Ideal::Impulsive(apse_transfer(mu, from.apsides, to.apsides, angle)?),
         },
-        // 数値伝搬も最初は Edelbaum で見積もる（質量の見積もりに使い、伝搬の結果で置き換える。`sequence`）
+        // 数値伝播も最初は Edelbaum で見積もる（質量の見積もりに使い、伝播の結果で置き換える。`sequence`）
         TransferMethod::LowThrust | TransferMethod::Propagated => {
             if m.via_altitude.is_some() {
                 notes.push(ManeuverNote::ViaAltitudeIgnored);

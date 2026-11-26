@@ -146,7 +146,7 @@ fn radiation_group_lists_exactly_the_radiation_rows() {
     assert_eq!(ids.len(), 1 + radiation::GROUP_IDS.len());
     assert_ne!(radiation::GROUP_ID, space_weather::ID);
     assert!(!ids.contains(&radiation::GROUP_ID));
-    // 出所の表示は行ごとにある。NASA の地図には再配布の事情（無変更・ライセンスの記載なし）と文献、IGRF には CC BY 4.0
+    // 出所の表示は行ごとにある。NASA のマップには再配布の事情（無変更・ライセンスの記載なし）と文献、IGRF には CC BY 4.0
     for d in RELEASE_DATASETS.iter().skip(1) {
         let text = &d.spec.license;
         if d.spec.id == "igrf14" {
@@ -154,7 +154,7 @@ fn radiation_group_lists_exactly_the_radiation_rows() {
         } else if d.spec.id == "shieldose2" {
             assert!(text.contains("NISTIR 5477") && text.contains("LGPL-3.0-or-later"));
             assert!(text.contains("2013 correction"));
-            // 地図とは別のリリース（行ごとのタグ。群で取得しても特別な扱いは要らない）
+            // マップとは別のリリース（行ごとのタグ。群で取得しても特別な扱いは要らない）
             assert_eq!(d.spec.tag, "data-shielding-v1");
         } else {
             assert!(text.contains("PT-11B") && text.contains("redistributed unmodified"));

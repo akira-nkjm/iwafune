@@ -2,7 +2,7 @@
 import type { ManeuverSteering } from "./ManeuverSteering";
 
 /**
- * 細かい段階（数値伝搬）でだけ効く制約。
+ * 細かい段階（数値伝播）でだけ効く制約。
  */
 export type ManeuverConstraints = { 
 /**

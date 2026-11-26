@@ -1,6 +1,6 @@
 //! `orbit.trapped_dose` の射影と、`orbit.total_dose` が環境の表を持たない区間に使う計算した環境。
-//! 軌道の 1 日分の標本の取り方（`orbit.trapped_flux` と同じ。ケースの β があれば当てる）だけを組み立てる。厚さ・幾何・核相互作用は
-//! 解析の既定に任せる（物理の計算も既定値も持たない）。放射線帯の地図と SHIELDOSE-2 の表（配布データ）が読み込まれていなければ不足入力にして、
+//! 軌道の 1 日分のサンプルの取り方（`orbit.trapped_flux` と同じ。ケースの β があれば当てる）だけを組み立てる。厚さ・幾何・核相互作用は
+//! 解析の既定に任せる（物理の計算も既定値も持たない）。放射線帯のマップと SHIELDOSE-2 の表（配布データ）が読み込まれていなければ不足入力にして、
 //! そろえる手順を示す。`orbit.total_dose` は**別の解析の出力を入力に使う**ので、先例（`comm.data_throughput` がデータ量の解析を走らせる）と同じく、
 //! ここで解析を走らせて表だけを取り出す。
 
@@ -24,7 +24,7 @@ const MEMO_LIMIT: usize = 64;
 /// SHIELDOSE-2 の表の名前（足りないものの表示。`fune_service::data` の行の ID と一致する）。
 const SHIELDING_ID: &str = "shieldose2";
 
-/// そろっていない配布データの名前（地図・場と SHIELDOSE-2 の表。そろっていれば空）。
+/// そろっていない配布データの名前（マップ・場と SHIELDOSE-2 の表。そろっていれば空）。
 pub fn dose_data_missing() -> Vec<String> {
     let mut missing = RadiationTables::installed().missing();
     if sat_astro::radiation::registry::shielding().is_none() {

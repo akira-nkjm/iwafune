@@ -249,7 +249,7 @@ fn channel<'a>(c: &'a EnergyBalanceCaseResult, key: &str) -> &'a [f64] {
         .values
 }
 
-/// 日照中（日照率 1）の標本で、発電が `full` [W] に等しいことを確かめる。
+/// 日照中（日照率 1）のサンプルで、発電が `full` [W] に等しいことを確かめる。
 fn assert_full_when_sunlit(out: &EnergyBalanceOutput, c: &EnergyBalanceCaseResult, full: f64) {
     let sunlit = &out
         .series
@@ -317,7 +317,7 @@ fn inertial_law_toward_the_sun_lights_the_panel_fully() {
 
 #[test]
 fn case_attitude_overrides_the_timeline_law() {
-    // 時系列は地心指向（+X 面はほぼ軌道面の法線向き）。SAFE だけ太陽指向に替えると SAFE の発電が増える
+    // 時系列はナディア指向（+X 面はほぼ軌道面の法線向き）。SAFE だけ太陽指向に替えると SAFE の発電が増える
     let mut i = input(
         vec![px_panel()],
         vec![constant("NADIR", 4.0), constant("SAFE", 4.0)],

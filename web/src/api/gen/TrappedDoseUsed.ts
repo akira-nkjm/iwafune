@@ -9,7 +9,7 @@ import type { TrappedDoseSpectrumUsed } from "./TrappedDoseSpectrumUsed";
  */
 export type TrappedDoseUsed = { span: number, step: number, samples: number, 
 /**
- * L が求まらず地図の外とした標本の数（磁場ごとの最大）
+ * L が求まらずマップの外としたサンプルの数（磁場ごとの最大）
  */
 samples_without_l: number, geometry: DoseGeometry, geometry_source: DoseSettingSource, 
 /**

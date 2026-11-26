@@ -275,7 +275,7 @@ fn integration_settings_and_cost_are_reported() {
 }
 
 /// 升に分けた板の詳細は、升ごとの最低・最高・終わりの 3 つの場（時刻ごとの全履歴は載せない）。値は結果の節点（升の ID）の最低・最高と、
-/// 温度の系列の最後の標本に等しい。冷やすだけなので、最高は初期の 350 K、最低と終わりは同じ。
+/// 温度の系列の最後のサンプルに等しい。冷やすだけなので、最高は初期の 350 K、最低と終わりは同じ。
 #[test]
 fn plate_detail_is_min_max_and_end_per_cell() {
     use crate::thermal::plate_view::{ThermalPlateQuantity, ThermalPlateTemperatures};

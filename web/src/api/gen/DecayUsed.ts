@@ -46,7 +46,7 @@ thruster: string | null,
  */
 propulsion_delta_v: number | null, 
 /**
- * 1 周の標本の数
+ * 1 周のサンプルの数
  */
 orbit_samples: number, 
 /**

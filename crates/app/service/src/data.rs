@@ -7,7 +7,7 @@
 //! |---|---|
 //! | `release` | リリース配布のデータの共通の仕組み（表の 1 行 = [`Dataset`]。取得・SHA-256 の照合・状態・登録）。データを足すときは表に 1 行と登録する関数を足す |
 //! | `de440` | 表の最初の行（DE440 の暦表）と、sat-astro への登録 |
-//! | `radiation` | 放射線帯の地図（AP-8・AE-8）・古い地磁気モデルの係数・IGRF・遮蔽線量の表（SHIELDOSE-2）の行と、sat-astro への登録。群の ID `radiation` で 8 件をまとめて扱う |
+//! | `radiation` | 放射線帯のマップ（AP-8・AE-8）・古い地磁気モデルの係数・IGRF・遮蔽線量の表（SHIELDOSE-2）の行と、sat-astro への登録。群の ID `radiation` で 8 件をまとめて扱う |
 //! | [`space_weather`] | 宇宙天気（CelesTrak SW-All）。毎日更新されるので取得のたびに取得日時と SHA-256 を記録し、どの版を使ったかを返す |
 //! | `verify` | ファイルの印（大きさ・更新時刻）が変わらない間、求めた結果を使い回す覚え |
 
@@ -123,7 +123,7 @@ fn copy_from(source: &Path) -> impl Fn(&release::ReleaseSpec, &Path) -> Result<(
     }
 }
 
-/// 放射線帯の解析が要る地図と場のうち、読み込めていないものの名前（そろっていれば空）。
+/// 放射線帯の解析が要るマップと場のうち、読み込めていないものの名前（そろっていれば空）。
 pub fn radiation_missing() -> Vec<String> {
     sat_astro::radiation::RadiationTables::installed().missing()
 }

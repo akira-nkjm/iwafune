@@ -1,4 +1,4 @@
-//! 読み込んだ地図・場のプロセス全体の登録（DE440 の `ephem::install_de440` と同じ考え方）。**登録は 1 つにつき 1 度だけ**で、
+//! 読み込んだマップ・場のプロセス全体の登録（DE440 の `ephem::install_de440` と同じ考え方）。**登録は 1 つにつき 1 度だけ**で、
 //! 利用者のキャッシュにある配布ファイルを読んだ側（`fune_service::data`）が起動時に登録する。解析は [`RadiationTables`] を通して引く。
 
 use super::map::TrappedMap;
@@ -28,12 +28,12 @@ fn already(what: &str) -> AstroError {
     AstroError::InvalidInput(format!("{what} is already registered in this process"))
 }
 
-/// 地図を登録する（1 度だけ）。
+/// マップを登録する（1 度だけ）。
 pub fn install_map(model: TrappedModel, map: TrappedMap) -> Result<(), AstroError> {
     map_slot(model).set(map).map_err(|_| already(model.id()))
 }
 
-/// 地図が前提にする場を登録する（1 度だけ）。
+/// マップが前提にする場を登録する（1 度だけ）。
 pub fn install_field(field: BeltField, model: GaussModel) -> Result<(), AstroError> {
     field_slot(field)
         .set(model)
@@ -60,10 +60,10 @@ pub fn igrf() -> Option<&'static IgrfTable> {
     IGRF.get()
 }
 
-/// 解析が引く地図と場の組。登録されたもの（[`RadiationTables::installed`]）か、試験が作ったものを借りる。
+/// 解析が引くマップと場の組。登録されたもの（[`RadiationTables::installed`]）か、試験が作ったものを借りる。
 #[derive(Debug, Clone, Copy, Default)]
 pub struct RadiationTables<'a> {
-    /// [`TrappedModel::ALL`] の順の地図
+    /// [`TrappedModel::ALL`] の順のマップ
     pub maps: [Option<&'a TrappedMap>; 4],
     /// [`BeltField::ALL`] の順の場
     pub fields: [Option<&'a GaussModel>; 2],
@@ -78,7 +78,7 @@ impl<'a> RadiationTables<'a> {
         }
     }
 
-    /// 地図 `model`。
+    /// マップ `model`。
     pub fn map(&self, model: TrappedModel) -> Option<&'a TrappedMap> {
         self.maps[TrappedModel::ALL.iter().position(|&m| m == model)?]
     }
@@ -88,7 +88,7 @@ impl<'a> RadiationTables<'a> {
         self.fields[BeltField::ALL.iter().position(|&f| f == field)?]
     }
 
-    /// 足りない地図・場の名前（4 つの地図と、組にする 2 つの場がそろっていれば空）。
+    /// 足りないマップ・場の名前（4 つのマップと、組にする 2 つの場がそろっていれば空）。
     pub fn missing(&self) -> Vec<String> {
         let maps = TrappedModel::ALL
             .into_iter()

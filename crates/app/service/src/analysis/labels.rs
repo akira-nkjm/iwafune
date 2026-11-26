@@ -303,7 +303,7 @@ fn energy_balance_evaluation(e: EnergyBalanceEvaluation) -> AnalysisLabel {
 fn duration_timing(t: DurationTiming) -> AnalysisLabel {
     match t {
         DurationTiming::Fixed => label(
-            "開始を指定（食の出入りからの位置）",
+            "開始を指定（蝕の出入りからの位置）",
             "Start fixed (relative to an eclipse event)",
         ),
         DurationTiming::Windowed => label(
@@ -628,7 +628,7 @@ pub fn orbit_model_check() -> (AnalysisLabel, AnalysisLabel) {
     (
         label("軌道のモデル", "Orbit model"),
         label(
-            "軌道は円制限三体問題（CR3BP）のラグランジュ点またはハロー軌道を、暦の 2 天体の位置と速度に載せたものです（力モデルの伝搬ではなく、太陽・月・惑星の摂動と太陽輻射圧は入りません）。軌道維持は見積もらないので、ΔV の余裕としてマヌーバに書いてください",
+            "軌道は円制限三体問題（CR3BP）のラグランジュ点またはハロー軌道を、暦の 2 天体の位置と速度に載せたものです（力モデルの伝播ではなく、太陽・月・惑星の摂動と太陽輻射圧は入りません）。軌道維持は見積もらないので、ΔV の余裕としてマヌーバに書いてください",
             "The orbit is a libration point or halo orbit of the circular restricted three-body problem (CR3BP) carried on the ephemeris positions and velocities of the two bodies (not a force-model propagation: third-body perturbations and solar radiation pressure are not included). Station keeping is not estimated, so write it as a delta-V allowance in a maneuver",
         ),
     )

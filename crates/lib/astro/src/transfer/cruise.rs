@@ -1,14 +1,14 @@
 //! 日付つきの遷移（[`DatedTransfer`]）の巡航の多体の確認。Lambert の解（太陽の点質量だけの円錐曲線）の出発の状態から、
-//! 太陽と惑星の点質量の重力で数値伝搬して、到着の日の到着天体とのずれ・最接近・到着の超過速度の差を求める。
+//! 太陽と惑星の点質量の重力で数値伝播して、到着の日の到着天体とのずれ・最接近・到着の超過速度の差を求める。
 //!
-//! **伝搬は新しく作らない。** 既存の数値伝搬（[`crate::orbit::propagate_states`]。中心天体は太陽）・力モデル
+//! **伝播は新しく作らない。** 既存の数値伝播（[`crate::orbit::propagate_states`]。中心天体は太陽）・力モデル
 //! （[`crate::force`] の第三体。[`ForceConfig::heliocentric_point_masses`]）・積分器（[`crate::ode::Dop853`]）・
 //! 暦（[`crate::ephem`]）を使い、ここにあるのは「遷移の状態から力モデルを選ぶ」ことと、到着側の量の取り出しだけ。
 //! 最接近の探索は [`crate::orbit::closest_approach`]。
 //!
 //! 単純化（結果の注記にも出す）:
 //! - 出発天体の中心から Lambert の速度で始める。**出発と到着の天体の重力は入れない**（パッチドコニックは両端の影響圏の中を
-//!   双曲線の ΔV で扱っており、その中は伝搬しない。到着天体の点質量を入れると、中心を狙う軌道は特異になる）。
+//!   双曲線の ΔV で扱っており、その中は伝播しない。到着天体の点質量を入れると、中心を狙う軌道は特異になる）。
 //!   ほかの惑星（地球が端でなければ地球も）は点質量の第三体として入れる。地球は月を含めず地球の重力定数だけ。
 //! - 影響圏の中のずれは見ない。ずれは「天体の中心を狙った日心の軌道が、ほかの惑星の重力で到着の日にどれだけ外れるか」。
 //! - 日付が DE440 の期間でなければ暦は解析式で、ずれの大きさは暦の誤差（火星で 10⁵ km 級）と同程度になり、判定に使えない。
@@ -24,13 +24,13 @@ use crate::orbit::{ClosestApproach, HELIOCENTRIC_INTEGRATOR, closest_approach, p
 use crate::state::OrbitState;
 use crate::time::Epoch;
 
-/// 巡航の積分器: 精度は既定の数値伝搬と同じで、刻みの上限だけを 1 日にする（惑星間は 600 s の上限が要らない）。
+/// 巡航の積分器: 精度は既定の数値伝播と同じで、刻みの上限だけを 1 日にする（惑星間は 600 s の上限が要らない）。
 pub const CRUISE_INTEGRATOR: Dop853 = HELIOCENTRIC_INTEGRATOR;
 
 /// 距離を測る粗い格子の間隔 [s]。
 const COARSE_STEP_S: f64 = 21_600.0;
 
-/// 到着の日の後も伝搬する期間 [s]。到着の日に最接近の手前でも、その先の極小を探すため（暦の範囲を出るなら伝搬しない）。
+/// 到着の日の後も伝播する期間 [s]。到着の日に最接近の手前でも、その先の極小を探すため（暦の範囲を出るなら伝播しない）。
 const OVERSHOOT_S: f64 = 10.0 * SECONDS_PER_DAY;
 
 /// 軌跡の図に出す点の数の目安。
@@ -59,7 +59,7 @@ pub struct CruiseCheck {
     pub arrival_soi_m: Option<f64>,
     /// 最接近（時刻は出発の日からの経過 [s]。到着の日の後 [`OVERSHOOT_S`] まで探す）
     pub closest: ClosestApproach,
-    /// 伝搬した到着の超過速度ベクトル（探査機の速度 − 到着天体の速度）[m/s]
+    /// 伝播した到着の超過速度ベクトル（探査機の速度 − 到着天体の速度）[m/s]
     pub v_inf_arrival_m_s: Vec3,
     /// 力モデルに第三体として入れた天体
     pub perturbers: Vec<CentralBody>,
@@ -159,9 +159,9 @@ struct CruiseStart {
 }
 
 /// 日付つきの遷移 `transfer`（`from` を `depart` に出て `to` に着く。途中の通過のないもの）の巡航を、太陽と惑星の点質量で
-/// 伝搬して確認する。出発の状態は `transfer.cruise_state`（出発天体の中心、Lambert の速度）。
-/// 到着の日まで（と、その後の [`OVERSHOOT_S`] まで）を [`CRUISE_INTEGRATOR`] で伝搬する。
-/// 途中の通過のある遷移は、脚ごとに [`check_cruise_leg`] で確認する（通過の前後をつなげて伝搬はしない）。
+/// 伝播して確認する。出発の状態は `transfer.cruise_state`（出発天体の中心、Lambert の速度）。
+/// 到着の日まで（と、その後の [`OVERSHOOT_S`] まで）を [`CRUISE_INTEGRATOR`] で伝播する。
+/// 途中の通過のある遷移は、脚ごとに [`check_cruise_leg`] で確認する（通過の前後をつなげて伝播はしない）。
 pub fn check_cruise(
     transfer: &DatedTransfer,
     from: CentralBody,
@@ -178,8 +178,8 @@ pub fn check_cruise(
 }
 
 /// 通過のある遷移の 1 本の脚 `arc`（`from` を `depart` に出て `to` に着く Lambert の弧）の巡航を、[`check_cruise`] と同じ
-/// 伝搬で確認する。脚の始まりは `from` の中心から弧の出発の速度。両端（通過する天体を含む）の重力は入れない
-/// （通過の天体の近くの双曲線の弧・影響圏の中は伝搬しない）。`ephemeris` は暦の出所（判定に使う）。
+/// 伝播で確認する。脚の始まりは `from` の中心から弧の出発の速度。両端（通過する天体を含む）の重力は入れない
+/// （通過の天体の近くの双曲線の弧・影響圏の中は伝播しない）。`ephemeris` は暦の出所（判定に使う）。
 pub fn check_cruise_leg(
     arc: &LambertArc,
     from: CentralBody,

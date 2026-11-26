@@ -50,7 +50,7 @@ miss_in_soi_radii: number | null,
  */
 closest_approach_distance: number, closest_approach_time: number, closest_approach_epoch: string, 
 /**
- * 到着の超過速度の大きさ（Lambert・伝搬）と、そのベクトルの差の大きさ
+ * 到着の超過速度の大きさ（Lambert・伝播）と、そのベクトルの差の大きさ
  */
 v_inf_arrival_lambert: number, v_inf_arrival_propagated: number, v_inf_arrival_difference: number, 
 /**

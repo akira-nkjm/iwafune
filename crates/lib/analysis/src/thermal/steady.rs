@@ -91,7 +91,7 @@ pub struct ThermalSteadyCaseResult {
     pub iterations: u32,
     /// 収束時の熱収支の残差の最大
     pub residual: Qty<Power>,
-    /// 外面の日照割合（ほかの部品の影を引いた割合。直達日射にだけ掛ける）の、日照中の標本での最小と平均。影を数えたときだけ付く
+    /// 外面の日照割合（ほかの部品の影を引いた割合。直達日射にだけ掛ける）の、日照中のサンプルでの最小と平均。影を数えたときだけ付く
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shadowing: Option<crate::structure::external_geometry::ShadowingReport>,
 }

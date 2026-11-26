@@ -21,7 +21,7 @@ export interface InsetLayout {
   bodyRadius: number;
   /** 影の帯（中心から −x 側の端まで） */
   shadow: { x: number; y: number; width: number; height: number };
-  /** 軌道の線（全標本を通る折れ線の path） */
+  /** 軌道の線（全サンプルを通る折れ線の path） */
   path: string;
   /** 太陽の印の中心（+x 側の縁） */
   sun: { x: number; y: number };
@@ -29,7 +29,7 @@ export interface InsetLayout {
 
 /**
  * 表示枠の座標（API の `orbit_plane`。メートル）を図の座標にする。**回転も射影もしない**: 表示枠はサーバーが決めていて、
- * ここは一様な倍率で収め、y の向きを画面に合わせて反転するだけ。標本が無い・半径が無ければ null。
+ * ここは一様な倍率で収め、y の向きを画面に合わせて反転するだけ。サンプルが無い・半径が無ければ null。
  */
 export function insetLayout(plane: OrbitPlaneTrack, size = INSET_SIZE): InsetLayout | null {
   const n = Math.min(plane.x.length, plane.y.length);
@@ -57,7 +57,7 @@ export function insetLayout(plane: OrbitPlaneTrack, size = INSET_SIZE): InsetLay
   };
 }
 
-/** 現在の標本の衛星の位置（図の座標）と日陰か。`index` は標本の範囲に収める */
+/** 現在のサンプルの衛星の位置（図の座標）と日陰か。`index` はサンプルの範囲に収める */
 export function satelliteAt(
   layout: InsetLayout,
   plane: OrbitPlaneTrack,

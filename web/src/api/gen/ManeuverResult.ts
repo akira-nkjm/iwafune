@@ -13,7 +13,7 @@ import type { TransferMethod } from "./TransferMethod";
  */
 export type ManeuverResult = { id: string, category: DvCategory, method: TransferMethod, thruster: string | null, before: ManeuverOrbit, after: ManeuverOrbit, 
 /**
- * ΔV（有限燃焼なら損失込み）
+ * ΔV（有限噴射なら損失込み）
  */
 delta_v: number, 
 /**
@@ -41,7 +41,7 @@ firing_power: number | null,
  */
 ignored_constraints: Array<string>, 
 /**
- * 数値伝搬の結果（`propagated` のときだけ）
+ * 数値伝播の結果（`propagated` のときだけ）
  */
 propagation?: ManeuverPropagation | null, 
 /**

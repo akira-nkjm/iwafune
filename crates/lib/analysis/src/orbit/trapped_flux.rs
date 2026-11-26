@@ -1,15 +1,15 @@
 //! 放射線帯の捕捉粒子（AP-8 の陽子・AE-8 の電子）の、軌道平均の積分フラックスとミッション期間のフルエンス。
 //!
-//! **方法**: 設計の軌道を 1 日分（`spec::daily_sampling`。地球の自転で地上軌跡が 1 周する長さ）の刻みで伝搬し（`OrbitSampling::states`）、
-//! 各点の位置を ECEF にして、地図ごとに決まった古い地磁気モデルの元期の場（[`TrappedModel::field`]。年変化は足さない）で
+//! **方法**: 設計の軌道を 1 日分（`spec::daily_sampling`。地球の自転で地上軌跡が 1 周する長さ）の刻みで伝播し（`OrbitSampling::states`）、
+//! 各点の位置を ECEF にして、マップごとに決まった古い地磁気モデルの元期の場（[`TrappedModel::field`]。年変化は足さない）で
 //! McIlwain の L と B/B₀ を求める（`sat_astro::radiation::belt_position`）。標準のエネルギーの格子（[`proton_energies_mev`]・
-//! [`electron_energies_mev`]）ごとに地図から積分フラックス `> E`（全方向）を引き、時間平均（台形則）・最大値・
-//! フラックスが 0 でない時間の割合を求める。**フルエンス = 時間平均のフラックス × ミッション期間**（軌道は 1 日の標本が代表すると仮定する。
-//! 軌道の経年変化は見ない）。陽子・電子それぞれ太陽活動の極小・極大の 4 つの地図で結果を並べる。
+//! [`electron_energies_mev`]）ごとにマップから積分フラックス `> E`（全方向）を引き、時間平均（台形則）・最大値・
+//! フラックスが 0 でない時間の割合を求める。**フルエンス = 時間平均のフラックス × ミッション期間**（軌道は 1 日のサンプルが代表すると仮定する。
+//! 軌道の経年変化は見ない）。陽子・電子それぞれ太陽活動の極小・極大の 4 つのマップで結果を並べる。
 //!
 //! **制限**: 静的なモデル（極小・極大の 2 つの元期。太陽活動の周期内の変化・磁気嵐・太陽粒子は含まない）。L が求まらない
-//! （磁力線が閉じない・L > 16）点は地図の外としてフラックス 0 に数え、`samples_without_l` に出す。地球の周りの軌道だけ。
-//! 地図は配布データ（`fune data`）で、無ければ解析は入力不足（`missing`）になる。
+//! （磁力線が閉じない・L > 16）点はマップの外としてフラックス 0 に数え、`samples_without_l` に出す。地球の周りの軌道だけ。
+//! マップは配布データ（`fune data`）で、無ければ解析は入力不足（`missing`）になる。
 
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, ConditionTopic, ensure_positive,
@@ -42,7 +42,7 @@ pub fn electron_energies_mev() -> &'static [f64] {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct TrappedFluxInput {
-    /// 軌道の標本の取り方（1 日分。`spec::daily_sampling`）
+    /// 軌道のサンプルの取り方（1 日分。`spec::daily_sampling`）
     pub sampling: OrbitSampling,
     /// ミッション期間（フルエンスの積算時間。`orbit.total_dose` と同じ）
     pub mission_duration: Qty<Time>,
@@ -56,7 +56,7 @@ pub struct TrappedFluxPoint {
     pub energy_mev: f64,
     /// 軌道平均の積分全方向フラックス（`> E`）
     pub mean_flux: Qty<ParticleFlux>,
-    /// 標本の中の最大のフラックス
+    /// サンプルの中の最大のフラックス
     pub peak_flux: Qty<ParticleFlux>,
     /// ミッション期間のフルエンス（平均のフラックス × ミッション期間）
     pub fluence: Qty<ParticleFluence>,
@@ -64,28 +64,28 @@ pub struct TrappedFluxPoint {
     pub time_fraction: Fraction,
 }
 
-/// 地図 1 つ（粒子 × 太陽活動）の結果。
+/// マップ 1 つ（粒子 × 太陽活動）の結果。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct TrappedFluxCase {
     pub species: Species,
     pub solar: SolarCondition,
-    /// 地図の名前（`ap8min` など）
+    /// マップの名前（`ap8min` など）
     pub model: String,
     /// 組にした地磁気モデルの名前（元期の場。年変化なし）
     pub field: String,
-    /// 地図の元期（年）
+    /// マップの元期（年）
     pub epoch_year: i32,
     /// エネルギーごとの結果（昇順）
     pub spectrum: Vec<TrappedFluxPoint>,
-    /// L が求まらず地図の外とした標本の数
+    /// L が求まらずマップの外としたサンプルの数
     pub samples_without_l: usize,
-    /// L の最小・最大（L が求まった標本。無ければ `None`）
+    /// L の最小・最大（L が求まったサンプル。無ければ `None`）
     pub l_min: Option<f64>,
     pub l_max: Option<f64>,
 }
 
-/// 使った標本の取り方。
+/// 使ったサンプルの取り方。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct TrappedFluxUsed {
@@ -123,7 +123,7 @@ impl Analysis for TrappedFlux {
     }
 }
 
-/// 引く地図と場を引数に取る本体（試験は合成の地図を渡す）。
+/// 引くマップと場を引数に取る本体（試験は合成のマップを渡す）。
 pub fn compute(
     input: &TrappedFluxInput,
     tables: &RadiationTables<'_>,
@@ -183,7 +183,7 @@ pub fn compute_with(
     })
 }
 
-/// 地球の周りの軌道の標本（放射線帯の解析が共通に使う。他の天体の周りなら入力の誤り）。
+/// 地球の周りの軌道のサンプル（放射線帯の解析が共通に使う。他の天体の周りなら入力の誤り）。
 pub(super) fn earth_samples(sampling: &OrbitSampling) -> Result<Vec<OrbitPoint>, AnalysisError> {
     let orbit = sampling.resolved_orbit()?;
     if orbit.central() != CentralBody::Earth {
@@ -194,10 +194,10 @@ pub(super) fn earth_samples(sampling: &OrbitSampling) -> Result<Vec<OrbitPoint>,
     Ok(sampling.states()?)
 }
 
-/// 並列に使うスレッドの上限（L の計算は標本ごとに独立で、場の評価が重い。結果は順序も値も直列と同じ）。
+/// 並列に使うスレッドの上限（L の計算はサンプルごとに独立で、場の評価が重い。結果は順序も値も直列と同じ）。
 const MAX_THREADS: usize = 8;
 
-/// 標本ごとの (L, B/B₀)。求まらない点は理由つきで `Err`（地図の外）。標本は塊に分けて並列に求め、元の順に並べる。
+/// サンプルごとの (L, B/B₀)。求まらない点は理由つきで `Err`（マップの外）。サンプルは塊に分けて並列に求め、元の順に並べる。
 pub(super) fn positions_in(
     field: &FieldSnapshot,
     points: &[OrbitPoint],
@@ -221,7 +221,7 @@ pub(super) fn positions_in(
     })
 }
 
-/// 1 つの地図のエネルギーごとの結果。
+/// 1 つのマップのエネルギーごとの結果。
 fn case_for(
     model: TrappedModel,
     map: &TrappedMap,
@@ -261,14 +261,14 @@ fn case_for(
     }
 }
 
-/// フラックスの時系列（地図の単位 cm⁻² s⁻¹）から 1 つのエネルギーの結果（SI の量にして返す）。
+/// フラックスの時系列（マップの単位 cm⁻² s⁻¹）から 1 つのエネルギーの結果（SI の量にして返す）。
 fn point_for(
     energy_mev: f64,
     flux_cm2s: &[f64],
     t: &[f64],
     duration: Qty<Time>,
 ) -> TrappedFluxPoint {
-    /// 1 cm⁻² = 1e4 m⁻²（地図の単位 cm⁻² s⁻¹ を SI に直す）。
+    /// 1 cm⁻² = 1e4 m⁻²（マップの単位 cm⁻² s⁻¹ を SI に直す）。
     const PER_CM2_TO_PER_M2: f64 = 1.0e4;
     let mean_cm2s = time_mean(t, flux_cm2s);
     let mean = if mean_cm2s.is_finite() {

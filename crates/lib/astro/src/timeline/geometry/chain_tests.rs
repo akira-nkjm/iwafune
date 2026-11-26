@@ -50,7 +50,7 @@ fn the_sun_distance_at_the_flyby_is_the_flyby_bodys_heliocentric_distance() {
     }
 }
 
-/// 極値の詰めは、密な標本の極値と一致する: 詰めた値は標本のどの値より悪くならず、密な標本の値との差は、標本の間隔 `h` の
+/// 極値の詰めは、密なサンプルの極値と一致する: 詰めた値はサンプルのどの値より悪くならず、密なサンプルの値との差は、サンプルの間隔 `h` の
 /// 半分以内にある真の極値からの 2 次の差（`½ a_max (h/2)²`。太陽距離の加速度は `v²/r + GM/r² ≤ 0.1 m/s²`、近日点 0.4 au 以上）以内。
 #[test]
 fn refined_extremes_agree_with_dense_sampling_of_each_arc() {
@@ -105,7 +105,7 @@ fn a_kink_minimum_is_found_exactly_at_the_break() {
     assert_eq!(outside.max, plain.max);
 }
 
-/// 折れ目は標本の列に昇順で加わる（範囲の外・すでにある時刻は加えない）。折れ目が無ければ列そのまま。
+/// 折れ目はサンプルの列に昇順で加わる（範囲の外・すでにある時刻は加えない）。折れ目が無ければ列そのまま。
 #[test]
 fn breaks_are_merged_into_the_sample_times() {
     let times = [0.0, 10.0, 20.0, 30.0];
@@ -117,7 +117,7 @@ fn breaks_are_merged_into_the_sample_times() {
     assert!(times_with_breaks(&[], &[1.0]).is_empty());
 }
 
-/// 地球からの距離の範囲（回線の距離）は境の標本を含む: 標本が両端と中央しかなくても、境の日の地球距離は最小と最大のあいだにある。
+/// 地球からの距離の範囲（回線の距離）は境のサンプルを含む: サンプルが両端と中央しかなくても、境の日の地球距離は最小と最大のあいだにある。
 #[test]
 fn the_earth_range_includes_the_flyby_sample() {
     let t = chain();

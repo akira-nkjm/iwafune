@@ -1,11 +1,11 @@
-//! 数値伝搬（`propagated`）のマヌーバを推力を入れて伝搬し（`sat_astro::orbit::propagate_powered`）、マヌーバの順の
+//! 数値伝播（`propagated`）のマヌーバを推力を入れて伝播し（`sat_astro::orbit::propagate_powered`）、マヌーバの順の
 //! 軌道の推移（[`OrbitHistory`]）を作る。マヌーバの列を 1 回歩き、時刻と軌道を順に進める。
 //!
-//! - 伝搬の始めの状態: 区間の軌道が J2 の平均要素なら、平均要素から長半径の短周期項を足した接触の状態
-//!   （`osculating_state_from_mean`）。数値伝搬の軌道ならその伝搬の状態。
-//! - 力: 最初の軌道の伝搬の方法に合わせる（二体なら点質量、J2 なら J2、数値伝搬ならその力の設定）。
+//! - 伝播の始めの状態: 区間の軌道が J2 の平均要素なら、平均要素から長半径の短周期項を足した接触の状態
+//!   （`osculating_state_from_mean`）。数値伝播の軌道ならその伝播の状態。
+//! - 力: 最初の軌道の伝播の方法に合わせる（二体なら点質量、J2 なら J2、数値伝播ならその力の設定）。
 //!   中心天体は今の区間の軌道のもの（地球以外では J2 は天体の自転軸まわり。平均の長半径の換算は ECI の赤道で測る近似）。
-//!   天体間の遷移（`target.body`）は数値伝搬しない（`plan` が誤りにする）。そのあとの区間は目標の天体を中心にする。
+//!   天体間の遷移（`target.body`）は数値伝播しない（`plan` が誤りにする）。そのあとの区間は目標の天体を中心にする。
 //! - 質量: 公称の列（マージンなし）のマヌーバの前の質量。目標: 計画の目標の平均の長半径と傾斜角。
 //! - 上限の時間: Edelbaum の見積もり（噴き続けた時間）× [`PROPAGATION_TIME_FACTOR`] をデューティで割り、
 //!   日照だけなら [`SUNLIT_ONLY_TIME_FACTOR`] を掛ける（1 日より短くしない）。
@@ -27,7 +27,7 @@ use sat_astro::orbit::{
 };
 use sat_units::typed::Qty;
 
-/// 数値伝搬のマヌーバ 1 つの結果。
+/// 数値伝播のマヌーバ 1 つの結果。
 #[derive(Debug, Clone)]
 pub(super) struct Flight {
     /// 噴射の始め（最初の軌道の元期からの経過）[s]
@@ -47,7 +47,7 @@ pub(super) struct LegStep<'a> {
     pub thruster: Option<&'a PropulsionThruster>,
     /// 計画の目標の軌道
     pub to: Orbit,
-    /// 理想の ΔV [m/s]（数値伝搬なら Edelbaum の見積もり）
+    /// 理想の ΔV [m/s]（数値伝播なら Edelbaum の見積もり）
     pub ideal_delta_v_m_s: f64,
     pub mass_before_kg: f64,
     /// 推薬を求めたときのマヌーバのあとの質量 [kg]
@@ -55,7 +55,7 @@ pub(super) struct LegStep<'a> {
     pub transfer_time_s: Option<f64>,
 }
 
-/// 最初の軌道の伝搬の方法に合わせた力。
+/// 最初の軌道の伝播の方法に合わせた力。
 fn forces_of(p: &Propagator) -> ForceConfig {
     match p {
         Propagator::Kepler => ForceConfig::gravity_only(GravityModel::PointMass),
@@ -104,7 +104,7 @@ impl<'a> Walker<'a> {
         })
     }
 
-    /// 今の区間の `dt` 秒後の要素（J2 の軌道は平均要素、数値伝搬の軌道は接触要素）。
+    /// 今の区間の `dt` 秒後の要素（J2 の軌道は平均要素、数値伝播の軌道は接触要素）。
     fn elements_now(&self) -> Result<KeplerElements, AnalysisError> {
         let (spec, dt) = self.current()?;
         Ok(match spec.propagator {
@@ -168,7 +168,7 @@ impl<'a> Walker<'a> {
         });
     }
 
-    /// 数値伝搬でないマヌーバ: 終わりの時刻に、今の要素の長半径・離心率・傾斜角を目標に替えた軌道に移る。
+    /// 数値伝播でないマヌーバ: 終わりの時刻に、今の要素の長半径・離心率・傾斜角を目標に替えた軌道に移る。
     fn step_leg(&mut self, leg: &LegStep<'_>) -> Result<(), AnalysisError> {
         let end = self.t + leg.transfer_time_s.unwrap_or(0.0);
         self.t = end;
@@ -183,7 +183,7 @@ impl<'a> Walker<'a> {
         Ok(())
     }
 
-    /// 数値伝搬のマヌーバ: 伝搬の点ごとに区間を作る（終わりの区間は周回平均の要素）。
+    /// 数値伝播のマヌーバ: 伝播の点ごとに区間を作る（終わりの区間は周回平均の要素）。
     fn step_flight(&mut self, leg: &LegStep<'_>, f: &Flight) -> Result<(), AnalysisError> {
         let n = f.arc.samples.len();
         for (k, s) in f.arc.samples.iter().enumerate().take(n.saturating_sub(1)) {
@@ -198,7 +198,7 @@ impl<'a> Walker<'a> {
         Ok(())
     }
 
-    /// 伝搬の終わりの要素（J2 の軌道なら周回平均の要素、ほかは接触要素）。
+    /// 伝播の終わりの要素（J2 の軌道なら周回平均の要素、ほかは接触要素）。
     fn end_elements(&self, s: &OrbitState, t_s: f64) -> Result<KeplerElements, AnalysisError> {
         let first = &self.input.initial_orbit;
         let central = self.central();
@@ -210,7 +210,7 @@ impl<'a> Walker<'a> {
         })
     }
 
-    /// 今の時刻・状態から、マヌーバ `leg` を推力を入れて伝搬する。
+    /// 今の時刻・状態から、マヌーバ `leg` を推力を入れて伝播する。
     fn fly(&self, leg: &LegStep<'_>) -> Result<Flight, AnalysisError> {
         let m = leg.maneuver;
         let thruster = leg.thruster.ok_or_else(|| {
@@ -263,7 +263,7 @@ impl<'a> Walker<'a> {
     }
 }
 
-/// マヌーバの列を歩き、軌道の推移と数値伝搬の結果を返す。`known` があれば数値伝搬はそれを使う（伝搬し直さない）。
+/// マヌーバの列を歩き、軌道の推移と数値伝播の結果を返す。`known` があれば数値伝播はそれを使う（伝播し直さない）。
 pub(super) fn walk(
     input: &PropulsionInput,
     legs: &[LegStep<'_>],

@@ -39,7 +39,7 @@ fn ballistic_turn_of_sixty_degrees_matches_hand_calculation() {
     assert!(f.is_ballistic());
 }
 
-/// 動力あり: 入り 5 km/s・出 7 km/s で近点が 1.0e7 m の双曲線の組。回頭角は両側の `asin(1/(1 + r_p v∞²/μ))` の和で、
+/// 動力あり: 入り 5 km/s・出 7 km/s で近点が 1.0e7 m の双曲線の組。偏向角は両側の `asin(1/(1 + r_p v∞²/μ))` の和で、
 /// これをそのまま与えると近点の半径 1.0e7 m が戻り、噴射は近点の速さの差 `√(v₂² + 2μ/r_p) − √(v₁² + 2μ/r_p)`。
 #[test]
 fn powered_flyby_solves_the_periapsis_and_burns_the_speed_difference() {
@@ -62,8 +62,8 @@ fn powered_flyby_solves_the_periapsis_and_burns_the_speed_difference() {
     assert!(f.feasible && !f.is_ballistic());
 }
 
-/// 近点の高度の下限（300 km）の半径でも曲がりきれない回頭: 下限の半径での最大の回頭角は
-/// `2 asin(1/(1 + r_min v∞²/μ))`。足りない回頭 `δ − δ_max` の分は弦 `2 v∞ sin(Δ/2)`。必要な近点の半径は下限より小さい。
+/// 近点の高度の下限（300 km）の半径でも曲がりきれない偏向: 下限の半径での最大の偏向角は
+/// `2 asin(1/(1 + r_min v∞²/μ))`。足りない偏向 `δ − δ_max` の分は弦 `2 v∞ sin(Δ/2)`。必要な近点の半径は下限より小さい。
 #[test]
 fn a_turn_beyond_the_maximum_is_infeasible_and_reports_the_shortfall() {
     let mu = CentralBody::Venus.gm();
@@ -117,7 +117,7 @@ fn default_altitudes_exist_for_the_rocky_planets_only() {
     }
 }
 
-/// 同じ円錐曲線の上の 3 点（出発・通過・到着）を 2 本の Lambert でつなぐと、通過で速度は連続（回頭角 ≈ 0、噴射 ≈ 0）。
+/// 同じ円錐曲線の上の 3 点（出発・通過・到着）を 2 本の Lambert でつなぐと、通過で速度は連続（偏向角 ≈ 0、噴射 ≈ 0）。
 /// 許容は Lambert の解の許容（`z` の二分法 1e-13 の相対）から、速度で 1e-5 m/s（実測はこれより十分小さい）。
 #[test]
 fn legs_on_one_conic_pass_the_body_without_turning() {

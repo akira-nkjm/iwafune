@@ -386,7 +386,7 @@ pub(in crate::single_home) const RULES: &[Rule] = &[
         &["crates/lib/analysis/src/spec.rs"],
         "margin ratio",
     ),
-    // 推力をかけた伝搬・平均要素・推薬の流量（#79）
+    // 推力をかけた伝播・平均要素・推薬の流量（#79）
     (
         "fn propagate_powered",
         &["crates/lib/astro/src/orbit/powered.rs"],

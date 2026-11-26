@@ -14,7 +14,7 @@ export type ManeuverInput = { id: string, category: DvCategory, method: Transfer
  */
 thruster: string | null, target: OrbitTarget, 
 /**
- * バイエリプティック遷移の中間の遠地点の高度（インパルス・有限燃焼のときだけ使う）
+ * バイエリプティック遷移の中間の遠地点の高度（インパルス・有限噴射のときだけ使う）
  */
 via_altitude: number | null, 
 /**
@@ -27,7 +27,7 @@ delta_v?: number,
  */
 ignored_constraints: Array<string>, 
 /**
- * 数値伝搬（`propagated`）で効く制約
+ * 数値伝播（`propagated`）で効く制約
  */
 thrust?: ThrustConstraints, 
 /**

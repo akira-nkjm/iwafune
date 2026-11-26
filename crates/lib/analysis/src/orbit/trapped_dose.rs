@@ -1,6 +1,6 @@
 //! 放射線帯の捕捉粒子（AP-8 の陽子・AE-8 の電子）による、アルミの遮蔽の深さごとの全吸収線量率。
 //!
-//! **方法**: `orbit.trapped_flux` と同じ軌道の標本の位置（L, B/B₀）で、4 つの地図の積分フラックス `> E` を細かいエネルギー格子
+//! **方法**: `orbit.trapped_flux` と同じ軌道のサンプルの位置（L, B/B₀）で、4 つのマップの積分フラックス `> E` を細かいエネルギー格子
 //! （10 倍あたり 25 点、陽子 0.1〜400 MeV・電子 0.04〜7 MeV）で引いて時間平均し（台形則）、隣り合う点の差分で微分フラックスにして
 //! （`sat_astro::radiation::shielding::differential_from_integral`）、SHIELDOSE-2（Seltzer, NISTIR 5477, 1994）で
 //! アルミの遮蔽の深さごとの線量にする。太陽活動の極小（AP8MIN + AE8MIN）と極大（AP8MAX + AE8MAX）の 2 通りで、陽子・電子・電子の制動放射・合計を出す。
@@ -10,7 +10,7 @@
 //! 陽子の核相互作用は見ない（保守側）。厚さは [`DEFAULT_THICKNESSES_MM`]。
 //!
 //! **制限**: 捕捉粒子だけ（太陽陽子・銀河宇宙線・地球の影の電子の変化は含まない）。静的なモデル。遮蔽はアルミの単純な幾何で、
-//! 実機の形・部品の配置・二次粒子の輸送は見ない。データ（地図と SHIELDOSE-2 の表）は配布データで、無ければ入力不足。
+//! 実機の形・部品の配置・二次粒子の輸送は見ない。データ（マップと SHIELDOSE-2 の表）は配布データで、無ければ入力不足。
 
 use super::trapped_flux::{earth_samples, positions_in};
 use crate::spec::{
@@ -94,7 +94,7 @@ fn depths(
     Ok((list, source))
 }
 
-/// 引く地図・場・線量の表を引数に取る本体（試験は合成のものを渡す）。
+/// 引くマップ・場・線量の表を引数に取る本体（試験は合成のものを渡す）。
 pub fn compute(
     input: &TrappedDoseInput,
     tables: &RadiationTables<'_>,
@@ -154,7 +154,7 @@ pub fn compute(
     })
 }
 
-/// 磁場ごとの標本の (L, B/B₀)（地図ごとに組にする場で求める。1 つの場につき 1 度だけ）。
+/// 磁場ごとのサンプルの (L, B/B₀)（マップごとに組にする場で求める。1 つの場につき 1 度だけ）。
 fn belt_positions(
     tables: &RadiationTables<'_>,
     points: &[OrbitPoint],
@@ -172,7 +172,7 @@ fn belt_positions(
         .collect()
 }
 
-/// L が求まらない標本の数（磁場ごとの最大）。
+/// L が求まらないサンプルの数（磁場ごとの最大）。
 fn max_samples_without_l(positions: &HashMap<BeltField, Vec<Result<BeltPosition, NoL>>>) -> usize {
     positions
         .values()

@@ -1,4 +1,4 @@
-//! 数値伝搬（`propagated`）のマヌーバを、低推力の解析式（Edelbaum）の結果と比べる（推力の小さい極限）。
+//! 数値伝播（`propagated`）のマヌーバを、低推力の解析式（Edelbaum）の結果と比べる（推力の小さい極限）。
 
 use super::tests::{input, maneuver};
 use super::*;
@@ -31,7 +31,7 @@ fn propagated_raise_matches_low_thrust_within_one_percent() {
     let detail = p.propagation.as_ref().unwrap();
     assert!(detail.reached);
     assert!((detail.final_altitude.value() - 450e3).abs() < 100.0);
-    // 推薬: 伝搬の質量と列の質量は同じ（乾燥質量 + 推薬）なので、伝搬の推薬と列の推薬は一致する
+    // 推薬: 伝播の質量と列の質量は同じ（乾燥質量 + 推薬）なので、伝播の推薬と列の推薬は一致する
     let mp = p.propellant.unwrap().value();
     assert!(
         (detail.propellant.value() - mp).abs() < 1e-4 * mp,
@@ -75,7 +75,7 @@ fn sunlit_only_propagation_takes_longer() {
     assert!((dv(&lit) - dv(&all)).abs() < 0.02 * dv(&all));
 }
 
-/// 軌道の推移: 伝搬の間は ~1 周ごとの区間、終わりは 450 km。季節解析はマヌーバのあとの標本日をその軌道で求める。
+/// 軌道の推移: 伝播の間は ~1 周ごとの区間、終わりは 450 km。季節解析はマヌーバのあとのサンプル日をその軌道で求める。
 #[test]
 fn orbit_history_follows_the_propagated_raise() {
     let inp = input(vec![raise(TransferMethod::Propagated, false)]);
@@ -97,7 +97,7 @@ fn orbit_history_follows_the_propagated_raise() {
         alt.windows(2).all(|w| w[1] >= w[0] - 50.0),
         "altitude keeps rising"
     );
-    // 3 日の季節: 2 日目以降の標本日は 450 km の軌道（周期が長い）
+    // 3 日の季節: 2 日目以降のサンプル日は 450 km の軌道（周期が長い）
     let season = |maneuvers| {
         EclipseSeason::run(&EclipseSeasonInput {
             orbit: inp.initial_orbit.clone(),

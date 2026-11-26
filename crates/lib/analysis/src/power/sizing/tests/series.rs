@@ -113,7 +113,7 @@ fn sun_pointing_matches_hand_calculation_and_smad() {
 
 #[test]
 fn zenith_panel_on_nadir_pointing_where_smad_underestimates() {
-    // 地心指向で天頂を向いた面: 日照中の入射は平均 0.5 前後で、日照中にも発電が負荷を下回る時間がある。
+    // ナディア指向で天頂を向いた面: 日照中の入射は平均 0.5 前後で、日照中にも発電が負荷を下回る時間がある。
     let mut i = matched(input());
     i.array = sap(1.0, -Vec3::Z);
     i.timeline.attitude = nadir_pointing_z();
@@ -145,7 +145,7 @@ fn zenith_panel_on_nadir_pointing_where_smad_underestimates() {
     assert!(less.cases[0].energy_margin_per_orbit.unwrap().value() < 0.0);
 }
 
-/// 2 モード（日照中は太陽指向の NOMINAL、地心指向で負荷の大きい MISSION）と並び・最長継続時間・初期 SOC 0.9。
+/// 2 モード（日照中は太陽指向の NOMINAL、ナディア指向で負荷の大きい MISSION）と並び・最長継続時間・初期 SOC 0.9。
 fn operations() -> SizingInput {
     let mut i = matched(input());
     i.timeline = leo_timeline(sun_pointing_z(), 4.0, 20.0);
@@ -240,7 +240,7 @@ fn short_span_falls_back_to_smad() {
 #[test]
 fn mode_timing_reaches_the_time_series_inverse() {
     use crate::power::energy_balance::{DurationTiming, EclipseEvent, EventStart, ModeTiming};
-    // 時刻の指定が無ければ周回内の最悪の開始。MISSION の開始を食明けに決めると、窓が日照中に入る分だけ
+    // 時刻の指定が無ければ周回内の最悪の開始。MISSION の開始を蝕明けに決めると、窓が日照中に入る分だけ
     // 1 周の収支が軽くなり（電池を通す負荷が減る）、逆算した必要面積は小さくなる
     // （電力収支と同じ運用で評価するので、逆算した設計は電力収支の判定を通り、開始は指定のものになる）
     // （MISSION も太陽指向にして、面積で収支が取れるようにする）

@@ -22,7 +22,7 @@ pub fn quantity(q: &Quantity) -> Item {
     Item::Value(Value::InlineTable(t))
 }
 
-/// 食の出入りからの指定（`{ from = "eclipse_exit", offset = { value = 5.0, unit = "min" } }`）。
+/// 蝕の出入りからの指定（`{ from = "eclipse_exit", offset = { value = 5.0, unit = "min" } }`）。
 pub fn start_ref(r: &StartRef) -> Item {
     let mut t = InlineTable::new();
     t.insert("from", r.from.as_str().into());

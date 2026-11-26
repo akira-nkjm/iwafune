@@ -9,7 +9,7 @@ use core::f64::consts::TAU;
 
 /// β 角 [rad]（軌道面と太陽方向のなす角）。`at` の時刻での RAAN（J2 ドリフト込み）を使う。
 ///
-/// 正は軌道の角運動量の側に太陽があることを表す。数値伝搬と地球以外の中心天体では `at` の状態の
+/// 正は軌道の角運動量の側に太陽があることを表す。数値伝播と地球以外の中心天体では `at` の状態の
 /// 角運動量から求める。太陽の方向は中心天体から見たもの。中心天体が太陽のときは太陽の方向が決まらないので
 /// `InvalidInput`。
 pub fn beta_angle_rad(spec: &OrbitSpec, at: Epoch) -> Result<f64, AstroError> {
@@ -80,7 +80,7 @@ fn unreachable_message(beta_rad: f64, i_rad: f64, sin_dec: f64) -> String {
 /// 太陽の赤経 α・赤緯 δ（`at` の時刻）に対して、[`beta_angle_rad`] と同じ符号の約束で
 /// `sin β = cos δ · sin i · sin(Ω − α) + sin δ · cos i`。解は 2 つあり、**`Ω − α` が −90°〜+90° の側**
 /// （昇交点が昼側。β = 0 なら昇交点の地方時が正午、β が正で大きいほど 18 時側）を返す。
-/// 元期から `at` までの RAAN の変化は J2 永年項で戻す（Kepler 伝搬では変化なし。数値伝搬では近似）。
+/// 元期から `at` までの RAAN の変化は J2 永年項で戻す（Kepler 伝播では変化なし。数値伝播では近似）。
 /// 地球以外の中心天体では RAAN の変化を戻さない（自転軸が ECI の z と違うため。`at` を元期にすれば厳密）。
 /// 傾斜角から届かない β（`|sin β − sin δ cos i| > cos δ sin i`）と、中心天体が太陽のときは `InvalidInput`。
 pub fn raan_for_beta(spec: &OrbitSpec, at: Epoch, beta_rad: f64) -> Result<f64, AstroError> {

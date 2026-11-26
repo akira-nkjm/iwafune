@@ -1,4 +1,4 @@
-//! 地球以外の中心天体（月）の伝搬・時系列・地上軌跡・パスのテスト。
+//! 地球以外の中心天体（月）の伝播・時系列・地上軌跡・パスのテスト。
 
 use super::*;
 use crate::attitude::AttitudeLaw;
@@ -87,7 +87,7 @@ fn earth_is_a_third_body_around_the_moon() {
     assert!(crate::force::validate_about(CentralBody::Moon, &bad).is_err());
 }
 
-/// 数値伝搬（月の点質量＋J2＋地球）は 1 周で解析解から数 km 以内。
+/// 数値伝播（月の点質量＋J2＋地球）は 1 周で解析解から数 km 以内。
 #[test]
 fn lunar_numerical_stays_close_to_kepler() {
     let mut o = lunar(90.0, Propagator::Kepler);
@@ -296,7 +296,7 @@ fn local_time_raan_is_earth_only() {
     }
 }
 
-/// 状態から始める数値伝搬（`propagate_states`）は、要素から始める既存の入口（`OrbitSpec::states_at`）と同じ結果を返す
+/// 状態から始める数値伝播（`propagate_states`）は、要素から始める既存の入口（`OrbitSpec::states_at`）と同じ結果を返す
 /// （前者を一般化した入口で、後者はその呼び出し）。中心天体は太陽。
 #[test]
 fn propagate_states_matches_the_orbit_spec_entry_about_the_sun() {

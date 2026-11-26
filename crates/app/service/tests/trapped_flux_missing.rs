@@ -1,6 +1,6 @@
-//! `orbit.trapped_flux` は、放射線帯のデータ（地図・古い地磁気モデル）が読み込まれていなければ不足入力になり、
+//! `orbit.trapped_flux` は、放射線帯のデータ（マップ・古い地磁気モデル）が読み込まれていなければ不足入力になり、
 //! 直し方（`fune data fetch radiation`）を出す。このファイルの試験は `install_cached_datasets` を呼ばない
-//! （地図の登録はプロセスで一度きりなので、読み込む試験は別のファイル `trapped_flux.rs`）。
+//! （マップの登録はプロセスで一度きりなので、読み込む試験は別のファイル `trapped_flux.rs`）。
 
 use fune_service::dto::{AnalysisRunStatus, RunAnalysisRequest};
 use fune_service::{Workspace, analysis};

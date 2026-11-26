@@ -2,7 +2,7 @@
 import type { ThrustSteering } from "./ThrustSteering";
 
 /**
- * 数値伝搬（`propagated`）のマヌーバの伝搬の結果。
+ * 数値伝播（`propagated`）のマヌーバの伝播の結果。
  */
 export type ManeuverPropagation = { 
 /**
@@ -22,15 +22,15 @@ firing_time: number,
  */
 firing_fraction: number, 
 /**
- * 伝搬で積んだ ΔV（`∫ F/m dt`）
+ * 伝播で積んだ ΔV（`∫ F/m dt`）
  */
 delta_v: number, 
 /**
- * 伝搬で使った推薬（伝搬に使った質量から）
+ * 伝播で使った推薬（伝播に使った質量から）
  */
 propellant: number, 
 /**
- * 伝搬に使った始めの質量（公称の列の見積もり）
+ * 伝播に使った始めの質量（公称の列の見積もり）
  */
 mass_before: number, 
 /**

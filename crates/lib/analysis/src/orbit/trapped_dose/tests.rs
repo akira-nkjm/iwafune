@@ -1,4 +1,4 @@
-//! 捕捉粒子の線量解析の試験。合成の地図（`trapped_flux` の試験と同じ作り）と中心双極子の場の赤道面の円軌道で、SHIELDOSE-2 の表（配布ファイル。
+//! 捕捉粒子の線量解析の試験。合成のマップ（`trapped_flux` の試験と同じ作り）と中心双極子の場の赤道面の円軌道で、SHIELDOSE-2 の表（配布ファイル。
 //! キャッシュに無ければ該当の試験は読み飛ばす）を使って手計算と比べる。
 
 use super::*;
@@ -20,7 +20,7 @@ fn ascii(words: &[i64]) -> String {
         .collect()
 }
 
-/// 合成の地図（`trapped_flux` の試験と同じ）。L = 2 の赤道では 0.1 MeV が log₁₀F = top − 1、400 MeV が top − 2.5 で、E の直線。
+/// 合成のマップ（`trapped_flux` の試験と同じ）。L = 2 の赤道では 0.1 MeV が log₁₀F = top − 1、400 MeV が top − 2.5 で、E の直線。
 fn map(top: i64) -> TrappedMap {
     let sub = |energy: i64, f1: i64, f3: i64| {
         let mut body = vec![0, energy, 3, 0, 0, 3, 90, 0];
@@ -112,7 +112,7 @@ fn array(name: &str, n: usize) -> Vec<f64> {
 }
 
 /// 手計算: 深さがほぼ 0（SHIELDOSE-2 の最小の深さ 1e-6 g/cm²）での球の中心の線量
-/// = ∫ j(E) S(E) r(E) dE × 1.6021892e-10 [Gy/s]。`j(E) = F(E) · 1.5 ln10 / 399.9` は合成の地図の微分フラックス
+/// = ∫ j(E) S(E) r(E) dE × 1.6021892e-10 [Gy/s]。`j(E) = F(E) · 1.5 ln10 / 399.9` は合成のマップの微分フラックス
 /// （F は L = 2 で `10^(3 − 1.5 (E−0.1)/399.9)`）、`S` はデータの飛程の表から求めた**アルミの**質量阻止能（dE/dR）、
 /// `r` はデータの検出器の比（シリコン / アルミ、深さ 0）。許容 1.5 % の内訳: 微分の格子の上端の半区間（積分フラックスで 0.6 %、
 /// 線量ではそれ以下）、核の表と飛程の表の導関数の食い違い（単一エネルギーで調べると ±0.6 %）。
@@ -186,7 +186,7 @@ fn table_has_the_default_depths_geometry_and_sources() {
     assert_eq!(u.thickness_source, DoseSettingSource::Default);
     assert!(u.scope.contains("no solar energetic protons"));
     assert_eq!(u.spectra.len(), 4);
-    // 解析の線量は厚さとともに減り、合計は 3 つの和。極大の地図は 1 桁多いので線量も約 10 倍
+    // 解析の線量は厚さとともに減り、合計は 3 つの和。極大のマップは 1 桁多いので線量も約 10 倍
     for c in &out.cases {
         for p in &c.table {
             let sum = p.protons.value() + p.electrons.value() + p.bremsstrahlung.value();

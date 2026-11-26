@@ -11,7 +11,7 @@ export type EclipseSeasonInput = { orbit: OrbitSpec, duration: number,
  */
 step: number | null, 
 /**
- * マヌーバ（数値伝搬のマヌーバがあるときだけ projection が渡す）。あれば各標本日の軌道を
+ * マヌーバ（数値伝播のマヌーバがあるときだけ projection が渡す）。あれば各サンプル日の軌道を
  * マヌーバの順の軌道の推移（`propulsion::orbit_history`）から引く
  */
 maneuvers?: PropulsionInput | null, };
