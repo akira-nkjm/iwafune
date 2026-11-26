@@ -139,8 +139,10 @@ The analyses do not expose these choices. A state orbit uses a default decided b
 | Moon or a planet | Point mass and $J_2$ of that body, Sun and Earth as third bodies |
 | Sun | Point masses of the Sun, the planets Mercury to Neptune, and Earth (Earth's gravitational parameter only, no Moon) |
 
-Drag, solar radiation pressure, EGM96, tides and relativity are not included.
-Setting `propagator = "numerical"` on an element orbit has no effect: the orbit is propagated as `j2` and `fune check` warns (`setting.not_applied`).
+The numerical propagator can carry all of these forces, but the analyses use only part of it:
+
+- An orbit written as elements (altitude, inclination and so on) is always propagated analytically, as `kepler` or `j2`. `propagator = "numerical"` is accepted in the file but is not applied to such an orbit: it is propagated as `j2`, and `fune check` warns (`setting.not_applied`). Drag and solar radiation pressure need values of the spacecraft (area, mass, coefficients), and no default force model is defined for them, so the analyses do not switch to the numerical propagator on their own.
+- A state orbit, a maneuver with `method = "propagated"` and `propulsion.transfer_check` use the numerical propagator with the default forces in the table above. Drag, solar radiation pressure, EGM96, tides and relativity are not part of those defaults.
 Numerical propagation would read the elements as osculating, so the same numbers would give a different orbit.
 
 ### Positions of the Sun, Moon and planets
