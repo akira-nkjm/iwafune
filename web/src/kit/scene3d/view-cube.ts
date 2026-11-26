@@ -7,7 +7,9 @@ import type { V3 } from "./types";
  * 向き `direction` は「注視点からカメラへ向かう」単位ベクトル（面 = その軸、辺 = 2 つの面の法線の和、角 = 3 つの面の法線の和を正規化）。
  * 上の向き `up` の約束（押したあとは傾きのない、まっすぐな画面になる）:
  * - 側面（PX・MX・PY・MY）とその辺（Z を含まない辺）、および Z を含む辺・PZ 側の角は、+Z を視線に垂直な面へ射影した向きを上にする（水平線が水平になる）
- * - MZ 側の角は −Z を射影した向きを上にする。どの角を押しても、角から出る 3 本の辺が Y 字（Z の辺が画面の下へ伸び、角の Z の面が上）に見える
+ * - MZ 側の角は −Z を射影した向きを上にする。角から出る 3 本の辺が Y 字（Z の辺が画面の下へ伸び、角の Z の面が上）に見える
+ * - 角を押したときは、Y 字に見える 3 つの向き（表の上の向きと、視線まわりに ±120° 回した向き）のうち、今の向きにいちばん近いものへ動く
+ *   （`poseForView`。Z が上とは限らない。動きを小さくする）
  * - PZ（真上から見下ろす）と MZ（真下から見上げる）は +Z が視線と平行で射影できないので、どちらも +Y を上にする
  *   （PZ の面から PY 側の辺へ傾けた向きと、MZ の面から MY 側の辺へ傾けた向きに連続する）
  */
@@ -98,13 +100,25 @@ export function lookQuaternion(direction: V3, up: V3): Quaternion {
   return new Quaternion().setFromRotationMatrix(m);
 }
 
-/** 区画を押したときの到達の姿勢: 注視点と距離はそのまま、表の向きから注視点を見る */
+/** 角から見て Y 字のままになる、視線まわりの回転の角 [rad]（辺が 3 本なので 120° ごと） */
+const CORNER_TURN = (2 * Math.PI) / 3;
+
+/**
+ * 区画を押したときの到達の姿勢: 注視点と距離はそのまま、表の向きから注視点を見る。
+ * 面と辺は表の上の向き。角は、Y 字に見える 3 つの向きのうち今の姿勢からの回転がいちばん小さいもの（同じなら表の上の向き）。
+ */
 export function poseForView(view: CubeView, from: CameraPose): CameraPose {
-  return {
-    target: from.target.clone(),
-    quaternion: lookQuaternion(view.direction, view.up),
-    distance: from.distance,
-  };
+  const base = lookQuaternion(view.direction, view.up);
+  let quaternion = base;
+  if (view.kind === "corner") {
+    const roll = new Vector3(0, 0, 1);
+    for (const k of [1, -1]) {
+      const q = base.clone().multiply(new Quaternion().setFromAxisAngle(roll, k * CORNER_TURN));
+      // 差が角の計算の分解能（1e-8 程度）より大きいときだけ乗り換える
+      if (q.angleTo(from.quaternion) < quaternion.angleTo(from.quaternion) - 1e-6) quaternion = q;
+    }
+  }
+  return { target: from.target.clone(), quaternion, distance: from.distance };
 }
 
 /**
@@ -131,7 +145,7 @@ export function rollStep(quaternion: Quaternion): number {
   const d = new Vector3(0, 0, 1).applyQuaternion(quaternion);
   const [x, y, z] = [Math.abs(d.x), Math.abs(d.y), Math.abs(d.z)];
   const corner = Math.abs(x - y) < CORNER_TOLERANCE && Math.abs(y - z) < CORNER_TOLERANCE;
-  return corner ? (2 * Math.PI) / 3 : Math.PI / 2;
+  return corner ? CORNER_TURN : Math.PI / 2;
 }
 
 /** 姿勢からカメラの位置（注視点 + 後ろ向きの単位ベクトル × 距離） */

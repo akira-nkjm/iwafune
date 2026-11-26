@@ -95,7 +95,7 @@ it("符号の組から区画を引く（0 でない成分の符号だけを見�
   expect(viewBySign([0, 0, 0])).toBeUndefined();
 });
 
-it("押したときの姿勢: 注視点と距離はそのまま、位置 = 注視点 + 向き × 距離、注視点を見て、上は表のとおり", () => {
+it("押したときの姿勢: 注視点と距離はそのまま、位置 = 注視点 + 向き × 距離、注視点を見て、面と辺の上は表のとおり", () => {
   const from: CameraPose = {
     target: new Vector3(1, -2, 0.5),
     quaternion: new Quaternion().setFromAxisAngle(new Vector3(1, 1, 0).normalize(), 2.5),
@@ -112,7 +112,41 @@ it("押したときの姿勢: 注視点と距離はそのまま、位置 = 注�
     const look = new Vector3(0, 0, -1).applyQuaternion(pose.quaternion);
     expect(look.distanceTo(from.target.clone().sub(pos).normalize())).toBeLessThan(1e-12);
     const up = new Vector3(0, 1, 0).applyQuaternion(pose.quaternion);
-    expect(up.distanceTo(vec(v.up))).toBeLessThan(1e-12);
+    if (v.kind !== "corner") expect(up.distanceTo(vec(v.up))).toBeLessThan(1e-12);
+  }
+});
+
+it("角を押したときの姿勢: Y 字の 3 つの向きのうち今の姿勢にいちばん近いもの（どれも Y 字。表の上の向きより遠くはならない）", () => {
+  const starts = [
+    new Quaternion(),
+    new Quaternion().setFromAxisAngle(new Vector3(1, 1, 0).normalize(), 2.5),
+    new Quaternion().setFromAxisAngle(new Vector3(0.2, -1, 0.4).normalize(), 1.1),
+    new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), 3.0),
+  ];
+  for (const quaternion of starts) {
+    const from: CameraPose = { target: new Vector3(), quaternion, distance: 2 };
+    for (const v of CUBE_VIEWS.filter((c) => c.kind === "corner")) {
+      const pose = poseForView(v, from);
+      // Y 字: 角から出る 3 本の辺のうち 1 本が画面の真下へ伸びる
+      const inv = pose.quaternion.clone().invert();
+      const down = [0, 1, 2].filter((i) => {
+        const e = new Vector3().setComponent(i, -v.sign[i]).applyQuaternion(inv);
+        return Math.abs(e.x) < 1e-9 && e.y < 0;
+      });
+      expect(down.length).toBe(1);
+      // 3 つの候補のどれよりも遠くない
+      const base = lookQuaternion(v.direction, v.up);
+      for (const k of [0, 1, -1]) {
+        const q = base
+          .clone()
+          .multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), (k * 2 * Math.PI) / 3));
+        expect(pose.quaternion.angleTo(from.quaternion)).toBeLessThanOrEqual(
+          q.angleTo(from.quaternion) + 1e-6,
+        );
+      }
+      // すでにその角の Y 字の向きにいれば動かない（`angleTo` は acos なので 0 の近くの分解能は 1e-8 程度）
+      expect(poseForView(v, pose).quaternion.angleTo(pose.quaternion)).toBeLessThan(1e-6);
+    }
   }
 });
 
