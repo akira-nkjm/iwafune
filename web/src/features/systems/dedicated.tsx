@@ -4,6 +4,7 @@ import type { DefsView, DesignView, System } from "@/api/types";
 import { loadLayout3D } from "@/features/layout3d/LazyLayout3D";
 import { AocsModes } from "./aocs/AocsModes";
 import { AddLinkButton } from "./comm/AddLinkButton";
+import { commExtras } from "./comm/commExtras";
 import { PowerModes } from "./power/PowerModes";
 import { PowerSeries } from "./power/PowerSeries";
 import { thermalExtras } from "./thermal/thermalExtras";
@@ -53,7 +54,7 @@ export interface SystemRegistration {
 /**
  * **系ごとの登録表（Web で系の名前をキーにするのはこの表だけ。系の名前で分岐するのもここだけ）。** 共通のコード（`SystemTabs`・
  * `SystemPage`・ナビの先読み）はこの表に問い合わせ、系の名前とは比べない。電源は解析を回した系別のモード表示と時系列、
- * AOCS は姿勢・機器・モード別解析のカード、通信は回線を足すボタン、熱は熱画像・結合と表面・解析結果のタブと追加の表示と 3D のチャンク、
+ * AOCS は姿勢・機器・モード別解析のカード、通信は回線を足すボタンと回線の一覧、熱は熱画像・結合と表面・解析結果のタブと追加の表示と 3D のチャンク、
  * 推進はマヌーバのタブ。足すときは、ここに 1 行足す（xtask の `web_systems` が、ほかの所の系の名前の比較を断る）。
  * 色とアイコン（全系に必要）は `lib/systems.ts`、モードのタブを持つ系・既定で隠す系などの判断は API（`DefsView`）。
  */
@@ -67,6 +68,7 @@ export const SYSTEM_REGISTRY = {
   },
   comm: {
     actions: ({ design }) => (design ? <AddLinkButton design={design} /> : null),
+    extras: commExtras,
   },
   thermal: {
     tabs: ["heat", "couplings", "analyses"],

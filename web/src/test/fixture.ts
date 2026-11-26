@@ -413,6 +413,7 @@ export const fixture: DesignView = {
   phases: [],
   configurations: [],
   stations: [],
+  links: [],
   add_choices: { transceivers: [], bands: [], thermal_cases: [] },
   requirements: [],
   views: [],

@@ -1,47 +1,67 @@
 import { useState } from "react";
 import { useEnumOptions } from "@/api/labels";
-import { useCommandOps } from "@/api/ops";
-import type { DesignView } from "@/api/types";
+import { useCommandOps, useTextOp } from "@/api/ops";
+import type { DesignView, LinkView } from "@/api/types";
 import { useT } from "@/i18n";
 import { Field } from "@/kit/forms/Field";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { TextInput } from "@/kit/forms/TextInput";
 import { OpDialog } from "@/ops/OpDialog";
 import { useOpCheck } from "@/ops/use-op-check";
-import { bandOptions, emptyLink, linkAddCommand, transceiverOptions } from "./link-form";
+import {
+  bandOptions,
+  emptyLink,
+  type LINK_FIELDS,
+  linkAddCommand,
+  linkEditOps,
+  linkFields,
+  linkFieldText,
+  transceiverOptions,
+  withCurrent,
+} from "./link-form";
 
 /**
- * 通信の回線の追加（CreateCommLink。`fune link add` と同じ引数）。通信のページのボタンと、足りない入力の行（`AddListItem`）から開く。
- * 向き・送受信機・帯域は API が返した選択肢（語彙の値・`add_choices`）から選ぶ。`initialId` は足りない入力が名指しした回線の ID
+ * 通信の回線の追加と編集の共通のダイアログ。`editing` が無ければ追加（CreateCommLink。`fune link add` と同じ引数。通信のページの
+ * ボタンと、足りない入力の行（`AddListItem`）から開く）、あれば開いた回線の編集（直した欄ごとに `fune set <回線の設定>.<欄>` と同じ
+ * `POST /ops/from_text` で書き、ID を変えたら RenameCommLink）。向き・送受信機・帯域は API が返した選択肢（語彙の値・`add_choices`）から選ぶ。
+ * `initialId` は足りない入力が名指しした回線の ID
  */
-export function AddLinkDialog({
+export function LinkDialog({
   design,
+  editing,
   initialId,
   onOpenChange,
 }: {
   design: DesignView;
+  editing?: LinkView;
   initialId?: string | null;
   onOpenChange: (open: boolean) => void;
 }) {
   const tl = useT().conditions.links;
-  const [link, setLink] = useState(emptyLink(initialId));
+  const [link, setLink] = useState(editing ? linkFields(editing) : emptyLink(initialId));
   const directions = useEnumOptions("link_direction");
-  const made = useCommandOps(linkAddCommand(link));
-  const failed = useOpCheck(made.ops).failed;
-  const error = made.error;
+  const added = useCommandOps(editing ? null : linkAddCommand(link));
+  // 直した欄ごとに Op にする（`LINK_FIELDS` の順）
+  const text = (field: (typeof LINK_FIELDS)[number]) =>
+    editing ? linkFieldText(editing, link, field) : null;
+  const edited = [useTextOp(text("direction")), useTextOp(text("part")), useTextOp(text("band"))];
+  const fieldOps = edited.map((m) => m.op);
+  const ops = editing ? linkEditOps(editing, link, fieldOps) : added.ops;
+  const failed = useOpCheck(ops).failed;
+  const error = editing ? (edited.find((m) => m.error)?.error ?? null) : added.error;
   const set = (key: keyof typeof link) => (e: { target: { value: string } }) =>
     setLink((l) => ({ ...l, [key]: e.target.value }));
-  const parts = transceiverOptions(design);
-  const bands = bandOptions(design.add_choices);
+  const parts = withCurrent(transceiverOptions(design), editing?.part ?? null);
+  const bands = withCurrent(bandOptions(design.add_choices), editing?.band ?? null);
   return (
     <OpDialog
       open
       onOpenChange={onOpenChange}
-      title={tl.addTitle}
-      description={tl.addDescription}
-      ops={made.ops}
-      summary={tl.addSummary(link.id.trim())}
-      confirmLabel={tl.addConfirm}
+      title={editing ? tl.editTitle(editing.id) : tl.addTitle}
+      description={editing ? tl.editDescription : tl.addDescription}
+      ops={ops}
+      summary={editing ? tl.editSummary(editing.id) : tl.addSummary(link.id.trim())}
+      confirmLabel={editing ? tl.editConfirm : tl.addConfirm}
     >
       <div className="grid grid-cols-2 gap-3">
         <Field label="ID" htmlFor="link-id" error={error}>

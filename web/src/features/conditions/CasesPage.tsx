@@ -17,6 +17,7 @@ import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 import { Button } from "@/ui/button";
 import { AddCaseButton } from "./AddCaseButton";
+import { CaseActions } from "./CaseActions";
 import { CaseEpochDialog } from "./CaseEpochDialog";
 import { CasePhaseDialog } from "./CasePhaseDialog";
 import { CasesFromGeometryButton } from "./CasesFromGeometryDialog";
@@ -65,6 +66,7 @@ function CasesTable({ design: d }: { design: DesignView }) {
             <Th>{m.epoch}</Th>
             <Th>{m.file}</Th>
             <Th>{m.openWith}</Th>
+            <Th>{m.caseActions.actions}</Th>
           </>
         }
       >
@@ -111,6 +113,9 @@ function CasesTable({ design: d }: { design: DesignView }) {
                   </ChipLink>
                 ))}
               </span>
+            </Td>
+            <Td>
+              <CaseActions kase={c} />
             </Td>
           </tr>
         ))}

@@ -316,3 +316,35 @@ fn random_rectangles_match_the_compressed_grid() {
         assert_measure(&polys, area, [mx / area, my / area]);
     }
 }
+
+/// `StaticUnion` は、固定の多角形を前処理しても `union_measure`（並び `[先頭, 前の固定, 間, 後ろの固定]`）と同じ値（ビットまで）を返す。
+#[test]
+fn static_union_matches_union_measure_bit_for_bit() {
+    let head = vec![rect(0.1, 0.1, 0.4, 0.3), rect(0.5, 0.2, 0.9, 0.6)];
+    let tail = vec![
+        rect(0.0, 0.5, 0.35, 0.95),
+        poly(&[[0.6, 0.0], [1.0, 0.3], [0.7, 0.9]]),
+    ];
+    let fixed = StaticUnion::new(&head, &tail);
+    let shadows = [
+        poly(&[[0.05, 0.0], [0.45, 0.1], [0.3, 0.55]]),
+        rect(0.3, 0.3, 0.8, 0.45),
+        rect(2.0, 2.0, 3.0, 3.0), // 離れていて重ならない
+        ConvexPolygon::hull(&[]),
+    ];
+    let betweens = [vec![], vec![poly(&[[0.2, 0.0], [0.9, 0.5], [0.4, 0.8]])]];
+    for lead in [&shadows[..0], &shadows[..1], &shadows[..], &shadows[1..3]] {
+        for between in &betweens {
+            let all: Vec<ConvexPolygon> = lead
+                .iter()
+                .chain(&head)
+                .chain(between)
+                .chain(&tail)
+                .cloned()
+                .collect();
+            let (got, want) = (fixed.measure(lead, between), union_measure(&all));
+            assert_eq!(got.area.to_bits(), want.area.to_bits());
+            assert_eq!(got.centroid, want.centroid);
+        }
+    }
+}
