@@ -184,10 +184,16 @@ pub fn new_kind_text(path: &str, def: &KindDef) -> Result<String, StoreError> {
     serde_text(path, def)
 }
 
-/// 設定の値 → TOML の値。
-pub fn setting_item(value: &SettingValue) -> Item {
+/// 設定の値 → TOML の値。`file`・`key` は書く先（整数のまま書いてよいキーかどうかを決める）。
+/// 整数（`0`・`-3`）は [`crate::profile::INTEGER_KEYS`] のキーにだけ整数で書き、ほかは float にする
+/// （物理量や無次元の量を整数で書くと、`fune check` が `toml.integer` で、`fune fmt --check` が差分で拒む。
+/// 打った文字列を読む側（`guess_setting`）は欄の型を知らないので、書く側が正規形にする）。
+pub fn setting_item(file: &str, key: &str, value: &SettingValue) -> Item {
     match value {
         SettingValue::Number(n) => Item::Value(float(*n)),
+        SettingValue::Integer(i) if !crate::profile::integer_keys(file).contains(&key) => {
+            Item::Value(float(*i as f64))
+        }
         SettingValue::Integer(i) => Item::Value((*i).into()),
         SettingValue::Bool(b) => Item::Value((*b).into()),
         SettingValue::Text(s) => string(s),
@@ -212,7 +218,7 @@ pub fn set_setting(
     let Some((last, parents)) = keys.split_last() else {
         return Err(StoreError::edit(file, "The key is empty"));
     };
-    let item = value.map(setting_item);
+    let item = value.map(|v| setting_item(file, last, v));
     edits.edit_or_create(file, |doc| {
         crate::profile::renamed::rename_keys(file, doc.as_table_mut());
         let mut table: &mut Table = doc.as_table_mut();
