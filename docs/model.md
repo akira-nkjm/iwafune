@@ -268,6 +268,13 @@ Margin = `tolerance / (total × RDM) − 1` (`spec::ratio_margin`); negative is 
 A leg with no duration or no environment table is listed in `legs[].status` and left out of the totals, with the warning check `phases_left_out` (the totals are then lower bounds). The output also gives, per leg, the rate and dose at a reference shielding (the thinnest evaluated part), `reference_shielding`, and the part with the least margin (`worst`).
 The KPI is the minimum margin. Missing inputs: a part with `tid_tolerance` or `shielding`, an environment table, and (for the mission leg) the mission duration, each with a fix. No requirement keys the dose: the tolerance is a property of the part and the margin factor a design value, so a requirement can only verify the analysis as a whole (`verify.analysis = "orbit.total_dose"`).
 
+#### Trapped particle flux (`orbit.trapped_flux`)
+
+`orbit.trapped_flux` is `AnalysisArea::Condition(ConditionTopic::Orbit)`. It gives the orbit-averaged and peak integral flux of trapped protons (AP-8) and electrons (AE-8) for solar minimum and maximum, the fraction of time with flux,
+and the mission fluence (mean flux × the mission duration). Its input is built from the design orbit (one day of samples; the case's β applies as for the other orbit analyses) and the mission duration; it has no settings and no part data.
+The AP-8/AE-8 data files are not part of a design: without them the analysis is a missing input whose reason says `fune data fetch radiation`. No dose or shielding depth is computed (the dose of a part stays the user's table of `orbit.total_dose`).
+The models, the field each map is paired with, the limits and the data sources are in [trapped-radiation.md](trapped-radiation.md).
+
 #### Altitude decay by atmospheric drag and orbit maintenance (`orbit.decay`)
 
 `orbit.decay` is also `AnalysisArea::Condition(ConditionTopic::Orbit)`. Its settings are `[decay]` in `conditions/orbit.toml` (all optional; the defaults are held by the analysis).

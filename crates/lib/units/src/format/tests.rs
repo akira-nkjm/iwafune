@@ -287,6 +287,13 @@ fn absorbed_dose_rate_is_shown_per_year() {
     assert_eq!(text(per_second, "AbsorbedDoseRate"), "10.0 Gy/yr");
 }
 
+/// 粒子フラックス・フルエンス: SI（m^-2 s^-1・m^-2）から cm^-2 を使った表示へ。1 cm^-2 = 1e4 m^-2。
+#[test]
+fn particle_flux_and_fluence_are_shown_per_square_centimetre() {
+    assert_eq!(text(1.0e8, "ParticleFlux"), "10000 cm⁻²/s");
+    assert_eq!(text(1.0e12, "ParticleFluence"), "100000000 cm⁻²");
+}
+
 /// 入力の例は、その次元の表示単位で書き、解析すると同じ次元になる。単位の無い次元・未知の次元には無い。
 #[test]
 fn input_example_is_a_parsable_quantity_of_the_dimension() {

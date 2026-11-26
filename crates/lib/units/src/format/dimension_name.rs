@@ -116,6 +116,11 @@ const NAMES: &[(&str, DimensionDisplayName)] = &[
         "AbsorbedDoseRate",
         names("吸収線量率", "Absorbed dose rate"),
     ),
+    ("ParticleFlux", names("粒子フラックス", "Particle flux")),
+    (
+        "ParticleFluence",
+        names("粒子フルエンス", "Particle fluence"),
+    ),
     ("Impulse", names("力積", "Impulse")),
     // 表示の種類（次元は無次元）
     ("Fraction", names("比", "Fraction")),

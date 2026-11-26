@@ -7,10 +7,12 @@
 //! |---|---|
 //! | `release` | リリース配布のデータの共通の仕組み（表の 1 行 = [`Dataset`]。取得・SHA-256 の照合・状態・登録）。データを足すときは表に 1 行と登録する関数を足す |
 //! | `de440` | 表の最初の行（DE440 の暦表）と、sat-astro への登録 |
+//! | `radiation` | 放射線帯の地図（AP-8・AE-8）・古い地磁気モデルの係数・IGRF の行と、sat-astro への登録。群の ID `radiation` で 7 件をまとめて扱う |
 //! | [`space_weather`] | 宇宙天気（CelesTrak SW-All）。毎日更新されるので取得のたびに取得日時と SHA-256 を記録し、どの版を使ったかを返す |
 //! | `verify` | ファイルの印（大きさ・更新時刻）が変わらない間、求めた結果を使い回す覚え |
 
 mod de440;
+mod radiation;
 mod release;
 pub mod space_weather;
 mod verify;
@@ -41,7 +43,16 @@ pub fn cache_dir() -> Result<PathBuf> {
 }
 
 /// リリース配布のデータの表。**データを足すときはここに 1 行足す**（状態・取得・起動時の登録はこの表で決まる）。
-static RELEASE_DATASETS: [&Dataset; 1] = [&de440::DE440];
+static RELEASE_DATASETS: [&Dataset; 8] = [
+    &de440::DE440,
+    &radiation::AP8_MIN,
+    &radiation::AP8_MAX,
+    &radiation::AE8_MIN,
+    &radiation::AE8_MAX,
+    &radiation::JENSEN_CAIN,
+    &radiation::GSFC_1966,
+    &radiation::IGRF14,
+];
 
 /// データの状態（`GET /data/status`、`fune data status`）。ファイルの SHA-256 も確かめる
 /// （同じプロセスの中では、ファイルの大きさと更新時刻が変わらない間は前回の結果を使う）。
@@ -75,10 +86,45 @@ pub fn install_cached_datasets() {
 
 /// データを取得してキャッシュに置く（`POST /data/{id}/fetch`、`fune data fetch <id>`）。
 /// 一時ディレクトリに落として確かめてから置き換えるので、失敗しても既存のファイルは壊れない。
-pub fn fetch(id: &str) -> Result<DataStatus> {
+///
+/// `from` があれば、ネットワークの代わりにそのディレクトリにあるファイル（リリースの成果物と同じ名前）を取り込む
+/// （配布が済んでいないデータや、ネットワークの無い環境のため。**CLI だけの選択肢**で、HTTP は渡さない: サーバーのマシンの上の場所を HTTP から指させない。大きさと SHA-256 は取得したときと同じに確かめる。
+/// 宇宙天気は取り込めない）。`id` に群の ID `radiation` を与えると、放射線帯のデータ 7 件をまとめて扱う。
+pub fn fetch(id: &str, from: Option<&Path>) -> Result<DataStatus> {
+    if from.is_some() && id == space_weather::ID {
+        return Err(ServiceError::Data(
+            "space_weather is fetched from the network and cannot be installed from a directory"
+                .into(),
+        ));
+    }
     let dir = cache_dir()?;
-    fetch_in(&dir, id, &RELEASE_DATASETS, &release::gh_download)?;
+    let ids: Vec<&str> = if id == radiation::GROUP_ID {
+        radiation::GROUP_IDS.to_vec()
+    } else {
+        vec![id]
+    };
+    for one in ids {
+        match from {
+            Some(source) => fetch_in(&dir, one, &RELEASE_DATASETS, &copy_from(source))?,
+            None => fetch_in(&dir, one, &RELEASE_DATASETS, &release::gh_download)?,
+        }
+    }
     data_status()
+}
+
+/// ディレクトリ `source` にある成果物を一時ディレクトリへ写す取得関数（`fetch` の `from`）。
+fn copy_from(source: &Path) -> impl Fn(&release::ReleaseSpec, &Path) -> Result<()> + '_ {
+    move |spec, tmp| {
+        let from = source.join(spec.file);
+        std::fs::copy(&from, tmp.join(spec.file))
+            .map(|_| ())
+            .map_err(|e| io_error(&from, e))
+    }
+}
+
+/// 放射線帯の解析が要る地図と場のうち、読み込めていないものの名前（そろっていれば空）。
+pub fn radiation_missing() -> Vec<String> {
+    sat_astro::radiation::RadiationTables::installed().missing()
 }
 
 /// `fetch` の本体。表と取得の関数を引数に取る（試験では差し替える）。

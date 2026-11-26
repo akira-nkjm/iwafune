@@ -135,3 +135,83 @@ fn unknown_id_is_not_found() {
     assert!(matches!(err, ServiceError::NotFound { what: "data", .. }));
     assert_eq!(err.to_string(), "data not found: nope");
 }
+
+#[test]
+fn radiation_group_lists_exactly_the_radiation_rows() {
+    let ids: Vec<_> = RELEASE_DATASETS.iter().map(|d| d.spec.id).collect();
+    for id in radiation::GROUP_IDS {
+        assert!(ids.contains(&id), "{id} is not in the table");
+    }
+    // 表は DE440 とこの群だけ
+    assert_eq!(ids.len(), 1 + radiation::GROUP_IDS.len());
+    assert_ne!(radiation::GROUP_ID, space_weather::ID);
+    assert!(!ids.contains(&radiation::GROUP_ID));
+    // 出所の表示は行ごとにある。NASA の地図には再配布の事情（無変更・ライセンスの記載なし）と文献、IGRF には CC BY 4.0
+    for d in RELEASE_DATASETS.iter().skip(1) {
+        let text = &d.spec.license;
+        if d.spec.id == "igrf14" {
+            assert!(text.contains("CC BY 4.0") && text.contains("10.5281/zenodo.14012302"));
+        } else {
+            assert!(text.contains("PT-11B") && text.contains("redistributed unmodified"));
+            assert!(
+                text.contains("Sawyer & Vette 1976") && text.contains("Heynderickx & Beliaev 1995")
+            );
+        }
+    }
+}
+
+/// 表の SHA-256・大きさが、手元にある配布ファイル（キャッシュ）と合っている（無ければ読み飛ばす）。
+#[test]
+fn radiation_rows_match_the_files_when_present() {
+    let Ok(dir) = cache_dir() else { return };
+    let mut checked = 0;
+    for d in RELEASE_DATASETS.iter().skip(1) {
+        let path = dir.join(d.spec.file);
+        let Ok(bytes) = std::fs::read(&path) else {
+            eprintln!("SKIPPED: {} is not in the data cache", path.display());
+            continue;
+        };
+        assert_eq!(bytes.len() as u64, d.spec.size, "{}", d.spec.id);
+        assert_eq!(sha256_hex(&bytes), d.spec.sha256, "{}", d.spec.id);
+        checked += 1;
+    }
+    eprintln!("checked {checked} radiation files against the table");
+}
+
+/// ネットワークの代わりにディレクトリから取り込む（`fetch` の `from`）。大きさと SHA-256 の確かめ・置き換えは取得と同じ。
+#[test]
+fn install_from_a_directory_checks_and_places_the_file() {
+    let source = tempfile::tempdir().unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(source.path().join(FILE), BYTES).unwrap();
+    let ds = test_dataset(accept);
+    fetch_in(dir.path(), "test_data", &[&ds], &copy_from(source.path())).unwrap();
+    assert_eq!(std::fs::read(dir.path().join(FILE)).unwrap(), BYTES);
+    assert!(ds.item(dir.path()).unwrap().installed);
+    // 中身が違えば置き換えない
+    let bad = tempfile::tempdir().unwrap();
+    std::fs::write(bad.path().join(FILE), b"test dataset byteX").unwrap();
+    let err = fetch_in(dir.path(), "test_data", &[&ds], &copy_from(bad.path())).unwrap_err();
+    assert!(err.to_string().contains("SHA-256 mismatch"), "{err}");
+    assert_eq!(std::fs::read(dir.path().join(FILE)).unwrap(), BYTES);
+    // ディレクトリにファイルが無ければ誤り
+    let empty = tempfile::tempdir().unwrap();
+    assert!(fetch_in(dir.path(), "test_data", &[&ds], &copy_from(empty.path())).is_err());
+    // 宇宙天気はディレクトリから取り込めない
+    let err = fetch("space_weather", Some(source.path())).unwrap_err();
+    assert!(
+        err.to_string()
+            .contains("cannot be installed from a directory")
+    );
+}
+
+/// 不足入力が示すデータをそろえる手順（projection が持つ文）は、ここの群の ID と一致する。
+#[test]
+fn the_missing_input_hint_names_the_radiation_group() {
+    let hint = fune_projection::orbit::RADIATION_INSTALL_HINT;
+    assert!(
+        hint.starts_with(&format!("fune data fetch {}", radiation::GROUP_ID)),
+        "{hint}"
+    );
+    assert!(hint.contains("--from <DIR>"));
+}

@@ -181,6 +181,7 @@ table!(
     sat_analysis::orbit::OrbitDecay => Some(crate::orbit::decay),
     sat_analysis::orbit::Geometry => Some(crate::orbit::geometry),
     sat_analysis::orbit::TotalDose => Some(crate::orbit::total_dose),
+    sat_analysis::orbit::TrappedFlux => Some(crate::orbit::trapped_flux),
     sat_analysis::propulsion::Maneuvers => Some(propulsion::maneuvers),
     sat_analysis::propulsion::DvBudget => Some(propulsion::dv_budget),
     sat_analysis::propulsion::Propellant => Some(propulsion::maneuvers),
