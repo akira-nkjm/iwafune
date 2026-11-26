@@ -273,7 +273,7 @@ export const systemsJa = {
       orbit: {
         label: "軌道の図（太陽は右、影は左）",
         sunlit: "日照",
-        eclipse: "日陰",
+        eclipse: "蝕",
         beta: "β",
       },
     },
