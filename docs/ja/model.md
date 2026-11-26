@@ -1567,7 +1567,7 @@ reason        = "The sun sensor is not used while the paddle is folded"
 ### 6.1 2 つの階層
 
 部品には 2 つの親があります。「どの系に属するか（機能）」と「どこに取り付けられるか（物理）」です。
-RW は AOCS に属しますが、物理的には −Z パネルに取り付けられます。1 つのツリーで両方を表そうとすると、どちらかが歪みます。
+RW は姿勢系に属しますが、物理的には −Z パネルに取り付けられます。1 つのツリーで両方を表そうとすると、どちらかが歪みます。
 
 - 製品ツリー（機能） = `parts/` のディレクトリ構造。配分との比較とバジェットの集計に使います。
 - 取付の階層（物理） = 各部品の `mount`（取付先の部品と取付点）。3D の配置、重心と慣性の計算、熱接触に使います。
@@ -1946,7 +1946,7 @@ arrival   = "2029-09-25T00:00:00Z"
   この順序の「いつ、どの軌道で」は `propulsion.orbit_history` が与えます。数値的に伝播するマヌーバがあるとき、`orbit.eclipse_season`
   （とそれを使う `power.sizing`）は、この履歴から各サンプルの日の軌道を引きます（無ければ最初の軌道を保ちます）。
 - `propulsion.mass_properties` は、推進剤を積んだとき（寿命の始め）と使ったあと（寿命の終わり）の質量と重心を与えます（推進剤は、各タンク部品の重心にある点質量で、各タンクは自分の量を持ちます。下記）。
-- スラスタがどのタンクから引くか。スラスタ部品（役割 `propulsion_thruster`、または RCS として使う AOCS の `thruster`）は、任意のテキスト属性 `tank` で、推進剤を引くタンク部品を名指せます
+- スラスタがどのタンクから引くか。スラスタ部品（役割 `propulsion_thruster`、または RCS として使う姿勢系の `thruster`）は、任意のテキスト属性 `tank` で、推進剤を引くタンク部品を名指せます
   （`fune set MAIN_ENGINE.tank MAIN_TANK`、`POST /ops/from_text`。値は役割 `propellant_tank` の部品で、たとえば `[attr.tank] value = "MAIN_TANK"`）。名前を変えたタンクは `tank` で書き換えられ、まだ名指されているタンクは削除できません
   （`ref.part`）。`tank` を書かなければ、結果はこれまでとまったく同じです。1 つの推進剤のスラスタの推進剤（`propellant` の名前。§7.7）は、その推進剤のタンクのあいだで体積に応じて共有され、
   `propulsion.dv_budget` の RCS の推進剤は、どのタンクにも入りません。書くと、それが名指すものだけが変わります。
@@ -2132,9 +2132,9 @@ law = "nadir_pointing"
   `fune phase set <ID> --configuration STOWED`（解除するには、フラグを省くか空の値を渡します。ほかの任意の見出しのフィールドと同じ）、
   `fune case set-phase <case> <phase>`、`fune case unset-phase <case>`、`fune case set --phase <ID>` です。書き方: 最上位の値のあとで、`[orbit]` と `[law.<mode>]` は見出しのテーブルです
   （`fune_store::write::records::PHASE_SECTIONS`）。
-- GUI。フェーズのページは見出しのフィールドをダイアログで、上書きを「Edit overrides」ダイアログで編集します。軌道の上書きは設計の軌道と同じ設定の表（`SettingsTable`）で、姿勢則の上書きは AOCS のモードの姿勢則と同じフィールド（`Attitude`）です。どちらも、値が書かれる場所だけを取ります（`FieldEdit`: `usePhaseFieldEdit` は `phase_field` を送り、設計自身のエディタは `useSettingEdit` を使います）。「Copy the design orbit」、「Remove override」、姿勢則の上書きの追加と削除は、`phase_copy_orbit`、`phase_unset_orbit`、`phase_unset_law`、`phase_field` を `POST /ops/from_command` に送ります。GUI で編集できないもの: まだファイルに無い軌道のフィールドの追加（設計の軌道と同じ。`fune phase set-field` を使います）と、1 つのフィールドの削除（`fune phase unset-field`）です。
+- GUI。フェーズのページは見出しのフィールドをダイアログで、上書きを「Edit overrides」ダイアログで編集します。軌道の上書きは設計の軌道と同じ設定の表（`SettingsTable`）で、姿勢則の上書きは姿勢系のモードの姿勢則と同じフィールド（`Attitude`）です。どちらも、値が書かれる場所だけを取ります（`FieldEdit`: `usePhaseFieldEdit` は `phase_field` を送り、設計自身のエディタは `useSettingEdit` を使います）。「Copy the design orbit」、「Remove override」、姿勢則の上書きの追加と削除は、`phase_copy_orbit`、`phase_unset_orbit`、`phase_unset_law`、`phase_field` を `POST /ops/from_command` に送ります。GUI で編集できないもの: まだファイルに無い軌道のフィールドの追加（設計の軌道と同じ。`fune phase set-field` を使います）と、1 つのフィールドの削除（`fune phase unset-field`）です。
 - 解析での継続時間。フェーズの `duration` は、`orbit.geometry`（各区間の長さ）と `propulsion.dv_budget` の RCS アンローディングの項（下記）が読みます。順序とほかのフィールドは、どの解析も動かさず、マヌーバはフェーズを読みません（`after` は今もマヌーバを名指します。§7.7）。
-- フェーズごとの姿勢制御の推進剤（`propulsion.dv_budget`、行 `unloading`）。設計が AOCS の役割 `thruster` のスラスタ（RCS。マヌーバの `propulsion_thruster` ではない）を持つとき、スラスタが捨てる運動量が ΔV バジェットに加わります。
+- フェーズごとの姿勢制御の推進剤（`propulsion.dv_budget`、行 `unloading`）。設計が姿勢系の役割 `thruster` のスラスタ（RCS。マヌーバの `propulsion_thruster` ではない）を持つとき、スラスタが捨てる運動量が ΔV バジェットに加わります。
   `duration` のある各フェーズについて（フェーズの順に）、`aocs.rw_unloading` を、そのフェーズの軌道、姿勢則、形態で、そのフェーズの通常の代表のスパンにわたって**1 度**評価し、その 1 日の結果（周回あたりの永年の運動量 × 1 日あたりの周回数、
   `aocs.unload_time` の同時噴射の規則による、機体の ±x、±y、±z のうち最悪のものの推進剤、機体の質量での ΔV 換算）に、そのフェーズの日数を掛けます。捨てる運動量 `ΔH = H_day · T`、推進剤 `m = m_day · T`（1 つのスラスタでは、捨てる軸まわりのモーメントアーム `L = |r − r_cm|` について `m = ΔH / (L · Isp · g₀)`）、
   ΔV は `Δv_day · T` で、フェーズにわたる和がバジェットの行 `unloading` に加わります（そのため、合計とマージンはそれを含みます。`unloading.legs` は、継続時間、`dumped_momentum`、`propellant`、`delta_v`、`worst_direction` とともに各フェーズを一覧します）。
@@ -2206,8 +2206,8 @@ orientation = { w = 0.707107, x = 0.0, y = 0.0, z = -0.707107 }
 
 配分は系のディレクトリに散らさず、1 つのファイルに集めます。
 
-- 配分を決めるのはシステム担当で、AOCS 担当は `parts/aocs/` を触ります。担当が違います。`CODEOWNERS` で、レビューの担当者を別々に割り当てられます。
-- 配分は連動して動きます。「0.2 kg を AOCS に移し、PAYLOAD を減らす」という変更は、1 ファイルで 2 行の差分です。
+- 配分を決めるのはシステム担当で、姿勢系担当は `parts/aocs/` を触ります。担当が違います。`CODEOWNERS` で、レビューの担当者を別々に割り当てられます。
+- 配分は連動して動きます。「0.2 kg を姿勢系に移し、PAYLOAD を減らす」という変更は、1 ファイルで 2 行の差分です。
 - 合計は 1 つのファイルで確認できます。`check()` は「配分の合計 ≤ 上限 × (1 − システムマージン)」を検証し、超えれば警告を出します。
 ```toml
 # budget/allocation.toml (the limits are requirements with `verify.budget`, §7.9, not keys here)

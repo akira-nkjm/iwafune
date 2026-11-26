@@ -49,7 +49,7 @@ t_\mathrm b = \frac{m_\mathrm p}{\dot m_\mathrm p}.
 | $\dot m_\mathrm p$ | 推薬の質量流量（正） | kg/s |
 | $t_\mathrm b$ | 噴射時間 | s |
 
-式 (1) は [`crates/lib/astro/src/rocket.rs`](../../../crates/lib/astro/src/rocket.rs) の `exhaust_velocity`、`delta_v`、`propellant_for`、`burn_time`、`mass_flow_kg_s` に 1 回だけ書いてあります。$g_0$ の値は `sat_astro::constants::G0` です。「推薬の質量流量 $F/(I_\mathrm{sp}g_0)$ は `sat_astro::rocket` だけに置く」という規則は `cargo xtask check` が検査します。列の計算、[AOCS](aocs.md) のアンロード推薬の見積もり、推力つきの数値伝播はどれもこれらの関数を呼びます。
+式 (1) は [`crates/lib/astro/src/rocket.rs`](../../../crates/lib/astro/src/rocket.rs) の `exhaust_velocity`、`delta_v`、`propellant_for`、`burn_time`、`mass_flow_kg_s` に 1 回だけ書いてあります。$g_0$ の値は `sat_astro::constants::G0` です。「推薬の質量流量 $F/(I_\mathrm{sp}g_0)$ は `sat_astro::rocket` だけに置く」という規則は `cargo xtask check` が検査します。列の計算、[姿勢系](aocs.md) のアンロード推薬の見積もり、推力つきの数値伝播はどれもこれらの関数を呼びます。
 
 ### マヌーバの列と 2 つのマージン
 
@@ -111,7 +111,7 @@ flowchart LR
 
 ### 式
 
-区間 $j$（期間のあるフェーズ、またはミッション全体）ごとに、AOCS が 1 日あたりの代表の ΔV $u_j$（m/s 毎日）を出します。$\mathbf H_\mathrm{sec}$ は周期 $P$ の 1 周回に溜まる永年の角運動量、$T_\mathrm{day}=86400$ s とします。
+区間 $j$（期間のあるフェーズ、またはミッション全体）ごとに、姿勢系が 1 日あたりの代表の ΔV $u_j$（m/s 毎日）を出します。$\mathbf H_\mathrm{sec}$ は周期 $P$ の 1 周回に溜まる永年の角運動量、$T_\mathrm{day}=86400$ s とします。
 
 ```math
 H_\mathrm{day}=\frac{\lVert\mathbf H_\mathrm{sec}\rVert\,T_\mathrm{day}}{P},\qquad
@@ -120,7 +120,7 @@ v_\mathrm{e,eff}=\frac{\sum_i F_i}{\sum_i F_i/v_{\mathrm e,i}} .
 \tag{3}
 ```
 
-$H_\mathrm{day}$ は 1 日に捨てる運動量（N·m·s）です。$m_\mathrm{day}$ は同時に噴射するスラスタが 1 日に使う推薬（kg）で、[AOCS のアンロード時間](aocs.md)と同じ方法で求めます。$m_\mathrm{sc}$ は AOCS の入力にある機体の質量で、和は噴射するスラスタについて取ります。合計は次のとおりです。
+$H_\mathrm{day}$ は 1 日に捨てる運動量（N·m·s）です。$m_\mathrm{day}$ は同時に噴射するスラスタが 1 日に使う推薬（kg）で、[姿勢系のアンロード時間](aocs.md)と同じ方法で求めます。$m_\mathrm{sc}$ は姿勢系の入力にある機体の質量で、和は噴射するスラスタについて取ります。合計は次のとおりです。
 
 ```math
 \Delta v_\mathrm{total}=\sum_i\Delta v_i+\sum_j u_j\frac{T_j}{T_\mathrm{day}},\qquad
@@ -168,7 +168,7 @@ $H_\mathrm{day}$ は 1 日に捨てる運動量（N·m·s）です。$m_\mathrm{
 ### 限界
 
 - アンロードの推定は外乱の環境を区間ごとに 1 回評価し、区間の長さで拡大します。
-- ΔV 換算にはAOCS の入力にある機体の質量を使います。この質量は区間の中で一定です。
+- ΔV 換算には姿勢系の入力にある機体の質量を使います。この質量は区間の中で一定です。
 - 直接書いたアンロードの余裕と、計算したアンロードの ΔV は、同じ行に両方数えます。
 - 推力の不釣り合いによる並進は ΔV に含めません。
 

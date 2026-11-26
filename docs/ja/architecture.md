@@ -12,7 +12,7 @@ CLI、API、Web は同じ分類を使い、KPI はサブシステムごと、ま
 ## 1. 目的と範囲
 
 iwafune は小型衛星の概念設計のための道具です。1 組の設計データをもとに、部品の選定、質量・電力・データのバジェット、モードごとの消費電力、
-AOCS、C&DH、通信、電力、推進、構造、熱の解析を扱います。
+姿勢系、C&DH、通信、電力、推進、構造、熱の解析を扱います。
 
 - 設計データを持つ場所は git で管理する TOML のディレクトリだけです。常駐するサーバーもデータベースもありません。
 - 編集の手段は CLI（`fune`）と Web の GUI の 2 つで、できることは同じです。GUI は、`fune gui` がローカルで起動するサーバーから配信します。
@@ -271,7 +271,7 @@ warning で失敗することはありません。「結果が失敗している
 | `POST /parts/{id}/place_body` | 機体座標での配置を、取り付け先からの相対の `Place` に変換して適用する |
 | `GET /units`, `POST /units/parse`, `/units/format` | 単位の一覧、入力の解析（次元と SI への換算）、SI の値の表示文字列 |
 | `GET /analyses`, `POST /analyses/{id}`, `GET`/`POST /budgets/{kind}` | 解析とバジェットの一覧と実行（6 節。POST の `case` と `ops` で、解析ケースと下書きを指定する） |
-| `POST /system_modes/{system}` | サブシステムごとのモード表示（電力、C&DH、熱、AOCS の値、合計、判定。リクエストの `ops`、`case`、`analyzed`、`summary` で、下書きと表示を選ぶ） |
+| `POST /system_modes/{system}` | サブシステムごとのモード表示（電力、C&DH、熱、姿勢系の値、合計、判定。リクエストの `ops`、`case`、`analyzed`、`summary` で、下書きと表示を選ぶ） |
 | `POST /thermal/tables` | 熱結合（使用中の値と出典）、外表面の塗装、塗装、節の最低・最高温度。リクエストの下書き `ops` を当てる（GUI の「Couplings and surfaces」タブ） |
 | `GET /data/status`, `GET /data/space_weather`, `POST /data/{id}/fetch` | 外部データの状態と取得、宇宙天気の表（6.5 節） |
 | `POST /report/export` | 設計書を書き出す |
@@ -290,7 +290,7 @@ UI の部品には Tailwind CSS 4 と Radix を、系統図には @xyflow/react 
   サブシステムのページはそのサブシステムに関わる部品を、そのサブシステムの属性の列だけで一覧し、セルで編集でき、同じページに解析の結果を表示します。
 - サブシステムごとのモード表示は Rust で計算します。`POST /system_modes/{system}`（`fune_service::system_modes`、`fune mode view <system>`）は、モードのタブの値、合計、判定を返します。これは、既存の projection と解析から作ります。リクエストでは下書き（`ops`）、解析ケース（`case`）、
   解析を実行するか（`analyzed`。Power では、Power の解析を型付きで実行して作る `SystemModeView.power` が加わります）、足もとに何行返すか（`summary`）を選びます。
-  AOCS のカードの値（運動量の蓄積、アンローディングの頻度、MTQ のアンローディング時間、センサの視野の判定）は、`fune_projection::aocs::{rw_unloading_for_mode, sensor_fov_for_mode}` が評価します。
+  姿勢系のカードの値（運動量の蓄積、アンローディングの頻度、MTQ のアンローディング時間、センサの視野の判定）は、`fune_projection::aocs::{rw_unloading_for_mode, sensor_fov_for_mode}` が評価します。
   これらはモードを明示的に受け取り、既定のケースの軌道条件を保ったまま姿勢則だけを選ぶので、通常の解析のケースの選択、入力、数値は変わりません。Web は、Rust が返したものを描くだけです。
 - モードのセルは下書きとして編集します。モードの表のセルの編集は下書き（`features/modes/draft/draft.ts`）として持ち、`fune mode set|unset` の引数 → Op として送ります。同じ下書きを、上の表示に `ops` として渡すので、合計と判定は保存していない編集に追随します。保存はほかの編集と同じく Op を適用します。
 - 系統図ではサブシステムを隠せます。選択肢は API の `DefsView.systems` で、何も選ばないときに隠すものは `DefsView.diagram_hidden_systems` が示します（構造）。選択は URL に `hidden-system` として残ります（`lib/nav.ts` の `SEARCH`。繰り返して指定でき、空なら全部を表示します）。隠すのは表示だけで、設計データは変わりません。
@@ -321,7 +321,7 @@ Web がしないことは次のとおりです。
 
 | サブシステム | 定常 | 時系列 |
 |---|---|---|
-| AOCS | `aocs.unload_time`（MTQ と RCS でアンローディングするのに要する時間）, `aocs.slew_time`（RW で姿勢を変えるのに要する時間） | `aocs.rw_unloading`（外乱トルク（スラスタの誤差を含む。部品の箱の投影面積と重心から求める空力トルクと太陽輻射圧トルク）と RW のアンローディングの頻度、RCS が 1 日に放出する推進剤とその ΔV 換算）, `aocs.sensor_fov`（センサの視野と除外角） |
+| 姿勢系 | `aocs.unload_time`（MTQ と RCS でアンローディングするのに要する時間）, `aocs.slew_time`（RW で姿勢を変えるのに要する時間） | `aocs.rw_unloading`（外乱トルク（スラスタの誤差を含む。部品の箱の投影面積と重心から求める空力トルクと太陽輻射圧トルク）と RW のアンローディングの頻度、RCS が 1 日に放出する推進剤とその ΔV 換算）, `aocs.sensor_fov`（センサの視野と除外角） |
 | C&DH | `cdh.data_budget`（データ量と記憶容量） | — |
 | 通信 | `comm.link_budget`（回線設計） | `comm.visibility`（地上局の可視性）, `comm.data_throughput`（送信したデータ量と蓄積したデータ量） |
 | 軌道条件 | `orbit.total_dose`（環境表から求める部品ごとのトータルドーズ。環境表はユーザーのもの、なければ計算した捕捉粒子の表で、許容値までの余裕を出す。放射線の輸送計算は持たない）, `orbit.trapped_flux`（AP-8/AE-8 による、軌道平均とピークの捕捉陽子・電子のフラックスと、ミッション全体のフルエンス。`fune data fetch radiation` のデータが必要。[trapped-radiation.md](trapped-radiation.md) を参照）, `orbit.trapped_dose`（それらのスペクトルから SHIELDOSE-2 で求める、アルミ遮蔽の深さに対する線量。この表は、ユーザーの表のない leg に対する `orbit.total_dose` の環境にも使われる） | `orbit.eclipse_season`（ベータ角と蝕の季節）, `orbit.decay`（大気抵抗による減衰と軌道維持）, `orbit.geometry`（フェーズごとの太陽と地球の距離と角度） |
