@@ -151,6 +151,11 @@ fn radiation_group_lists_exactly_the_radiation_rows() {
         let text = &d.spec.license;
         if d.spec.id == "igrf14" {
             assert!(text.contains("CC BY 4.0") && text.contains("10.5281/zenodo.14012302"));
+        } else if d.spec.id == "shieldose2" {
+            assert!(text.contains("NISTIR 5477") && text.contains("LGPL-3.0-or-later"));
+            assert!(text.contains("2013 correction"));
+            // 地図とは別のリリース（行ごとのタグ。群で取得しても特別な扱いは要らない）
+            assert_eq!(d.spec.tag, "data-shielding-v1");
         } else {
             assert!(text.contains("PT-11B") && text.contains("redistributed unmodified"));
             assert!(

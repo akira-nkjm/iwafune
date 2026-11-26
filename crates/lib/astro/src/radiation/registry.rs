@@ -3,6 +3,7 @@
 
 use super::map::TrappedMap;
 use super::model::{BeltField, TrappedModel};
+use super::shielding::ShieldingData;
 use crate::AstroError;
 use crate::geomag::{GaussModel, IgrfTable};
 use std::sync::OnceLock;
@@ -10,6 +11,7 @@ use std::sync::OnceLock;
 static MAPS: [OnceLock<TrappedMap>; 4] = [const { OnceLock::new() }; 4];
 static FIELDS: [OnceLock<GaussModel>; 2] = [const { OnceLock::new() }; 2];
 static IGRF: OnceLock<IgrfTable> = OnceLock::new();
+static SHIELDING: OnceLock<ShieldingData> = OnceLock::new();
 
 fn map_slot(model: TrappedModel) -> &'static OnceLock<TrappedMap> {
     &MAPS[TrappedModel::ALL
@@ -41,6 +43,16 @@ pub fn install_field(field: BeltField, model: GaussModel) -> Result<(), AstroErr
 /// IGRF の表を登録する（1 度だけ。現在の場が要る解析のため。AP-8・AE-8 の引きは使わない）。
 pub fn install_igrf(table: IgrfTable) -> Result<(), AstroError> {
     IGRF.set(table).map_err(|_| already("IGRF"))
+}
+
+/// SHIELDOSE-2 の線量データベースを登録する（1 度だけ）。
+pub fn install_shielding(data: ShieldingData) -> Result<(), AstroError> {
+    SHIELDING.set(data).map_err(|_| already("SHIELDOSE-2 data"))
+}
+
+/// 登録した SHIELDOSE-2 の線量データベース。
+pub fn shielding() -> Option<&'static ShieldingData> {
+    SHIELDING.get()
 }
 
 /// 登録した IGRF の表。

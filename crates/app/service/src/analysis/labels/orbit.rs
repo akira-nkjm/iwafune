@@ -4,8 +4,8 @@ use super::label;
 use crate::dto::AnalysisLabel;
 use sat_analysis::orbit::decay::{DecayCondition, DragAreaSource};
 use sat_analysis::orbit::{
-    DesignMarginSource, DoseInterpolation, DoseLegStatus, DoseNotEvaluated, GeometrySpanBasis,
-    ShieldingSource,
+    DesignMarginSource, DoseGeometry, DoseInterpolation, DoseLegStatus, DoseNotEvaluated,
+    DoseSettingSource, EnvironmentSource, GeometrySpanBasis, NuclearAttenuation, ShieldingSource,
 };
 use sat_astro::atmosphere::space_weather::{SolarActivity, WeatherSource};
 use sat_astro::radiation::{SolarCondition, Species};
@@ -122,6 +122,53 @@ pub(super) fn dose_interpolation(i: DoseInterpolation) -> AnalysisLabel {
         DoseInterpolation::LogLinear => label(
             "厚さについて線形、線量率は対数",
             "Linear in thickness, logarithmic in dose rate",
+        ),
+    }
+}
+
+pub(super) fn dose_geometry(g: DoseGeometry) -> AnalysisLabel {
+    match g {
+        DoseGeometry::SphereCentre => label(
+            "アルミの中実の球の中心",
+            "Centre of a solid aluminium sphere",
+        ),
+        DoseGeometry::SemiInfiniteSlab => {
+            label("半無限のアルミの媒質", "Semi-infinite aluminium medium")
+        }
+        DoseGeometry::FiniteSlab => label(
+            "有限のアルミの板の透過面",
+            "Transmission surface of a finite aluminium slab",
+        ),
+    }
+}
+
+pub(super) fn nuclear_attenuation(n: NuclearAttenuation) -> AnalysisLabel {
+    match n {
+        NuclearAttenuation::None => label("核相互作用を見ない", "No nuclear attenuation"),
+        NuclearAttenuation::Local => label(
+            "核相互作用あり（二次粒子はその場に付与）",
+            "Nuclear attenuation, secondary energy deposited locally",
+        ),
+        NuclearAttenuation::LocalWithNeutrons => label(
+            "核相互作用あり（中性子の寄与を含む）",
+            "Nuclear attenuation with neutron dose",
+        ),
+    }
+}
+
+pub(super) fn dose_setting_source(s: DoseSettingSource) -> AnalysisLabel {
+    match s {
+        DoseSettingSource::Given => label("指定した値", "Given"),
+        DoseSettingSource::Default => label("解析の既定", "Analysis default"),
+    }
+}
+
+pub(super) fn environment_source(s: EnvironmentSource) -> AnalysisLabel {
+    match s {
+        EnvironmentSource::UserTable => label("利用者の環境の表", "User-supplied table"),
+        EnvironmentSource::ComputedTrapped => label(
+            "捕捉粒子のモデルで計算（太陽陽子・宇宙線を含まない）",
+            "Computed trapped-particle model (no solar protons or cosmic rays)",
         ),
     }
 }

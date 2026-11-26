@@ -13,6 +13,7 @@
 //! | 平面の凸多角形と、その和集合の面積・図心 [`planar`]（帯の掃引で厳密。**凸多角形の和集合はここだけ**） | `math/planar.rs` |
 //! | ガウス・ルジャンドル則の節点と重み [`quadrature::gauss_legendre`]（**求積則の節点はここだけ**） | `math/quadrature.rs` |
 //! | 1 変数の表の補間 [`interpolate`]（区分線形か値の対数。**表の外は外挿しない**。表を引く規則はここだけ） | `math/table.rs` |
+//! | 自然 3 次スプライン [`spline::NaturalSpline`] と、端の区間を延ばす折れ線 [`spline::ExtendedLinear`]（**表の外へ延ばす補間はここだけ**） | `math/spline.rs` |
 //! | 二分法 [`bisect`]・黄金分割 [`golden_section_max`] | `math/roots.rs` |
 
 mod dense;
@@ -24,6 +25,7 @@ pub mod quadrature;
 mod quat;
 mod roots;
 mod skyline;
+pub mod spline;
 mod subspace;
 mod sym_eigen;
 mod table;

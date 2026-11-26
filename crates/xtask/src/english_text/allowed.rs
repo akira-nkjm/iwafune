@@ -74,6 +74,10 @@ pub(super) const ALLOWED: &[(&str, &str)] = &[
         "crates/lib/analysis/src/orbit/trapped_flux.rs",
         ANALYSIS_TEXT,
     ),
+    (
+        "crates/lib/analysis/src/orbit/trapped_dose.rs",
+        ANALYSIS_TEXT,
+    ),
     ("crates/lib/analysis/src/orbit/total_dose.rs", ANALYSIS_TEXT),
     (
         "crates/lib/analysis/src/power/energy_balance.rs",

@@ -145,13 +145,7 @@ pub fn compute_with(
             missing.join(", ")
         )));
     }
-    let orbit = input.sampling.resolved_orbit()?;
-    if orbit.central() != CentralBody::Earth {
-        return Err(AnalysisError::InvalidInput(
-            "The trapped-radiation models describe the Earth's belts; the orbit must be about the Earth".into(),
-        ));
-    }
-    let points = input.sampling.states()?;
+    let points = earth_samples(&input.sampling)?;
     let t: Vec<f64> = points.iter().map(|p| p.t_s).collect();
     let mut cases = Vec::with_capacity(4);
     for field_id in BeltField::ALL {
@@ -189,11 +183,22 @@ pub fn compute_with(
     })
 }
 
+/// 地球の周りの軌道の標本（放射線帯の解析が共通に使う。他の天体の周りなら入力の誤り）。
+pub(super) fn earth_samples(sampling: &OrbitSampling) -> Result<Vec<OrbitPoint>, AnalysisError> {
+    let orbit = sampling.resolved_orbit()?;
+    if orbit.central() != CentralBody::Earth {
+        return Err(AnalysisError::InvalidInput(
+            "The trapped-radiation models describe the Earth's belts; the orbit must be about the Earth".into(),
+        ));
+    }
+    Ok(sampling.states()?)
+}
+
 /// 並列に使うスレッドの上限（L の計算は標本ごとに独立で、場の評価が重い。結果は順序も値も直列と同じ）。
 const MAX_THREADS: usize = 8;
 
 /// 標本ごとの (L, B/B₀)。求まらない点は理由つきで `Err`（地図の外）。標本は塊に分けて並列に求め、元の順に並べる。
-fn positions_in(
+pub(super) fn positions_in(
     field: &FieldSnapshot,
     points: &[OrbitPoint],
     convention: BeltConvention,

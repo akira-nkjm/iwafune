@@ -1,5 +1,6 @@
-//! 放射線の総線量: 利用者が与える環境の表（遮蔽の厚さ → 線量率）を、フェーズごとの期間で積み、部品ごとの総線量と許容線量との余裕を出す。
-//! 放射線帯や遮蔽の輸送計算はしない（環境の表は利用者のもの）。球殻の等価アルミ厚さを仮定し、はじき出し損傷・単一事象の影響は扱わない。
+//! 放射線の総線量: 環境の表（遮蔽の厚さ → 線量率）を、フェーズごとの期間で積み、部品ごとの総線量と許容線量との余裕を出す。
+//! 環境の表は利用者が与えるか（常にこちらが優先）、与えなければ捕捉粒子の解析 `orbit.trapped_dose` が計算したもの（出どころは区間ごとに
+//! `environment_source`。計算した表は**捕捉した陽子・電子だけ**で、太陽陽子・宇宙線は含まない）。この解析自身は放射線帯や遮蔽の輸送計算をしない。球殻の等価アルミ厚さを仮定し、はじき出し損傷・単一事象の影響は扱わない。
 //!
 //! - 区間（leg）: 1 つのフェーズ（フェーズが無い設計は設計の軌道とミッション期間の 1 区間）。期間か環境の表が無い区間は
 //!   **推測せず、出力の `legs[].status` に挙げて総線量から除く**（除いたことは `phases_left_out` の警告）。
@@ -32,6 +33,17 @@ pub struct DoseDepthPoint {
     pub rate: Qty<AbsorbedDoseRate>,
 }
 
+/// 環境の表の出どころ。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[serde(rename_all = "snake_case")]
+pub enum EnvironmentSource {
+    /// 利用者が与えた表（`dose_rate_by_shielding`）
+    UserTable,
+    /// 捕捉粒子の解析 `orbit.trapped_dose` が軌道から計算した表（太陽活動の極小・極大の悪い方。捕捉した陽子・電子だけ）
+    ComputedTrapped,
+}
+
 /// 区間の入力。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
@@ -42,6 +54,9 @@ pub struct DoseLegInput {
     pub duration: Option<Qty<Time>>,
     /// 環境の表（遮蔽の厚さが増える順。無ければ評価しない）
     pub environment: Option<Vec<DoseDepthPoint>>,
+    /// 表の出どころ（無ければ利用者の表）
+    #[serde(default)]
+    pub environment_source: Option<EnvironmentSource>,
 }
 
 /// 部品の入力。
@@ -131,6 +146,8 @@ pub struct DoseLeg {
     pub phase: Option<String>,
     pub status: DoseLegStatus,
     pub duration: Option<Qty<Time>>,
+    /// 環境の表の出どころ（表の無い区間は `None`）
+    pub environment_source: Option<EnvironmentSource>,
     /// 基準の遮蔽厚さ（評価した部品のうち最も薄いもの）での線量率（表の外なら `None`）
     pub rate_at_reference: Option<Qty<AbsorbedDoseRate>>,
     /// 基準の遮蔽厚さでの区間の線量
@@ -377,6 +394,10 @@ fn legs_result(
                 phase: leg.phase.clone(),
                 status,
                 duration: leg.duration,
+                environment_source: leg.environment.as_ref().map(|_| {
+                    leg.environment_source
+                        .unwrap_or(EnvironmentSource::UserTable)
+                }),
                 rate_at_reference: rate.map(|(x, _)| Qty::from_raw(x)),
                 dose_at_reference: rate.map(|(x, d)| Qty::from_raw(x * d)),
             }

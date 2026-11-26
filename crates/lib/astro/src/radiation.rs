@@ -10,6 +10,7 @@
 //! | `flux` | 積分フラックス `> E` の補間（[`TrappedMap::integral_flux`]） |
 //! | [`model`] | 4 つの地図（[`TrappedModel`]）と、組にする地磁気モデル（[`BeltField`]）・L の求め方の定数 |
 //! | [`position`] | 地磁気モデルから位置の (L, B/B₀) を求める |
+//! | [`shielding`] | 遮蔽したアルミの深さでの線量への換算（SHIELDOSE-2。スペクトル → 陽子・電子・制動放射の線量） |
 //! | [`registry`] | 読み込んだ地図・場のプロセス全体の登録（DE440 の登録と同じ。解析はここから引く） |
 //!
 //! 制限: 静的なモデル（太陽活動極小・極大の 2 つの元期だけ。年変化・磁気嵐・太陽粒子は含まない）。
@@ -19,6 +20,7 @@ pub mod map;
 pub mod model;
 pub mod position;
 pub mod registry;
+pub mod shielding;
 
 pub use map::{MapHeader, TrappedMap};
 pub use model::{BeltField, SolarCondition, Species, TrappedModel};
