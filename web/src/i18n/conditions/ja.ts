@@ -126,7 +126,7 @@ export const conditionsJa = {
     noConditionsSettings: "conditions/ の設定がありません",
     eclipseSeries: "β と蝕の季節変動",
     eclipseApproximation:
-      "各標本日の1周では太陽位置を固定。蝕は本影と半影の合計、半影の系列は本影を含まない時間です。極値は標本日の中から選びます。",
+      "各サンプル日の1周では太陽位置を固定。蝕は本影と半影の合計、半影の系列は本影を含まない時間です。極値はサンプル日の中から選びます。",
     createEclipseCase: "このケースを作る",
     eclipseLongest: "最長蝕の日",
     eclipseBetaMin: "β 最小の日",
