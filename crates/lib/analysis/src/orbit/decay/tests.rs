@@ -175,7 +175,7 @@ fn dated_weather_matches_the_same_preset() {
     );
     assert_eq!(dated.lifetime.is_some(), moderate.lifetime.is_some());
     assert!((dated.final_altitude.value() - moderate.final_altitude.value()).abs() < 1.0);
-    // 標本の境目で刻みを切るぶんだけ積分の刻みが違う（1 周の平均は世界時の 1 日の変化を拾うので、刻みの違いで 1% ほど揺れる）。
+    // サンプルの境目で刻みを切るぶんだけ積分の刻みが違う（1 周の平均は世界時の 1 日の変化を拾うので、刻みの違いで 1% ほど揺れる）。
     let dv = |c: &DecayCase| c.station_keeping.delta_v_total.value();
     let r = dv(dated) / dv(moderate);
     assert!((r - 1.0).abs() < 2e-2, "{r}");

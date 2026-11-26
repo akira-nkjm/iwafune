@@ -22,7 +22,7 @@ pub struct ConditionsSettings {
 }
 
 enum_text! {
-    /// 軌道の伝搬方法。
+    /// 軌道の伝播方法。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
     #[ts(rename = "OrbitPropagatorKind")]
     pub enum PropagatorKind: "orbit propagation method" {
@@ -41,7 +41,7 @@ enum_text! {
         Elements = "elements",
         /// 日付つきの遷移のマヌーバ（`maneuver`）の巡航の軌道。元期は出発、中心は共通の親、期間は飛行時間
         Transfer = "transfer",
-        /// 状態ベクトル（`epoch`・`central`・`position`・`velocity`・`span`）を多体の力で数値伝搬する軌道。位置・速度は
+        /// 状態ベクトル（`epoch`・`central`・`position`・`velocity`・`span`）を多体の力で数値伝播する軌道。位置・速度は
         /// 原点の天体の中心から、向きは ECI（J2000 平均赤道の慣性系）
         State = "state",
         /// ラグランジュ点（`primary`・`secondary`・`point`・`epoch`）、`amplitude_z` を書けばそのまわりのハロー軌道（`branch`）。
@@ -271,7 +271,7 @@ pub struct OrbitSettings {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct EclipseSeasonSettings {
-    /// 季節の標本の間隔（時間）。
+    /// 季節のサンプルの間隔（時間）。
     #[serde(default)]
     pub step: Option<Quantity>,
 }

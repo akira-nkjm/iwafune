@@ -1,4 +1,4 @@
-//! 解析的な伝搬（二体・J2 永年項）。地球は ECI の要素のまま、ほかの中心天体は自転軸を z にした
+//! 解析的な伝播（二体・J2 永年項）。地球は ECI の要素のまま、ほかの中心天体は自転軸を z にした
 //! 天体の赤道座標系で J2 の永年項を足し、ECI に戻す（自転軸は元期の向きで固定）。
 
 use super::{
@@ -36,15 +36,15 @@ pub fn j2_secular_rates_about(
     (raan_dot, argp_dot, m_dot)
 }
 
-/// 解析的な伝搬器（元期の要素と、伝搬に使う座標系）。
+/// 解析的なプロパゲータ（元期の要素と、伝播に使う座標系）。
 pub(super) struct Analytic {
     mu: f64,
     re: f64,
     /// J2 の永年項を足すときの J2（足さないなら `None`）
     j2: Option<f64>,
-    /// 伝搬の座標系での元期の要素
+    /// 伝播の座標系での元期の要素
     el: KeplerElements,
-    /// ECI → 伝搬の座標系（地球と二体は `None` = ECI のまま）
+    /// ECI → 伝播の座標系（地球と二体は `None` = ECI のまま）
     rot: Option<Mat3>,
 }
 
@@ -78,7 +78,7 @@ impl Analytic {
         })
     }
 
-    /// 伝搬の座標系での `t_s` 秒後の要素。
+    /// 伝播の座標系での `t_s` 秒後の要素。
     fn elements_at(&self, t_s: f64) -> KeplerElements {
         let el = &self.el;
         let n = mean_motion_rad_s(self.mu, el.a_m);

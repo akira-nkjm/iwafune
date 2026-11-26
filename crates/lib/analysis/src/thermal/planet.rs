@@ -64,7 +64,7 @@ pub fn planet_environment(central: CentralBody) -> Option<PlanetEnvironment> {
                 night_w_m2: MOON_EMISSIVITY * SIGMA_SB * MOON_NIGHT_TEMPERATURE_K.powi(4),
             },
         }),
-        // 太陽を回る軌道（惑星間の巡航）。反射も天体の赤外も無く、入熱は直達の太陽光だけ（食も無い）
+        // 太陽を回る軌道（惑星間の巡航）。反射も天体の赤外も無く、入熱は直達の太陽光だけ（蝕も無い）
         CentralBody::Sun => Some(PlanetEnvironment {
             albedo: 0.0,
             ir: PlanetIr::Uniform(0.0),

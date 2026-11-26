@@ -3,7 +3,7 @@
 //! マヌーバの入力に写すだけで、遷移が無ければ解析が空の結果を返す。RCS のアンロードは ΔV バジェットだけが使う）と
 //! `propulsion.mass_properties`（質量特性の入力も足す）。
 //!
-//! - 数値伝搬（`propagated`）のマヌーバは `[constraints]` を `ThrustConstraints` に写し、無視した制約にしない。
+//! - 数値伝播（`propagated`）のマヌーバは `[constraints]` を `ThrustConstraints` に写し、無視した制約にしない。
 //!   スラスタが無ければ不足の入力にする。
 //!
 //! - 軌道は前提条件の軌道（`conditions/orbit.toml`）、マヌーバは `Design::ordered_maneuvers` の実行の順。
@@ -301,7 +301,7 @@ fn flyby_inputs(x: &Maneuver, m: &mut MissingInputs) -> Option<Vec<FlybyInput>> 
     Some(out)
 }
 
-/// 数値伝搬で効く制約（`[constraints]`）。
+/// 数値伝播で効く制約（`[constraints]`）。
 fn thrust_constraints(x: &Maneuver) -> ThrustConstraints {
     let c = &x.constraints;
     ThrustConstraints {
@@ -312,7 +312,7 @@ fn thrust_constraints(x: &Maneuver) -> ThrustConstraints {
     }
 }
 
-/// 数値伝搬のマヌーバがあるか（あればほかの解析がマヌーバの順の軌道の推移を使う）。
+/// 数値伝播のマヌーバがあるか（あればほかの解析がマヌーバの順の軌道の推移を使う）。
 pub fn has_propagated(ctx: &Context<'_>) -> bool {
     ctx.design
         .maneuvers

@@ -226,7 +226,7 @@ pub struct SolarProfile {
     pub lit: Vec<bool>,
     /// `panel_bol[i][k]`: パネル `i` のサンプル `k` での発電（BOL、バス側）[W]
     pub panel_bol: Vec<Vec<f64>>,
-    /// 影を数えたときの、パネルの面の日照割合の報告（日照中の標本の太陽方向について）。数えなければ `None`
+    /// 影を数えたときの、パネルの面の日照割合の報告（日照中のサンプルの太陽方向について）。数えなければ `None`
     pub shadowing: Option<ShadowingReport>,
     eol_factors: Vec<f64>,
 }
@@ -282,7 +282,7 @@ impl SolarProfile {
     }
 }
 
-/// 日陰の区間（日照率が [`SUNLIT_THRESHOLD`] を下回る標本の連続区間。`sat_astro::timeline::shadow_windows`）。
+/// 日陰の区間（日照率が [`SUNLIT_THRESHOLD`] を下回るサンプルの連続区間。`sat_astro::timeline::shadow_windows`）。
 pub fn eclipses(samples: &[TimelineSample]) -> Vec<Window> {
     shadow_windows(samples, SUNLIT_THRESHOLD)
 }

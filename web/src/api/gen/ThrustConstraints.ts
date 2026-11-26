@@ -2,7 +2,7 @@
 import type { ThrustSteering } from "./ThrustSteering";
 
 /**
- * 数値伝搬（`propagated`）で効く制約。
+ * 数値伝播（`propagated`）で効く制約。
  */
 export type ThrustConstraints = { 
 /**

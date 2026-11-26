@@ -1,4 +1,4 @@
-//! ページ用に追加した解析出力も手計算できる小さな標本で検証する。
+//! ページ用に追加した解析出力も手計算できる小さなサンプルで検証する。
 use super::*;
 use sat_astro::{math::Quat, orbit::Cycle, timeline::TimelineSample};
 
@@ -13,7 +13,7 @@ fn profile(input: &EnergyBalanceInput) -> SolarProfile {
 
 #[test]
 fn sunlit_means_by_hand_include_charge_shunt_and_discharge() {
-    // 二つの日照標本はともに 60 W、負荷 30 W → 余剰 30 W。
+    // 二つの日照サンプルはともに 60 W、負荷 30 W → 余剰 30 W。
     for (start_soc, expected_charge, expected_shunt) in [(1.0, 0.0, 30.0), (0.5, 30.0, 0.0)] {
         let mut i = input(vec![pz_panel()], vec![constant("nominal", 30.0)]);
         i.batteries[0].initial_soc = Some(start_soc);
@@ -33,7 +33,7 @@ fn sunlit_means_by_hand_include_charge_shunt_and_discharge() {
         assert_eq!(case.sunlit_average_charge.value(), expected_charge);
         assert_eq!(case.sunlit_average_shunt.value(), expected_shunt);
     }
-    // 発電が負荷に足りない日照標本: 20 W − 30 W → バス側放電 10 W。
+    // 発電が負荷に足りない日照サンプル: 20 W − 30 W → バス側放電 10 W。
     let i = input(vec![pz_panel()], vec![constant("nominal", 30.0)]);
     let battery = EnergyBalanceBattery::combine(&i.batteries).unwrap().battery;
     let mut p = profile(&i);
@@ -74,7 +74,7 @@ fn output_limits_mode_loads_and_eclipses_by_hand() {
             q_body_to_eci: Quat::IDENTITY,
         })
         .collect();
-    // 日照率 0.5 は日照。蝕は t=20,30 s の二標本 → 区間 20..30 s。
+    // 日照率 0.5 は日照。蝕は t=20,30 s の二サンプル → 区間 20..30 s。
     let p = SolarProfile::build(&i.array, &samples);
     let battery = EnergyBalanceBattery::combine(&i.batteries).unwrap().battery;
     let profiles = Profiles::new(&i);

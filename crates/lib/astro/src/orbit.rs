@@ -1,13 +1,13 @@
-//! 軌道要素と伝搬（Kepler / J2 永年項 / 力モデルの数値積分）、周期、太陽同期傾斜角、β 角。
-//! **軌道伝搬はここだけ。**
+//! 軌道要素と伝播（Kepler / J2 永年項 / 力モデルの数値積分）、周期、太陽同期傾斜角、β 角。
+//! **軌道伝播はここだけ。**
 //!
 //! 平均要素の J2 永年変化率は Vallado（*Fundamentals of Astrodynamics and Applications*, 4th ed.）eq. 9-41
-//! に従う。数値伝搬（[`Propagator::Numerical`]）は [`numerical`] にあり、[`crate::force`] の加速度を
-//! [`crate::ode::Dop853`] で積分する（Cowell 法）。推力を入れた伝搬（[`propagate_powered`]）は `powered` にあり、
+//! に従う。数値伝播（[`Propagator::Numerical`]）は [`numerical`] にあり、[`crate::force`] の加速度を
+//! [`crate::ode::Dop853`] で積分する（Cowell 法）。推力を入れた伝播（[`propagate_powered`]）は `powered` にあり、
 //! 同じ積分器と力モデルに推力の項（[`crate::force::thrust`]）と質量を足す。平均の長半径（J2 の短周期項を引く）は `mean`。
 //! 円制限三体問題（ラグランジュ点・ハロー軌道の補正・回転系と慣性系の変換）の数学は [`cr3bp`] にある。
 //! 解析が軌道から読むもの（時刻での状態・中心天体・元期・繰り返しの長さ）の共通の入口は `trajectory`（[`Trajectory`]・[`Cycle`]）。
-//! 軌道の出どころは、要素で書かれた軌道（[`OrbitSpec`]）と、状態ベクトルから多体の力で数値伝搬する軌道（[`StateSpec`]。`state_spec`）と、
+//! 軌道の出どころは、要素で書かれた軌道（[`OrbitSpec`]）と、状態ベクトルから多体の力で数値伝播する軌道（[`StateSpec`]。`state_spec`）と、
 //! ラグランジュ点・ハロー軌道を暦の 2 天体の位置に載せた軌跡（[`SynodicSpec`]。`synodic`）。
 
 mod analytic;
@@ -60,7 +60,7 @@ pub struct OrbitSpec {
     pub central: CentralBody,
 }
 
-/// 伝搬方法の既定は二体 + J2 永年項。
+/// 伝播方法の既定は二体 + J2 永年項。
 impl Default for Propagator {
     fn default() -> Self {
         Self::J2
@@ -104,7 +104,7 @@ impl OrbitElements {
     }
 }
 
-/// 伝搬の方法。
+/// 伝播の方法。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[serde(tag = "method", rename_all = "snake_case")]
@@ -136,7 +136,7 @@ pub struct KeplerElements {
 }
 
 impl OrbitSpec {
-    /// 元期・要素・伝搬の方法から作る（中心天体などの追加のフィールドは既定値）。
+    /// 元期・要素・伝播の方法から作る（中心天体などの追加のフィールドは既定値）。
     /// フィールドが増えても呼び出し側を変えずに済むよう、構造体リテラルよりこれを使う。
     pub fn new(epoch: Epoch, elements: OrbitElements, propagator: Propagator) -> Self {
         Self {
@@ -146,7 +146,7 @@ impl OrbitSpec {
             central: CentralBody::Earth,
         }
     }
-    /// 地球を回る円軌道の仕様を作る（高度・傾斜角・RAAN）。伝搬は J2 永年項（[`Propagator::J2`]）にする。
+    /// 地球を回る円軌道の仕様を作る（高度・傾斜角・RAAN）。伝播は J2 永年項（[`Propagator::J2`]）にする。
     /// 近地点引数と平均近点角は 0（元期に昇交点にいる）。
     pub fn circular(
         epoch: Epoch,
@@ -181,7 +181,7 @@ impl OrbitSpec {
             propagator: Propagator::J2,
         }
     }
-    /// 元期から `t_s` 秒後の状態。数値伝搬で多数の時刻が要るときは [`OrbitSpec::states_at`] を使う。
+    /// 元期から `t_s` 秒後の状態。数値伝播で多数の時刻が要るときは [`OrbitSpec::states_at`] を使う。
     pub fn state_at(&self, t_s: f64) -> Result<OrbitState, AstroError> {
         match &self.propagator {
             Propagator::Kepler | Propagator::J2 => Ok(analytic::Analytic::new(self)?.state_at(t_s)),
@@ -190,7 +190,7 @@ impl OrbitSpec {
             }),
         }
     }
-    /// 昇順の時刻列 `times_s`（元期からの秒）での状態をまとめて求める（数値伝搬は 1 回の積分で密出力を使う）。
+    /// 昇順の時刻列 `times_s`（元期からの秒）での状態をまとめて求める（数値伝播は 1 回の積分で密出力を使う）。
     pub fn states_at(&self, times_s: &[f64]) -> Result<Vec<OrbitState>, AstroError> {
         match &self.propagator {
             Propagator::Kepler | Propagator::J2 => {
@@ -252,7 +252,7 @@ impl OrbitSpec {
         }
         Ok(el)
     }
-    /// 元期から `t_s` 秒後の平均要素（ECI 基準。J2・数値伝搬なら J2 永年項込み、Kepler なら二体）。
+    /// 元期から `t_s` 秒後の平均要素（ECI 基準。J2・数値伝播なら J2 永年項込み、Kepler なら二体）。
     pub fn mean_elements_at(&self, t_s: f64) -> Result<KeplerElements, AstroError> {
         let mut analytic_spec = self.clone();
         if matches!(self.propagator, Propagator::Numerical { .. }) {

@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 /// 軌道上の時系列に共通の既定刻み [s]。
 pub const DEFAULT_STEP_S: f64 = 30.0;
 
-/// 軌道の標本の取り方（軌道・期間・刻み・β 角）。時系列（[`TimelineSpec`]）と地上局のパスの探索で共有する。
+/// 軌道のサンプルの取り方（軌道・期間・刻み・β 角）。時系列（[`TimelineSpec`]）と地上局のパスの探索で共有する。
 /// **軌道・期間・刻み・β をまとめて受けるのはこれだけ**（解析ごとに別々の欄で受けない）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
@@ -48,7 +48,7 @@ impl OrbitSampling {
         }
     }
 
-    /// 実際に伝搬に使う軌道（[`OrbitSampling::beta`] を指定したときは RAAN を置き換えたもの）。
+    /// 実際に伝播に使う軌道（[`OrbitSampling::beta`] を指定したときは RAAN を置き換えたもの）。
     /// パスの検出など、同じ軌道を別の関数に渡すときはこれを使う。**β の当て込みはここだけ。**
     /// β の当て込みはケプラー要素の軌道だけの機能（[`Trajectory::elements`] を通す）。ほかの source で指定すると `InvalidInput`。
     pub fn resolved_orbit(&self) -> Result<Trajectory, AstroError> {
@@ -71,7 +71,7 @@ impl OrbitSampling {
         sample_times(self.span.value(), self.step.value())
     }
 
-    /// 標本の時刻ごとの位置・速度（β を当てた軌道で伝搬する）。姿勢の要らない集計（地磁気の平均など）はこれを使う。
+    /// サンプルの時刻ごとの位置・速度（β を当てた軌道で伝播する）。姿勢の要らない集計（地磁気の平均など）はこれを使う。
     /// 時系列（[`build`]）もこれから作る。
     pub fn states(&self) -> Result<Vec<OrbitPoint>, AstroError> {
         let orbit = self.resolved_orbit()?;
@@ -89,7 +89,7 @@ impl OrbitSampling {
     }
 }
 
-/// 軌道の標本の 1 点（[`OrbitSampling::states`]）。
+/// 軌道のサンプルの 1 点（[`OrbitSampling::states`]）。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct OrbitPoint {
     /// 元期からの経過 [s]
@@ -99,7 +99,7 @@ pub struct OrbitPoint {
     pub state: OrbitState,
 }
 
-/// 時系列の作り方: 軌道の標本の取り方（[`OrbitSampling`]。JSON では同じ階層に並べる）と姿勢則・影のモデル。
+/// 時系列の作り方: 軌道のサンプルの取り方（[`OrbitSampling`]。JSON では同じ階層に並べる）と姿勢則・影のモデル。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct TimelineSpec {
@@ -122,7 +122,7 @@ impl TimelineSpec {
         Self::from_sampling(OrbitSampling::new(orbit, span, step), attitude)
     }
 
-    /// 軌道の標本の取り方と姿勢則から作る（円錐影）。
+    /// 軌道のサンプルの取り方と姿勢則から作る（円錐影）。
     pub fn from_sampling(sampling: OrbitSampling, attitude: AttitudeLaw) -> Self {
         Self {
             sampling,
@@ -131,7 +131,7 @@ impl TimelineSpec {
         }
     }
 
-    /// 実際に伝搬に使う軌道（[`OrbitSampling::resolved_orbit`]）。
+    /// 実際に伝播に使う軌道（[`OrbitSampling::resolved_orbit`]）。
     pub fn resolved_orbit(&self) -> Result<Trajectory, AstroError> {
         self.sampling.resolved_orbit()
     }
@@ -202,7 +202,7 @@ pub fn build(spec: &TimelineSpec) -> Result<Vec<TimelineSample>, AstroError> {
         .collect())
 }
 
-/// 1 点の標本を作る。
+/// 1 点のサンプルを作る。
 fn sample(spec: &TimelineSpec, point: &OrbitPoint) -> TimelineSample {
     let OrbitPoint { t_s, epoch, state } = *point;
     let state = &state;
@@ -235,7 +235,7 @@ fn sample(spec: &TimelineSpec, point: &OrbitPoint) -> TimelineSample {
     }
 }
 
-/// 標本の上限（これを超える刻みはエラーにする）。
+/// サンプルの上限（これを超える刻みはエラーにする）。
 pub const MAX_SAMPLES: usize = 5_000_000;
 
 /// 時刻列 `0, step, 2·step, …, span`（最後は端数でも `span` ちょうどを含める）。
@@ -297,14 +297,14 @@ fn window(start_s: f64, end_s: f64) -> Window {
     }
 }
 
-/// 日陰の区間（日照率が `threshold` を下回る標本の連続区間）。端は標本の時刻（[`windows`] と同じ）。
+/// 日陰の区間（日照率が `threshold` を下回るサンプルの連続区間）。端はサンプルの時刻（[`windows`] と同じ）。
 pub fn shadow_windows(samples: &[TimelineSample], threshold: f64) -> Vec<Window> {
     let t: Vec<f64> = samples.iter().map(|s| s.t_s).collect();
     let flags: Vec<bool> = samples.iter().map(|s| s.sunlit < threshold).collect();
     windows(&t, &flags)
 }
 
-/// 日照率の時間平均（台形則）。標本が 1 つ以下ならその値（空なら 1）。
+/// 日照率の時間平均（台形則）。サンプルが 1 つ以下ならその値（空なら 1）。
 pub fn mean_sunlit(samples: &[TimelineSample]) -> f64 {
     if samples.is_empty() {
         return 1.0;

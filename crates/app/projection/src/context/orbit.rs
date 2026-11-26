@@ -186,7 +186,7 @@ impl<'a> Context<'a> {
         let propagator = match o.propagator {
             Some(PropagatorKind::Kepler) => Propagator::Kepler,
             Some(PropagatorKind::J2) => Propagator::J2,
-            // 数値伝搬は力モデルの既定が無いので使わない（検証が `setting.not_applied` で知らせる）
+            // 数値伝播は力モデルの既定が無いので使わない（検証が `setting.not_applied` で知らせる）
             Some(PropagatorKind::Numerical) | None => Propagator::default(),
         };
         let elements = OrbitElements::with_defaults(a?, inc?, o.eccentricity, raan?, argp, ma);

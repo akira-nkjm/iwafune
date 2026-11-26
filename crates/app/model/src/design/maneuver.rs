@@ -1,7 +1,7 @@
 //! マヌーバ（`maneuvers/<ID>.toml`）。推進系の解析が共有する入力（モードの表と同じ位置づけ）。
 //!
 //! 実行の順は `after`（前のマヌーバ。フェーズは #9 で足す）でつなぎ、[`Design::ordered_maneuvers`] だけが決める。
-//! 目標の軌道（`[target]`）は変えたい要素だけを書く。`[constraints]` は細かい段階（数値伝搬）でだけ効き、
+//! 目標の軌道（`[target]`）は変えたい要素だけを書く。`[constraints]` は細かい段階（数値伝播）でだけ効き、
 //! 粗い段階の解析は無視したことを結果に書く。
 
 use super::conditions::CentralBodyKind;
@@ -29,7 +29,7 @@ enum_text! {
 }
 
 enum_text! {
-    /// マヌーバの計算の段階（`propagated` は推力を入れた数値伝搬で、`[constraints]` が効く）。
+    /// マヌーバの計算の段階（`propagated` は推力を入れた数値伝播で、`[constraints]` が効く）。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
     pub enum ManeuverMethod: "maneuver calculation method" {
         Impulsive = "impulsive",
@@ -145,7 +145,7 @@ impl ManeuverTransfer {
     }
 }
 
-/// 細かい段階（数値伝搬）でだけ効く制約。
+/// 細かい段階（数値伝播）でだけ効く制約。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct ManeuverConstraints {

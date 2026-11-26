@@ -266,7 +266,7 @@ pub enum Op {
     /// 使う並びの選択は `SetSetting` の `analysis.power.active_sequence`。
     SetSequence {
         name: String,
-        /// 並びの先頭の位置（食の出入り + オフセット）。None なら解析の始め
+        /// 並びの先頭の位置（蝕の出入り + オフセット）。None なら解析の始め
         #[serde(default)]
         anchor: Option<StartRef>,
         segments: Vec<ModeSegment>,

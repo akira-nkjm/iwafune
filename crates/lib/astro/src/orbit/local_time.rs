@@ -115,7 +115,7 @@ mod tests {
         assert!(raan_from_ltan(epoch(), 0.0).is_ok());
     }
 
-    /// 伝搬した状態の昇交点の位置から求めた地方時が、指定した LTAN に戻る。
+    /// 伝播した状態の昇交点の位置から求めた地方時が、指定した LTAN に戻る。
     /// SSO は平均太陽に追従するので、30 日後でも真太陽時の LTAN は均時差の変化（数分）しか動かない。
     #[test]
     fn round_trip_with_propagated_node() {

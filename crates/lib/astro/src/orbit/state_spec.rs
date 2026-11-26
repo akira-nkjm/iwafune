@@ -1,6 +1,6 @@
 //! 状態ベクトルの軌道: 元期・原点の天体・位置と速度・力の設定・期間。要素で書けない軌道（惑星間の巡航、
-//! ラグランジュ点のまわり、2 天体の重力が同程度の領域）を、**既存の数値伝搬**（[`super::propagate_states`]。
-//! 力モデルは [`crate::force`]、積分器は [`crate::ode::Dop853`]）でそのまま伝搬する。ここには伝搬も力の式も無く、
+//! ラグランジュ点のまわり、2 天体の重力が同程度の領域）を、**既存の数値伝播**（[`super::propagate_states`]。
+//! 力モデルは [`crate::force`]、積分器は [`crate::ode::Dop853`]）でそのまま伝播する。ここには伝播も力の式も無く、
 //! 「どの力・どの積分器で、どこまでの表を作るか」の既定だけがある。
 //!
 //! # 座標系
@@ -76,7 +76,7 @@ impl StateSpec {
         crate::force::validate_about(self.central, &self.forces)
     }
 
-    /// 伝搬に使う積分器（原点が太陽なら刻みの上限 1 日）。
+    /// 伝播に使う積分器（原点が太陽なら刻みの上限 1 日）。
     pub fn integrator(&self) -> Dop853 {
         match self.central {
             CentralBody::Sun => HELIOCENTRIC_INTEGRATOR,

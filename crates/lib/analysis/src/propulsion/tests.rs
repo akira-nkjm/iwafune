@@ -180,7 +180,7 @@ fn low_thrust_uses_edelbaum() {
     assert!(r.notes.is_empty());
 }
 
-/// 有限燃焼は推力の小さいほど損失が増え、半周を超える噴射は警告してインパルスの ΔV を使う。
+/// 有限噴射は推力の小さいほど損失が増え、半周を超える噴射は警告してインパルスの ΔV を使う。
 #[test]
 fn finite_burn_adds_a_loss() {
     let mut m = raise();

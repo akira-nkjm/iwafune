@@ -1,6 +1,6 @@
 //! 部品の配置 → `Place`。打った取付・位置・姿勢（`fune part place`・GUI の配置の欄。[`place_op`]）と、
 //! 機体座標での配置（GUI の 3D 配置と `fune part place --body-pos`。[`place_body_op`]）。
-//! 姿勢の角度（`--rotation "0 90 0 deg"`）は [`rotation_from_text`] が読み、四元数にして書く（角度 ⇄ 四元数は
+//! 姿勢の角度（`--rotation "0 90 0 deg"`）は [`rotation_from_text`] が読み、クォータニオンにして書く（角度 ⇄ クォータニオンは
 //! `sat_astro::math::Quat::from_fixed_xyz`）。逆変換は `fune_projection::pose::body_to_mount_local`、単位の換算は
 //! `fune_model::value::units`（sat-units）。
 
@@ -15,7 +15,7 @@ use fune_ops::Op;
 use sat_astro::math::{Quat, Vec3};
 
 /// `fune part place` → `Place`（取付と、取付点に対する位置・姿勢を丸ごと置き換える）。取付先が無ければ機体の根。
-/// 姿勢は四元数（`orientation`）か角度（`rotation`）のどちらか 1 つ。
+/// 姿勢はクォータニオン（`orientation`）か角度（`rotation`）のどちらか 1 つ。
 pub fn place_op(t: &PlaceText) -> Result<Op> {
     let on = given(&t.on);
     let orientation = match (given(&t.orientation), given(&t.rotation)) {
@@ -44,7 +44,7 @@ pub fn place_op(t: &PlaceText) -> Result<Op> {
     })
 }
 
-/// 姿勢の角度の文字列（`"0 90 0 deg"`・`"0 1.5708 0 rad"`。親の座標軸 X・Y・Z まわりに X → Y → Z の順に回す）→ 四元数
+/// 姿勢の角度の文字列（`"0 90 0 deg"`・`"0 1.5708 0 rad"`。親の座標軸 X・Y・Z まわりに X → Y → Z の順に回す）→ クォータニオン
 /// （6 桁に丸めて書く。スカラー部は非負）。単位は角度で必ず書く。
 pub fn rotation_from_text(text: &str) -> Result<Quaternion> {
     let v = vector_from_text(text)?;
@@ -249,7 +249,7 @@ mod tests {
         }
     }
 
-    /// 角度の欄は `Place` の姿勢になり、四元数と両方は書けない（空の欄は書かないのと同じ）。
+    /// 角度の欄は `Place` の姿勢になり、クォータニオンと両方は書けない（空の欄は書かないのと同じ）。
     #[test]
     #[allow(clippy::approx_constant)] // ファイルに 6 桁で書く値（0.707107）を確かめる
     fn place_takes_either_orientation_or_rotation() {

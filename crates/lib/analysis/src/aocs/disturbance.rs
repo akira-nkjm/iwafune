@@ -107,7 +107,7 @@ pub struct DisturbanceTorques {
     pub thrust: Vec3,
     /// この点の空力の面積と腕（空力トルクを求めた点だけ）
     pub aero_surface: Option<SurfaceSample>,
-    /// この点の太陽輻射圧の面積と腕（圧力が 0 の食の点は求めないので `None`）
+    /// この点の太陽輻射圧の面積と腕（圧力が 0 の蝕の点は求めないので `None`）
     pub srp_surface: Option<SurfaceSample>,
 }
 
@@ -281,7 +281,7 @@ impl DisturbanceModel<'_> {
         }
         if let Some(surface) = &sc.srp {
             let pressure = srp_pressure(s.sun_distance_m) * s.sunlit.clamp(0.0, 1.0);
-            // 食の中は圧力が 0 でトルクも 0（投影は解かない）
+            // 蝕の中は圧力が 0 でトルクも 0（投影は解かない）
             if pressure > 0.0 {
                 let sun = s.sun_dir_body();
                 let sample = self.surface.evaluate(surface, sun);

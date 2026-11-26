@@ -1,4 +1,4 @@
-//! 推力を入れた伝搬を、推力の小さい極限の解析式（Edelbaum・ロケット方程式）と比べる。
+//! 推力を入れた伝播を、推力の小さい極限の解析式（Edelbaum・ロケット方程式）と比べる。
 
 use super::*;
 use crate::constants::{MU_EARTH, R_EARTH};

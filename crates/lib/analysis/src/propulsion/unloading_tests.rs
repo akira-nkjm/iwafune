@@ -41,7 +41,7 @@ fn six_axis_rcs() -> Vec<Thruster> {
     .collect()
 }
 
-/// 推力誤差だけが 1 µN·m で一定に溜まる機体（地心指向。軌道面の法線まわりで、慣性空間でも向きが変わらない）。
+/// 推力誤差だけが 1 µN·m で一定に溜まる機体（ナディア指向。軌道面の法線まわりで、慣性空間でも向きが変わらない）。
 /// 10 mN のスラスタの推力の線が重心から 0.01 m ずれ、時間の 1 % 噴射する: τ = 0.01 N × 0.01 m × 0.01 = 1e-6 N·m。
 fn rw_input(rcs: Option<Vec<Thruster>>) -> RwUnloadingInput {
     let firing = ThrustDisturbance {

@@ -27,7 +27,7 @@ start: string, span: number,
  */
 span_basis: GeometrySpanBasis, 
 /**
- * 標本の刻み（期間 / 標本数）
+ * サンプルの刻み（期間 / サンプル数）
  */
 sample_step: number, 
 /**

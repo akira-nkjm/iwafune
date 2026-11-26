@@ -261,7 +261,7 @@ fn launcher_departure_has_no_parking_orbit_warnings() {
     );
 }
 
-/// 有限燃焼でも、出発の噴射が無いので飛行の時間は「慣性飛行 + 捕獲の噴射の半分」（衛星が出発するときは最初と最後の半分ずつ）。
+/// 有限噴射でも、出発の噴射が無いので飛行の時間は「慣性飛行 + 捕獲の噴射の半分」（衛星が出発するときは最初と最後の半分ずつ）。
 #[test]
 fn launcher_departure_transfer_time_with_a_finite_burn() {
     let mut i = launcher_input(97.0);

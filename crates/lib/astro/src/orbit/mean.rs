@@ -1,4 +1,4 @@
-//! 接触要素から平均の長半径を求める（J2 の短周期項を 1 次で引く）。推力を入れた伝搬が「目標の高度に着いたか」を
+//! 接触要素から平均の長半径を求める（J2 の短周期項を 1 次で引く）。推力を入れた伝播が「目標の高度に着いたか」を
 //! 判定するのに使う（接触の長半径は LEO で J2 により ±10 km ほど振れる）。
 //!
 //! Brouwer の 1 次の短周期項（Vallado, *Fundamentals of Astrodynamics and Applications*, 4th ed., §9.6 の
@@ -15,7 +15,7 @@ use crate::math::Vec3;
 use crate::time::Epoch;
 use core::f64::consts::TAU;
 
-/// 周回平均の要素を求めるときの 1 周の標本の数。
+/// 周回平均の要素を求めるときの 1 周のサンプルの数。
 const AVERAGE_SAMPLES: usize = 72;
 
 /// 平均の長半径 [m]。`with_j2` が偽（点質量の重力）なら接触の長半径のまま。
@@ -39,7 +39,7 @@ pub fn mean_semi_major_axis_m(
 }
 
 /// 平均要素（[`super::Propagator::J2`] の要素の意味）→ 接触の位置・速度。長半径だけ J2 の短周期項を足す
-/// （[`mean_semi_major_axis_m`] の逆。ほかの要素の短周期項は小さいので平均のまま）。推力を入れた伝搬の始めの状態に使う。
+/// （[`mean_semi_major_axis_m`] の逆。ほかの要素の短周期項は小さいので平均のまま）。推力を入れた伝播の始めの状態に使う。
 pub fn osculating_state_from_mean(
     central: CentralBody,
     mean: &KeplerElements,
@@ -56,9 +56,9 @@ pub fn osculating_state_from_mean(
 }
 
 /// 状態 `state`（元期 `epoch`）の近似の平均要素: 長半径は [`mean_semi_major_axis_m`]、離心率と近点引数は
-/// 力 `forces` で 1 周だけ伝搬した接触の離心率ベクトルの平均（J2 の短周期項は 1 周で平均すると消える）、
+/// 力 `forces` で 1 周だけ伝播した接触の離心率ベクトルの平均（J2 の短周期項は 1 周で平均すると消える）、
 /// 傾斜角・RAAN は接触のまま、平均近点角は位置の昇交点からの引数 − 近点引数（離心率が小さい近似）。
-/// 推力を入れた伝搬の終わりの軌道を、J2 の平均要素の軌道（[`super::Propagator::J2`]）として続けるのに使う。
+/// 推力を入れた伝播の終わりの軌道を、J2 の平均要素の軌道（[`super::Propagator::J2`]）として続けるのに使う。
 pub fn orbit_averaged_elements(
     central: CentralBody,
     forces: &ForceConfig,
@@ -117,7 +117,7 @@ mod tests {
     use crate::time::Epoch;
     use sat_units::typed::Qty;
 
-    /// J2 だけの数値伝搬で、接触の長半径は ±9 km 振れるが、平均の長半径はほぼ一定（1 周で 100 m 以内）。
+    /// J2 だけの数値伝播で、接触の長半径は ±9 km 振れるが、平均の長半径はほぼ一定（1 周で 100 m 以内）。
     #[test]
     fn mean_semi_major_axis_is_steady_under_j2() {
         let a = 6_928_137.0;

@@ -13,7 +13,7 @@ use std::collections::BTreeMap;
 use std::ops::Range;
 use std::rc::Rc;
 
-/// モードの姿勢則（`mode_attitudes`）での発電（倍率をかける前）。モードの ID → 標本ごとの発電 [W]。
+/// モードの姿勢則（`mode_attitudes`）での発電（倍率をかける前）。モードの ID → サンプルごとの発電 [W]。
 pub(super) type LawGeneration = BTreeMap<String, Vec<f64>>;
 
 /// 軌道・期間・刻み・β はそのままで姿勢則だけを替えた時系列。

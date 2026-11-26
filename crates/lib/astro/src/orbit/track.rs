@@ -1,6 +1,6 @@
-//! 任意の時刻の軌道の状態を何度も求める道具。時系列の標本の間（熱の積分の右辺など）で使う。
+//! 任意の時刻の軌道の状態を何度も求める道具。時系列のサンプルの間（熱の積分の右辺など）で使う。
 //!
-//! 解析的な伝搬（Kepler・J2）は時刻から直接求める。数値伝搬は 1 回の積分で格子の状態の表を作り、格子の間は
+//! 解析的な伝播（Kepler・J2）は時刻から直接求める。数値伝播は 1 回の積分で格子の状態の表を作り、格子の間は
 //! 位置と速度から 3 次のエルミート補間で求める（時刻ごとに元期から積分し直さない）。
 //! 弧の連鎖（[`super::Trajectory::Arcs`]）は弧ごとの道具を並べ、時刻の弧の道具に渡す（折れ目で速度が跳ぶので、表は折れ目をまたがない）。
 
@@ -9,7 +9,7 @@ use super::{OrbitSpec, OrbitState, Propagator};
 use crate::AstroError;
 use crate::ode::step_offsets;
 
-/// 数値伝搬の表の格子の刻みを、周期（繰り返しの 1 単位）のこの分の 1 以下にする。**表の格子の細かさの基準はここだけ**
+/// 数値伝播の表の格子の刻みを、周期（繰り返しの 1 単位）のこの分の 1 以下にする。**表の格子の細かさの基準はここだけ**
 /// （時系列の評価器・極値の詰め・状態ベクトルの軌道の表が使う）。
 pub(crate) const TABLE_STEPS_PER_ORBIT: f64 = 100.0;
 
@@ -26,7 +26,7 @@ pub struct OrbitTrack {
 
 enum Kind {
     Analytic(Analytic),
-    /// 数値伝搬の格子（時刻 [s] と状態）
+    /// 数値伝播の格子（時刻 [s] と状態）
     Table {
         t: Vec<f64>,
         s: Vec<OrbitState>,
@@ -39,9 +39,9 @@ enum Kind {
 }
 
 impl OrbitSpec {
-    /// 元期から `span_s` 秒までの任意の時刻の状態を求める道具を作る。数値伝搬は刻み `max_grid_s` 以下の格子で
-    /// 積分して表にする（解析的な伝搬は格子を使わない）。格子の点は `step_offsets(span_s, 格子の刻み)` なので、
-    /// 刻みが `max_grid_s` の整数倍の標本の時刻は格子の点に重なる。
+    /// 元期から `span_s` 秒までの任意の時刻の状態を求める道具を作る。数値伝播は刻み `max_grid_s` 以下の格子で
+    /// 積分して表にする（解析的な伝播は格子を使わない）。格子の点は `step_offsets(span_s, 格子の刻み)` なので、
+    /// 刻みが `max_grid_s` の整数倍のサンプルの時刻は格子の点に重なる。
     pub fn track(&self, span_s: f64, max_grid_s: f64) -> Result<OrbitTrack, AstroError> {
         match &self.propagator {
             Propagator::Kepler | Propagator::J2 => Ok(OrbitTrack {
@@ -138,7 +138,7 @@ mod tests {
         )
     }
 
-    /// 解析的な伝搬はそのまま `state_at` と同じ。
+    /// 解析的な伝播はそのまま `state_at` と同じ。
     #[test]
     fn analytic_track_equals_state_at() {
         let o = leo(Propagator::J2);
@@ -146,7 +146,7 @@ mod tests {
         assert_eq!(tr.state_at(1234.5), o.state_at(1234.5).unwrap());
     }
 
-    /// 数値伝搬の表の補間は、格子の点で表と一致し、格子の間でも直接の積分と 位置は 1 m・速度は 1 cm/s 以内で一致する。
+    /// 数値伝播の表の補間は、格子の点で表と一致し、格子の間でも直接の積分と 位置は 1 m・速度は 1 cm/s 以内で一致する。
     #[test]
     fn numerical_table_interpolates_within_a_metre() {
         let o = leo(Propagator::Numerical {

@@ -1,6 +1,6 @@
 //! 日付つきの惑星間遷移の多体の確認（`propulsion.transfer_check`）。Lambert（パッチドコニック）で求めた遷移を、
-//! 太陽と惑星の点質量の重力で数値伝搬し直して、到着の日の到着天体とのずれ・最接近・到着の超過速度の差を見る。
-//! 伝搬と最接近の探索は `sat_astro::transfer::check_cruise`（既存の数値伝搬・力モデル・積分器・暦を使う）。
+//! 太陽と惑星の点質量の重力で数値伝播し直して、到着の日の到着天体とのずれ・最接近・到着の超過速度の差を見る。
+//! 伝播と最接近の探索は `sat_astro::transfer::check_cruise`（既存の数値伝播・力モデル・積分器・暦を使う）。
 //! ここはマヌーバの遷移を渡して結果を量と判定に直すだけ。
 //!
 //! 単純化（結果の注記 [`TransferCheckNote::PointMassCruise`] に出す）: 出発天体の中心から Lambert の速度で始め、
@@ -33,7 +33,7 @@ pub enum TransferCheckNote {
     PointMassCruise,
     /// 天体の位置が解析式（DE440 でない）なので、ずれの大きさは暦の誤差と同程度で、判定しない
     AnalyticEphemerisNotJudged,
-    /// スイングバイのある遷移なので脚ごとに伝搬した（各脚は自分の Lambert の速度から始まり、通過の前後はつなげていない）
+    /// スイングバイのある遷移なので脚ごとに伝播した（各脚は自分の Lambert の速度から始まり、通過の前後はつなげていない）
     LegsNotChained,
     /// 最接近が探した期間の端で、期間の中に極小が無い（まだ近づいている）
     ClosestApproachAtEnd,
@@ -69,7 +69,7 @@ pub struct TransferCheckResult {
     pub closest_approach_distance: Qty<Length>,
     pub closest_approach_time: Qty<Time>,
     pub closest_approach_epoch: Epoch,
-    /// 到着の超過速度の大きさ（Lambert・伝搬）と、そのベクトルの差の大きさ
+    /// 到着の超過速度の大きさ（Lambert・伝播）と、そのベクトルの差の大きさ
     pub v_inf_arrival_lambert: Qty<Velocity>,
     pub v_inf_arrival_propagated: Qty<Velocity>,
     pub v_inf_arrival_difference: Qty<Velocity>,
@@ -179,7 +179,7 @@ fn series(samples: &[CruiseSample]) -> Series {
 }
 
 /// 区間の遷移の確認（日付つきの遷移が無ければ空）。通過のない遷移は 1 つ、通過のある遷移は脚ごとに 1 つ
-/// （通過の前後をつなげた伝搬はしない。注記 [`TransferCheckNote::LegsNotChained`]）。
+/// （通過の前後をつなげた伝播はしない。注記 [`TransferCheckNote::LegsNotChained`]）。
 fn check_leg(leg: &Leg<'_>) -> Result<Vec<TransferCheckResult>, AnalysisError> {
     let (Some(dated), Some(t)) = (leg.planned.dated.as_ref(), leg.maneuver.transfer.as_ref())
     else {
@@ -271,7 +271,7 @@ impl Analysis for TransferCheck {
     const TITLE_EN: &'static str = "Transfer check (n-body)";
     const AREA: AnalysisArea = AnalysisArea::System(System::Propulsion);
     const KIND: AnalysisKind = AnalysisKind::Steady;
-    const DESCRIPTION: &'static str = "日付つきの惑星間遷移を太陽と惑星の重力で数値伝搬し直し、到着の日のずれ・最接近・到着の超過速度の差と軌跡を出す（判定は DE440 のときだけ）";
+    const DESCRIPTION: &'static str = "日付つきの惑星間遷移を太陽と惑星の重力で数値伝播し直し、到着の日のずれ・最接近・到着の超過速度の差と軌跡を出す（判定は DE440 のときだけ）";
     const DESCRIPTION_EN: &'static str = "Re-propagates each dated interplanetary transfer under the gravity of the Sun and planets: miss distance on the arrival date, closest approach, arrival v-infinity difference and the trajectory (judged only with DE440)";
 
     type Input = PropulsionInput;

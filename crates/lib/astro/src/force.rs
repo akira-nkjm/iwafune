@@ -2,7 +2,7 @@
 //! 重力場の係数は `data/egm96_to70.txt`（70 次まで）を埋め込む。
 //!
 //! 項ごとの加速度は [`acceleration_breakdown`] が並べ、[`acceleration_eci`] はその和をとる（計算の道筋は 1 つ）。
-//! 推力（[`thrust`]）は状態（質量・積んだ ΔV）と噴射の有無に依るので、推力を入れた伝搬（`crate::orbit::powered`）が
+//! 推力（[`thrust`]）は状態（質量・積んだ ΔV）と噴射の有無に依るので、推力を入れた伝播（`crate::orbit::powered`）が
 //! この和に足す。
 
 pub(crate) mod gravity;
@@ -28,7 +28,7 @@ use crate::state::OrbitState;
 use crate::time::Epoch;
 use serde::{Deserialize, Serialize};
 
-/// 数値伝搬で使う力の組み合わせ。
+/// 数値伝播で使う力の組み合わせ。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ForceConfig {
@@ -47,7 +47,7 @@ pub struct ForceConfig {
     #[serde(default)]
     pub relativity: bool,
     /// 中心天体が地球でないとき、地球を第三体として自動で加えるのをやめる（既定は加える）。
-    /// 地球の重力を別に扱う（出発・到着の天体として、影響圏の中は点として扱う）軌道の伝搬に使う。
+    /// 地球の重力を別に扱う（出発・到着の天体として、影響圏の中は点として扱う）軌道の伝播に使う。
     #[serde(default)]
     pub omit_earth: bool,
 }
@@ -67,7 +67,7 @@ impl ForceConfig {
     }
 
     /// 太陽中心の点質量の力モデル: 惑星（`excluded` を除く。地球は [`Self::omit_earth`] で外す）を第三体の点質量として加える。
-    /// 惑星間の巡航の伝搬（`crate::transfer::cruise`）の力モデルで、同じ設定は中心天体が太陽のどの数値伝搬にも使える。
+    /// 惑星間の巡航の伝播（`crate::transfer::cruise`）の力モデルで、同じ設定は中心天体が太陽のどの数値伝播にも使える。
     pub fn heliocentric_point_masses(excluded: &[CentralBody]) -> Self {
         let planets = [
             Body::Mercury,
@@ -90,7 +90,7 @@ impl ForceConfig {
 }
 
 impl ForceConfig {
-    /// 原点の天体 `central` のまわりの状態ベクトルから数値伝搬するときの、慣例の力モデル（**書かれていない力の設定の既定はここだけ**）。
+    /// 原点の天体 `central` のまわりの状態ベクトルから数値伝播するときの、慣例の力モデル（**書かれていない力の設定の既定はここだけ**）。
     /// 抗力・太陽輻射圧は機体の値（面積質量比・反射係数）が要るので入れない。
     /// - 太陽: 太陽と惑星の点質量（[`Self::heliocentric_point_masses`]。地球は月を含めず地球の重力定数だけの第三体）。
     /// - 地球: 地球の J2 に、太陽と月の点質量。

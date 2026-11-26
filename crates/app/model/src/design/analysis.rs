@@ -190,7 +190,7 @@ pub struct PowerSizingSettings {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct SequenceSetting {
-    /// 並びの先頭を置く位置（食の出入り + オフセット）。省略時は解析の始め
+    /// 並びの先頭を置く位置（蝕の出入り + オフセット）。省略時は解析の始め
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub anchor: Option<StartRef>,
     /// 区間（1 周期分。繰り返す）

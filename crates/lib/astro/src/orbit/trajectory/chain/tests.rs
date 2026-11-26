@@ -28,7 +28,7 @@ fn orbit(propagator: Propagator) -> OrbitSpec {
 }
 
 const TOTAL_S: f64 = 20_000.0;
-/// 割る時刻（周期や標本の刻みの倍数でない値）
+/// 割る時刻（周期やサンプルの刻みの倍数でない値）
 const SPLIT_S: f64 = 7_345.6;
 
 /// `o` を `split_s` で割った 2 本の弧の連鎖（後の弧は同じ軌道を `split_s` に付け替えたもの）と、割らない 1 本の弧。
@@ -69,7 +69,7 @@ fn times() -> Vec<f64> {
     ]
 }
 
-/// 解析的な伝搬（Kepler・J2）: 割った連鎖は割らない軌道と同じ状態。許容は付け替えのテスト（`rebase.rs`）と同じ 1e-6 m
+/// 解析的な伝播（Kepler・J2）: 割った連鎖は割らない軌道と同じ状態。許容は付け替えのテスト（`rebase.rs`）と同じ 1e-6 m
 /// （解析式なので桁落ちの範囲）、速度は軌道速度 7.6 km/s の同じ相対（1e-6 / 7e6 倍）で 1e-9 m/s。
 #[test]
 fn a_split_analytic_orbit_equals_the_unsplit_orbit() {
@@ -95,7 +95,7 @@ fn a_split_analytic_orbit_equals_the_unsplit_orbit() {
                 &format!("{p:?} state_at {t}"),
             );
         }
-        // 表（解析的な伝搬は表を使わず、弧の解析式）
+        // 表（解析的な伝播は表を使わず、弧の解析式）
         let (ta, tb) = (
             chain.track(TOTAL_S, 30.0).unwrap(),
             whole.track(TOTAL_S, 30.0).unwrap(),
@@ -171,7 +171,7 @@ fn a_time_exactly_at_a_break_belongs_to_the_outgoing_arc() {
     assert!((jump - 100.0).abs() < 1e-6, "{jump}");
 }
 
-/// 弧 A を `at_s` まで進めた状態に、速度の向きへ `dv` [m/s] の跳びを足した状態から始まる弧 B をつなげた連鎖（数値伝搬のときは弧ごとに積分）。
+/// 弧 A を `at_s` まで進めた状態に、速度の向きへ `dv` [m/s] の跳びを足した状態から始まる弧 B をつなげた連鎖（数値伝播のときは弧ごとに積分）。
 fn kicked_chain(p: Propagator, dv: f64) -> Trajectory {
     let a = orbit(p.clone());
     let end = a.state_at(SPLIT_S).unwrap();
@@ -189,7 +189,7 @@ fn kicked_chain(p: Propagator, dv: f64) -> Trajectory {
     .expect("chain")
 }
 
-/// 数値伝搬の弧の表は弧ごとで、折れ目をまたいで補間しない: 折れ目の前後で速度の跳び（100 m/s）が残り、位置は連続。
+/// 数値伝播の弧の表は弧ごとで、折れ目をまたいで補間しない: 折れ目の前後で速度の跳び（100 m/s）が残り、位置は連続。
 /// 表の許容は `track.rs` の補間のテストと同じ（位置 1 m・速度 1 cm/s）で、直接の積分（`states_at`）と比べる。
 #[test]
 fn numerical_tables_keep_the_velocity_jump_at_a_break() {

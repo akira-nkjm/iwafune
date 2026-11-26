@@ -6,6 +6,6 @@ import type { Quantity } from "./Quantity";
  */
 export type EclipseSeasonSettings = { 
 /**
- * 季節の標本の間隔（時間）。
+ * 季節のサンプルの間隔（時間）。
  */
 step: Quantity | null, };

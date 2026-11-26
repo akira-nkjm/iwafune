@@ -62,7 +62,7 @@ pub struct OrbitGenerationOutput {
     pub panels: Vec<OrbitGenerationPanel>,
     /// 時系列: `generation`・`sunlit`・`panel:<id>`
     pub series: Series,
-    /// パネルの面の日照割合（ほかの部品の影を引いた割合）の、日照中の標本での最小と平均。影を数えたときだけ付く
+    /// パネルの面の日照割合（ほかの部品の影を引いた割合）の、日照中のサンプルでの最小と平均。影を数えたときだけ付く
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shadowing: Option<crate::structure::external_geometry::ShadowingReport>,
     /// 1 周に満たないときの代わりの集計（回り切った周回があれば `None`。service が注意 `span` にする）
@@ -325,7 +325,7 @@ mod tests {
         );
     }
 
-    /// 太陽を回る円軌道（0.7・1.0・1.5 AU）で太陽指向: 食は無く（日照率 1）、発電は太陽光 S₁(AU/d)² に比例する。
+    /// 太陽を回る円軌道（0.7・1.0・1.5 AU）で太陽指向: 蝕は無く（日照率 1）、発電は太陽光 S₁(AU/d)² に比例する。
     /// 手計算: 面積 1 m²・効率 0.3・充填率 1 の +Z 面に垂直入射で P = 0.3 · 1361 · (AU/d)²（太陽光は距離から決める）。
     #[test]
     fn heliocentric_generation_scales_with_inverse_square_distance() {

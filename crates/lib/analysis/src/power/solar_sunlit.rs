@@ -3,7 +3,7 @@
 //! ケースごとに、太陽方向を直接与えるか（機体座標系）、軌道と姿勢則の時系列を与える。
 //! 時系列のケースは日照中（[`crate::spec::is_sunlit`]）の時間だけの時間平均（台形則）と最小・最大を出し、
 //! **全日照（日照率 1）として**発電を評価する（姿勢による差だけを見るため）。発電モデルは [`super::solar`]。
-//! 入力に部品の箱があれば、パネルの面の日照割合（ほかの部品の影）も掛け、日照中の標本の最小・平均を `shadowing` に出す。
+//! 入力に部品の箱があれば、パネルの面の日照割合（ほかの部品の影）も掛け、日照中のサンプルの最小・平均を `shadowing` に出す。
 
 use super::solar::{SolarArray, SolarLife, total};
 use crate::spec::{
@@ -69,7 +69,7 @@ pub struct SolarSunlitCaseResult {
     pub panels: Vec<SolarSunlitPanel>,
     /// 評価に使った日照中のサンプル数（方向のケースは 1）。0 なら値はすべて 0
     pub sunlit_samples: usize,
-    /// パネルの面の日照割合（ほかの部品の影を引いた割合）の、日照中の標本での最小と平均。影を数えたときだけ付く
+    /// パネルの面の日照割合（ほかの部品の影を引いた割合）の、日照中のサンプルでの最小と平均。影を数えたときだけ付く
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shadowing: Option<ShadowingReport>,
 }
@@ -117,7 +117,7 @@ impl Analysis for SolarSunlit {
 /// 太陽方向（機体座標系）と太陽光の強さの組。
 type SunPoint = (Vec3, Qty<sat_units::typed::Irradiance>);
 
-/// 評価する標本（時刻 [s]・太陽方向と強さ・日照中か）。
+/// 評価するサンプル（時刻 [s]・太陽方向と強さ・日照中か）。
 struct SunSamples {
     t: Vec<f64>,
     points: Vec<SunPoint>,
@@ -277,7 +277,7 @@ mod tests {
     fn timeline_cases_sun_and_nadir_pointing() {
         use crate::power::testkit::{leo_timeline, nadir_pointing_z, sun_pointing_z};
         // 太陽指向は日照中ずっと +Z に垂直入射 → 408.3 W（太陽光の強さは 1361 W/m² に固定）。
-        // 地心指向は +Z が日照中に太陽を向かない時間があるので小さい
+        // ナディア指向は +Z が日照中に太陽を向かない時間があるので小さい
         let mut i = input(Vec3::Z);
         i.array.solar_flux = Some(Qty::from_raw(1361.0));
         i.cases = [("sun", sun_pointing_z()), ("nadir", nadir_pointing_z())]

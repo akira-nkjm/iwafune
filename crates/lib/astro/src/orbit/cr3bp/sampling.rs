@@ -7,7 +7,7 @@ use crate::math::Vec3;
 use crate::ode::Dop853;
 use crate::state::OrbitState;
 
-/// 1 周期を等間隔に標本した周期軌道（正規化、回転系）。最後の点は最初の点と同じ状態（周期の終わり）。
+/// 1 周期を等間隔にサンプルした周期軌道（正規化、回転系）。最後の点は最初の点と同じ状態（周期の終わり）。
 #[derive(Debug, Clone, PartialEq)]
 pub struct SampledOrbit {
     /// 質量比

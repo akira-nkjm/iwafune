@@ -45,7 +45,7 @@ fn about(body: CentralBodyKind) -> Design {
 #[test]
 fn lunar_orbit_thermal_and_eclipse_use_lunar_environment() {
     let mut design = about(CentralBodyKind::Moon);
-    // 環境の値と「高温は低温より暖かい」を見るテストなので、外面の影（#424）は切る。影を数えると、高温のケース（天底指向・β 60°）は
+    // 環境の値と「高温は低温より暖かい」を見るテストなので、外面の影（#424）は切る。影を数えると、高温のケース（ナディア指向・β 60°）は
     // +Y 面のセル SP_PY の直達日射が展開パドルの影で半分ほどに減り（下の `lunar_shadowing_…` が測る）、平均温度が低温のケース（太陽指向）より低くなる
     design.analysis.thermal.as_mut().unwrap().shadowing = Some(false);
     let resolved = fune_model::resolve(&design);
@@ -69,7 +69,7 @@ fn lunar_orbit_thermal_and_eclipse_use_lunar_environment() {
             .fold(0.0, f64::max)
     };
     // #472: 電池とカメラはヒータが設定温度の近くに保つので（どちらのケースでも 15〜16 °C 付近）、最高の温度はヒータの節点を除いて見る。
-    // また、セルの吸収を電気出力を引いた正味（α 0.6）で数えるようになり、天底指向の高温のケースの平均は、太陽指向でセルが日を受ける低温のケースの平均より
+    // また、セルの吸収を電気出力を引いた正味（α 0.6）で数えるようになり、ナディア指向の高温のケースの平均は、太陽指向でセルが日を受ける低温のケースの平均より
     // 低くなった（ヒータの節点を除いて 266.0 K と 269.1 K）ので、順序は平均ではなく最高の温度で見る
     assert!(max(hot) > max(cold));
     let transient = thermal::transient(&ctx).unwrap();
@@ -219,7 +219,7 @@ fn eclipse_season_about_the_sun_is_an_error() {
 /// ただし覆われた面積（センサーの下のセルの面、−Z パネルを貫くスラスタなど。#446）は、影を切らない限りアルベドと惑星の赤外を受けないので、
 /// 影ありの入熱の合計は影なしより少し少なく、減りは「覆われた割合の最大の面」の割合を超えない（各面の入熱は覆われた割合の分だけ減るので、合計の減りは
 /// 面ごとの入熱 × 覆われた割合の和で、これは合計 × 最大の割合以下）。
-/// 高温のケースは天底指向で太陽が機体のいろいろな向きから来るので、+Y 面のセル SP_PY が展開パドル（+X の縁から +Y へ立つ）の影に入り、
+/// 高温のケースはナディア指向で太陽が機体のいろいろな向きから来るので、+Y 面のセル SP_PY が展開パドル（+X の縁から +Y へ立つ）の影に入り、
 /// 影なしより入熱の合計が減る。この減りが、影を数えた平均温度が低温のケースを下回る原因（影なしでは高温が暖かい）。
 #[test]
 fn lunar_shadowing_removes_hot_case_input_but_not_the_sun_pointing_cold_case() {

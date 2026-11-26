@@ -5,7 +5,7 @@ import type { GravityModel } from "./GravityModel";
 import type { SrpParams } from "./SrpParams";
 
 /**
- * 数値伝搬で使う力の組み合わせ。
+ * 数値伝播で使う力の組み合わせ。
  */
 export type ForceConfig = { gravity: GravityModel, 
 /**
@@ -22,6 +22,6 @@ solid_tide: boolean,
 relativity: boolean, 
 /**
  * 中心天体が地球でないとき、地球を第三体として自動で加えるのをやめる（既定は加える）。
- * 地球の重力を別に扱う（出発・到着の天体として、影響圏の中は点として扱う）軌道の伝搬に使う。
+ * 地球の重力を別に扱う（出発・到着の天体として、影響圏の中は点として扱う）軌道の伝播に使う。
  */
 omit_earth: boolean, };

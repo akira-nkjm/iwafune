@@ -2,13 +2,13 @@
 //!
 //! - 噴射ごとに推薬 `m_p = m (1 − e^(−s Δv / v_e))`（`sat_astro::rocket::propellant_for`。`s` は ΔV に掛ける倍率で、
 //!   マージン込みの設計値なら `1 + マージン`）を引き、噴射時間は `m_p v_e / F`（`burn_time`）。
-//! - 有限燃焼は噴射ごとに、その時点の質量で損失込みの ΔV を求める（`sat_astro::transfer::finite_burn`）。噴射の位置の
+//! - 有限噴射は噴射ごとに、その時点の質量で損失込みの ΔV を求める（`sat_astro::transfer::finite_burn`）。噴射の位置の
 //!   平均運動は `√(μ / r³)`（その半径の円軌道）。
 //! - 初期質量（ウェット）は、最後に残る質量が「乾燥質量 + 残る推薬（使う推薬 × 残る割合）」になるまで繰り返して決める。
 //! - スラスタの無いマヌーバは ΔV だけを求め、質量を変えない。
-//! - 数値伝搬（`propagated`）のマヌーバがあれば、まず Edelbaum の見積もりで公称の列を作ってマヌーバの前の質量を決め、
-//!   その質量で推力を入れて伝搬し（`flight`）、伝搬の ΔV・時間・終わりの軌道で計画を置き換えて列を作り直す。
-//!   推薬は伝搬の ΔV からロケット方程式で求める（質量が伝搬と同じなら伝搬の推薬と一致する）。
+//! - 数値伝播（`propagated`）のマヌーバがあれば、まず Edelbaum の見積もりで公称の列を作ってマヌーバの前の質量を決め、
+//!   その質量で推力を入れて伝播し（`flight`）、伝播の ΔV・時間・終わりの軌道で計画を置き換えて列を作り直す。
+//!   推薬は伝播の ΔV からロケット方程式で求める（質量が伝播と同じなら伝播の推薬と一致する）。
 //! - 軌道の推移（`history`）は列を作ったあとに 1 回歩いて作る。
 
 use super::flight::{Flight, LegStep, walk};
@@ -55,7 +55,7 @@ pub(super) struct Leg<'a> {
     pub mass_after_kg: f64,
     pub propellant_kg: Option<f64>,
     pub burn_time_s: Option<f64>,
-    /// 計算の注記（計画の注記に、スラスタの有無・有限燃焼の可否を足したもの）
+    /// 計算の注記（計画の注記に、スラスタの有無・有限噴射の可否を足したもの）
     pub notes: Vec<ManeuverNote>,
 }
 
@@ -70,7 +70,7 @@ pub(super) struct Sequence<'a> {
     pub final_orbit: Orbit,
     /// マヌーバの順の軌道の推移
     pub history: OrbitHistory,
-    /// 数値伝搬の結果（`legs` と同じ並び。数値伝搬でないマヌーバは None）
+    /// 数値伝播の結果（`legs` と同じ並び。数値伝播でないマヌーバは None）
     pub flights: Vec<Option<Flight>>,
 }
 
@@ -128,7 +128,7 @@ impl Options {
 /// マヌーバ 1 つの計画（マヌーバ・スラスタ・前後の軌道と理想の ΔV）。
 type Step<'a> = (&'a ManeuverInput, Option<&'a PropulsionThruster>, Planned);
 
-/// マヌーバの計画を順に作る（最後の軌道も返す）。数値伝搬の結果 `flights` があれば、その ΔV・時間・終わりの軌道で置き換える。
+/// マヌーバの計画を順に作る（最後の軌道も返す）。数値伝播の結果 `flights` があれば、その ΔV・時間・終わりの軌道で置き換える。
 fn plans<'a>(
     input: &'a PropulsionInput,
     flights: &[Option<Flight>],
@@ -154,7 +154,7 @@ fn plans<'a>(
     Ok((out, orbit))
 }
 
-/// マヌーバの列を当てる（数値伝搬のマヌーバがあれば 2 回。モジュールの説明）。
+/// マヌーバの列を当てる（数値伝播のマヌーバがあれば 2 回。モジュールの説明）。
 pub(super) fn run(input: &PropulsionInput, opts: Options) -> Result<Sequence<'_>, AnalysisError> {
     let propagated = input
         .maneuvers
@@ -314,7 +314,7 @@ fn apply<'a>(
     Ok(leg)
 }
 
-/// 噴射 1 回の損失込みの ΔV（質量 `mass` から）。有限燃焼でなければインパルスの ΔV。有限燃焼の近似が使えなければ `None`。
+/// 噴射 1 回の損失込みの ΔV（質量 `mass` から）。有限噴射でなければインパルスの ΔV。有限噴射の近似が使えなければ `None`。
 fn burn_dv(
     central: CentralBody,
     radius_m: f64,
@@ -370,7 +370,7 @@ fn fire(
     Ok(())
 }
 
-/// インパルス・有限燃焼の遷移の時間: 噴射の間の慣性飛行。有限燃焼は噴射を近点・遠点を中心に置くので、
+/// インパルス・有限噴射の遷移の時間: 噴射の間の慣性飛行。有限噴射は噴射を近点・遠点を中心に置くので、
 /// 最初と最後の噴射の半分ずつを足す（噴射が 1 回ならその噴射時間）。出発の噴射を打ち上げ機が行うとき
 /// （`launcher_departure`）は、列の最初は出発の噴射でなく捕獲の噴射なので、飛行の時間に半分だけ足す。
 /// 飛行の途中の噴射（スイングバイの近点の噴射。`mid` の範囲）は両端の噴射ではないので数えない。

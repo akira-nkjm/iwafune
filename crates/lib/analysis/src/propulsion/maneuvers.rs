@@ -59,13 +59,13 @@ pub struct ManeuverBurn {
     pub v_inf: Option<Qty<Velocity>>,
     /// 噴射する位置の高度（`central` の半径から）
     pub altitude: Qty<Length>,
-    /// ΔV（有限燃焼なら損失込み）
+    /// ΔV（有限噴射なら損失込み）
     pub delta_v: Qty<Velocity>,
     /// 噴射時間（スラスタが無ければ `None`）
     pub burn_time: Option<Qty<Time>>,
 }
 
-/// 数値伝搬（`propagated`）のマヌーバの伝搬の結果。
+/// 数値伝播（`propagated`）のマヌーバの伝播の結果。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ManeuverPropagation {
@@ -77,11 +77,11 @@ pub struct ManeuverPropagation {
     pub firing_time: Qty<Time>,
     /// 噴いた時間 / 時間
     pub firing_fraction: Fraction,
-    /// 伝搬で積んだ ΔV（`∫ F/m dt`）
+    /// 伝播で積んだ ΔV（`∫ F/m dt`）
     pub delta_v: Qty<Velocity>,
-    /// 伝搬で使った推薬（伝搬に使った質量から）
+    /// 伝播で使った推薬（伝播に使った質量から）
     pub propellant: Qty<Mass>,
-    /// 伝搬に使った始めの質量（公称の列の見積もり）
+    /// 伝播に使った始めの質量（公称の列の見積もり）
     pub mass_before: Qty<Mass>,
     /// 終わりの平均の高度・傾斜角・離心率
     pub final_altitude: Qty<Length>,
@@ -104,7 +104,7 @@ pub struct ManeuverResult {
     pub thruster: Option<String>,
     pub before: ManeuverOrbit,
     pub after: ManeuverOrbit,
-    /// ΔV（有限燃焼なら損失込み）
+    /// ΔV（有限噴射なら損失込み）
     pub delta_v: Qty<Velocity>,
     /// 損失を除いた ΔV（インパルス・低推力では `delta_v` と同じ）
     pub ideal_delta_v: Qty<Velocity>,
@@ -121,7 +121,7 @@ pub struct ManeuverResult {
     pub firing_power: Option<Qty<Power>>,
     /// 書かれているが粗い段階では効かないので無視した制約のキー
     pub ignored_constraints: Vec<String>,
-    /// 数値伝搬の結果（`propagated` のときだけ）
+    /// 数値伝播の結果（`propagated` のときだけ）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub propagation: Option<ManeuverPropagation>,
     /// 日付つきの惑星間遷移の結果（`transfer` を書いたときだけ）
@@ -149,7 +149,7 @@ pub struct ManeuversOutput {
     pub final_orbit: ManeuverOrbit,
 }
 
-/// 数値伝搬の結果 → 表示用の値。
+/// 数値伝播の結果 → 表示用の値。
 fn propagation(central: CentralBody, leg: &Leg<'_>, f: &Flight) -> ManeuverPropagation {
     let a = &f.arc;
     let end = a.samples.last();
@@ -242,7 +242,7 @@ impl Analysis for Maneuvers {
     const TITLE_EN: &'static str = "Maneuvers";
     const AREA: AnalysisArea = AnalysisArea::System(System::Propulsion);
     const KIND: AnalysisKind = AnalysisKind::Steady;
-    const DESCRIPTION: &'static str = "マヌーバを順に方式（インパルス・有限燃焼・低推力・数値伝搬）で計算し、ΔV・噴射時間・推薬・前後の軌道を出す";
+    const DESCRIPTION: &'static str = "マヌーバを順に方式（インパルス・有限噴射・低推力・数値伝播）で計算し、ΔV・噴射時間・推薬・前後の軌道を出す";
     const DESCRIPTION_EN: &'static str = "Computes each maneuver in order by its method (impulsive, finite burn, low thrust, propagated): delta-V, burn time, propellant and the orbits before and after";
 
     type Input = PropulsionInput;

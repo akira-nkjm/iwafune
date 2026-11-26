@@ -18,7 +18,7 @@ async fn data_status() {
         .map(|i| i["id"].as_str().unwrap())
         .collect();
     assert_eq!(ids[0], "de440");
-    // 放射線帯のデータ（地図・古い地磁気モデル・IGRF）は表の行で、宇宙天気はその後ろ
+    // 放射線帯のデータ（マップ・古い地磁気モデル・IGRF）は表の行で、宇宙天気はその後ろ
     for id in [
         "ap8min",
         "ap8max",

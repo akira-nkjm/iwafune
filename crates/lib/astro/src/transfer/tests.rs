@@ -131,7 +131,7 @@ fn finite_burn_factor_by_hand() {
     close(finite_burn_factor(0.5 * PI), 1.110_720_7, 1e-6);
 }
 
-/// 有限燃焼: 推力が大きければインパルスと同じ。噴射時間は使った推薬の m_p v_e / F。
+/// 有限噴射: 推力が大きければインパルスと同じ。噴射時間は使った推薬の m_p v_e / F。
 #[test]
 fn finite_burn_converges_and_matches_the_rocket_equation() {
     let r = R_EARTH + 550e3;
