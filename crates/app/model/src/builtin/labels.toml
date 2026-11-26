@@ -50,7 +50,7 @@ label    = "熱"
 label_en = "Thermal"
 
 [section.aocs]
-label    = "AOCS"
+label    = "姿勢系"
 label_en = "AOCS"
 
 [section.comm]
