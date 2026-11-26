@@ -106,7 +106,7 @@ NDA や輸出管理の対象になる値を、公開リポジトリに入れて�
 | crate | 依存してよい crate | 責務 | してはいけないこと |
 |---|---|---|---|
 | `sat-units` | なし | 単位、次元、量の唯一の定義。型付きの量（`Qty`）、表示の種別（`Fraction`、`Decibel*`）、量と単位の表示文字列（`format`） | — |
-| `sat-astro` | units | 数学、積分器、時刻、軌道、天体、食、地球、重力、地磁気、捕捉放射線帯のマップ、大気、地上局、姿勢則、時系列、ロケット方程式。慣習的な既定値（`with_defaults` など） | 解析固有の判断、ファイル I/O（大きなデータはバイト列として受け取る） |
+| `sat-astro` | units | 数学、積分器、時刻、軌道、天体、蝕、地球、重力、地磁気、捕捉放射線帯のマップ、大気、地上局、姿勢則、時系列、ロケット方程式。慣習的な既定値（`with_defaults` など） | 解析固有の判断、ファイル I/O（大きなデータはバイト列として受け取る） |
 | `sat-checkkey` | なし | 解析の検査のキーの書式（要求の `verify.check` が指す文字列）。葉の crate で、キーを組み立てる `sat-analysis` と、キーから名前を読み出す `fune-model` が 1 つの定義を共有できるようにしている | — |
 | `sat-analysis` | units, astro, checkkey | サブシステムごとの解析と判定。入出力は型付きの SI の量。モデル化の既定値は解析が持つ（入力は `Option`） | `fune-*` への依存、I/O |
 | `fune-model` | units, checkkey | 設計データの型、組み込みの属性、種類、語彙の表示名、解決（Resolved）、検査（check） | ファイル I/O |
@@ -324,8 +324,8 @@ Web がしないことは次のとおりです。
 | AOCS | `aocs.unload_time`（MTQ と RCS でアンローディングするのに要する時間）, `aocs.slew_time`（RW で姿勢を変えるのに要する時間） | `aocs.rw_unloading`（外乱トルク（スラスタの誤差を含む。部品の箱の投影面積と重心から求める空力トルクと太陽輻射圧トルク）と RW のアンローディングの頻度、RCS が 1 日に放出する推進剤とその ΔV 換算）, `aocs.sensor_fov`（センサの視野と除外角） |
 | C&DH | `cdh.data_budget`（データ量と記憶容量） | — |
 | 通信 | `comm.link_budget`（回線設計） | `comm.visibility`（地上局の可視性）, `comm.data_throughput`（送信したデータ量と蓄積したデータ量） |
-| 軌道条件 | `orbit.total_dose`（環境表から求める部品ごとのトータルドーズ。環境表はユーザーのもの、なければ計算した捕捉粒子の表で、許容値までの余裕を出す。放射線の輸送計算は持たない）, `orbit.trapped_flux`（AP-8/AE-8 による、軌道平均とピークの捕捉陽子・電子のフラックスと、ミッション全体のフルエンス。`fune data fetch radiation` のデータが必要。[trapped-radiation.md](trapped-radiation.md) を参照）, `orbit.trapped_dose`（それらのスペクトルから SHIELDOSE-2 で求める、アルミ遮蔽の深さに対する線量。この表は、ユーザーの表のない leg に対する `orbit.total_dose` の環境にも使われる） | `orbit.eclipse_season`（ベータ角と食の季節）, `orbit.decay`（大気抵抗による減衰と軌道維持）, `orbit.geometry`（フェーズごとの太陽と地球の距離と角度） |
-| Power | `power.mode_load`（モードごとの消費電力）, `power.solar_sunlit`（日照中の発電）, `power.sizing`（最長の食に対して必要な太陽電池の面積とバッテリの容量） | `power.orbit_generation`（軌道上の発電）, `power.energy_balance`（電力収支と DoD）, `power.thrust_balance`（数値伝播するマヌーバの噴射中の電力収支） |
+| 軌道条件 | `orbit.total_dose`（環境表から求める部品ごとのトータルドーズ。環境表はユーザーのもの、なければ計算した捕捉粒子の表で、許容値までの余裕を出す。放射線の輸送計算は持たない）, `orbit.trapped_flux`（AP-8/AE-8 による、軌道平均とピークの捕捉陽子・電子のフラックスと、ミッション全体のフルエンス。`fune data fetch radiation` のデータが必要。[trapped-radiation.md](trapped-radiation.md) を参照）, `orbit.trapped_dose`（それらのスペクトルから SHIELDOSE-2 で求める、アルミ遮蔽の深さに対する線量。この表は、ユーザーの表のない leg に対する `orbit.total_dose` の環境にも使われる） | `orbit.eclipse_season`（ベータ角と蝕の季節）, `orbit.decay`（大気抵抗による減衰と軌道維持）, `orbit.geometry`（フェーズごとの太陽と地球の距離と角度） |
+| Power | `power.mode_load`（モードごとの消費電力）, `power.solar_sunlit`（日照中の発電）, `power.sizing`（最長の蝕に対して必要な太陽電池の面積とバッテリの容量） | `power.orbit_generation`（軌道上の発電）, `power.energy_balance`（電力収支と DoD）, `power.thrust_balance`（数値伝播するマヌーバの噴射中の電力収支） |
 | 推進 | `propulsion.maneuvers`（マヌーバごとの ΔV、噴射時間、推進剤、前後の軌道）, `propulsion.dv_budget`（ΔV の分類ごとの内訳、合計、余裕と、RCS のアンローディングの ΔV）, `propulsion.propellant`（推進剤の湿重量と乾燥重量、タンクの容積の余裕）, `propulsion.thruster_usage`（総力積、累積の噴射時間、噴射回数と定格）, `propulsion.mass_properties`（推進剤を積んだときと使用後の質量と重心）, `propulsion.launch_window`（惑星間のマヌーバの、出発日 × 到着日の格子。スイングバイのある遷移では、セルごとにフライバイの日付を最適化する。格子点ごとの C3、超過速度、赤緯、ΔV と、最小点、書かれた日付とのずれ）, `propulsion.transfer_check`（日付つきの惑星間の遷移を、太陽と惑星の重力のもとで再伝播する。到着日の外れ距離、最接近、到着時の超過速度の差、軌道。DE440 を使うときだけ判定する） | `propulsion.orbit_history`（マヌーバの順の軌道の履歴。数値伝播するマヌーバでは、推力つきの伝播の高度、傾斜角、質量） |
 | 構造 | `structure.mass_properties`（質量特性）, `structure.static_load`（準静的荷重）, `structure.modal_estimate`（簡易の固有振動数。FEM ではない）, `structure.modal_fem`（軸に平行なパネル、集中質量、支持の種類からなる機体全体の粗い有限要素モード。打ち上げ形態の設計データから作る。支持は、ランチャーかディスペンサーの属性 `launch_constraint` から得る）, `structure.launch_fit`（ランチャーとディスペンサーに対する、質量、収納時の外形、固有振動数。機体全体の振動数は、まず `structure.modal_fem` から、なければ `structure.modal_estimate` から得る。有限要素モデルは任意の入力）, `structure.interference`（部品の箱の重なり。警告のみ）, `structure.cone_clearance`（スラスタのプルームの円錐かセンサの視野の円錐に入る部品。警告のみ）, `structure.external_geometry`（部品の箱の投影面積と露出面積。報告のみ） | — |
 | 熱 | `thermal.steady`（多節点の定常温度） | `thermal.transient`（多節点の過渡温度） |
@@ -388,7 +388,7 @@ service は部品と解析の結果を項目として並べ、`budget/allocation
 | `orbit` | 軌道要素、伝播（ケプラー、J2 の永年項、力のモデルの数値積分）、太陽同期の傾斜角、β 角。中心天体は地球、月、太陽、惑星 |
 | `ephem` | 太陽、月、惑星の位置。解析式（太陽は打ち切った VSOP87A、月は Meeus、惑星は Standish の表）と、登録されていれば JPL DE440 |
 | `force` | 重力場（EGM96、次数 70 まで。係数は埋め込み）、第三体、太陽輻射圧、大気抵抗、固体潮汐、相対論の補正 |
-| `shadow` | 影（円柱と円錐）。食の判定はここだけ |
+| `shadow` | 影（円柱と円錐）。蝕の判定はここだけ |
 | `earth`, `time` | ECI ⇄ ECEF、測地座標、歳差、元期と恒星時 |
 | `geomag`, `atmosphere` | 地磁気（傾斜双極子、球面調和関数の Gauss モデル、McIlwain の L と B/B₀）、大気密度（指数大気、NRLMSISE-00）、宇宙天気（F10.7、Ap）の日ごとの表 |
 | `radiation` | AP-8 と AE-8 の捕捉粒子のマップ、各マップが組になる場、位置を (L, B/B₀) で表すこと、SHIELDOSE-2 の遮蔽の表。データはバイト列として受け取り、プロセスごとに 1 度登録する |

@@ -87,11 +87,11 @@ The dry mass is #value("budget.mass.total"), of which the reaction wheels are #v
 | 関数 | 項目 |
 |---|---|
 | `#mass-table()` | サブシステムごとの項目と、個数、単体質量、質量、成長マージン、マージンを含む質量。小計、合計、上限、マージン。推進剤を数えるときは推進剤と湿質量の合計 |
-| `#mode-power-table()` | モードごとの部品（成長マージンなしの平均電力。その下に状態と時間の割合）。成長マージンなしと込みのモードごとの合計。異なる場合は食中の合計。ピーク |
+| `#mode-power-table()` | モードごとの部品（成長マージンなしの平均電力。その下に状態と時間の割合）。成長マージンなしと込みのモードごとの合計。異なる場合は蝕中の合計。ピーク |
 | `#link-budget(link: auto)` | リンク × 局ごとの入力表と結果表（`link: "<name>@<station>"` で 1 つを選びます）。キャプションにリンク、方向、局、周波数が出ます |
 | `#thermal-result(case: auto)` | 定常ケース（高温、低温など）ごとのノードの、最小、ケースにわたる最大、許容範囲（動作時。なければ最初の種類）、ノードの判定 |
-| `#thermal-history(case: auto)` | 図。すべてのノードの温度を 1 つの軸に、食の帯（同じケースの `power.orbit_generation` から）、許容範囲を破線で示します |
-| `#power-history(case: auto)` | 図。発電と負荷、下限つきのバッテリー充電状態を、食の帯とともに示します |
+| `#thermal-history(case: auto)` | 図。すべてのノードの温度を 1 つの軸に、蝕の帯（同じケースの `power.orbit_generation` から）、許容範囲を破線で示します |
+| `#power-history(case: auto)` | 図。発電と負荷、下限つきのバッテリー充電状態を、蝕の帯とともに示します |
 | `#value("<key>", unit: true)` | 本文用に、単位つきの 1 つの値。キー: `part.<ID>.mass`（1 台あたり）、`budget.mass.{total,limit,margin}`、`kpi.<analysis>.<kpi>[@<case>]` |
 | `#value-si("<key>")` | その値の SI の数値 |
 | `revision` | ファイルを書き出した設計のリビジョン（`fune status` と比べて、古い表を見つけます） |

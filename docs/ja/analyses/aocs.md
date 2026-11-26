@@ -26,13 +26,13 @@
 
 ### 姿勢則
 
-各モードの姿勢則は `analysis/aocs.toml` に `analysis.aocs.law.<MODE>.*` として書きます。フェーズは `phases.<ID>.law.<MODE>.*` でモードの項目全体を置き換えられます。キー `law` は必須です。そのほかのキーは機体座標のベクトル（または四元数）で、省略でき、既定値は表のとおりです。
+各モードの姿勢則は `analysis/aocs.toml` に `analysis.aocs.law.<MODE>.*` として書きます。フェーズは `phases.<ID>.law.<MODE>.*` でモードの項目全体を置き換えられます。キー `law` は必須です。そのほかのキーは機体座標のベクトル（またはクォータニオン）で、省略でき、既定値は表のとおりです。
 
 | `law` | キー | 既定値 | 内容 |
 |---|---|---|---|
 | `sun_pointing` | `axis`、`secondary` | +Z、+X | `axis` を太陽へ向けます。`secondary` を軌道面法線 $\hat{\mathbf n}=\mathbf r\times\mathbf v/\lVert\mathbf r\times\mathbf v\rVert$ にできるだけ近づけます |
 | `nadir_pointing` | `axis`、`along_track` | +Z、+X | `axis` を中心天体の中心へ向けます。`along_track` を慣性速度 $\mathbf v$ にできるだけ近づけます |
-| `inertial` | `orientation` | 恒等四元数 $(w,x,y,z)=(1,0,0,0)$ | 機体軸を ECI に対して固定します |
+| `inertial` | `orientation` | 恒等クォータニオン $(w,x,y,z)=(1,0,0,0)$ | 機体軸を ECI に対して固定します |
 
 ![円軌道に沿ったナディア指向則](../../assets/figures/aocs-attitude.svg)
 
@@ -90,7 +90,7 @@ H_\mathrm{cap}(\hat{\mathbf d})=\min_{i:\,|q_i|>10^{-15}}\frac{h_i}{|q_i|}.
 
 各サンプルで、視線と各天体の方向のなす角を機体座標で求めます。太陽と月は点です。中心天体は球で、宇宙機から円盤に見え、縁はその円盤の端です。
 
-なす角が禁止角を下回ると侵入です。ただし条件が二つあります。太陽は、サンプルの日照率が 0.5 以上のときだけ数えます（`SUNLIT_THRESHOLD`）。食の最中の太陽は侵入になりません。月は、宇宙機から月への線が中心天体を通らないときだけ数えます。縁は常に数えます。縁の角が負なら、視線は円盤の内側にあります。
+なす角が禁止角を下回ると侵入です。ただし条件が二つあります。太陽は、サンプルの日照率が 0.5 以上のときだけ数えます（`SUNLIT_THRESHOLD`）。蝕の最中の太陽は侵入になりません。月は、宇宙機から月への線が中心天体を通らないときだけ数えます。縁は常に数えます。縁の角が負なら、視線は円盤の内側にあります。
 
 この解析は宇宙機の構造を見ません。宇宙機自身の部品による視線の遮りは、[structure.cone_clearance](structure.md)が静的に判定します。同じ `boresight` と `fov_half_angle` を読みますが、二つの解析は互いに入力を渡しません。
 

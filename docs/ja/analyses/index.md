@@ -71,11 +71,11 @@ m = C/D-1
 | | `comm.visibility` | T | 地上局のパス |
 | | `comm.data_throughput` | T | ダウンリンクの送信可能量と未送信データ |
 | [軌道](orbit.md) | `orbit.decay` | T | 抗力による減衰と軌道維持 |
-| | `orbit.eclipse_season` | T | beta 角と食の季節 |
+| | `orbit.eclipse_season` | T | beta 角と蝕の季節 |
 | | `orbit.geometry` | T | ミッションの幾何 |
 | [電源](power.md) | `power.mode_load` | S | モード別の負荷 |
 | | `power.solar_sunlit` | S | 姿勢ごとの日照中の発電 |
-| | `power.orbit_generation` | T | 発電と食の履歴 |
+| | `power.orbit_generation` | T | 発電と蝕の履歴 |
 | | `power.energy_balance` | T | 電池の充電状態とエネルギー収支 |
 | | `power.sizing` | S | 必要なパネル面積と電池容量 |
 | | `power.thrust_balance` | T | 噴射中の電池の収支 |

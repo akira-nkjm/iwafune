@@ -1,12 +1,12 @@
 # 軌道解析
 
-宇宙機が太陽と地球に対してどこにいるか、ミッション中に食に入る時間がどれだけあるか、大気抵抗のもとで軌道がどれだけ持つかを求める解析です。
+宇宙機が太陽と地球に対してどこにいるか、ミッション中に蝕に入る時間がどれだけあるか、大気抵抗のもとで軌道がどれだけ持つかを求める解析です。
 電源、熱、AOCS、通信、放射線のページが前提にする軌道、時刻、影の規約もここで定めます（[共通の前提](#共通の前提)を参照してください）。
 
 | ID | 目的 | 主な入力 | 主な出力 |
 |---|---|---|---|
 | `orbit.geometry` | ミッション中の幾何条件の極値を求めます | フェーズの軌道と期間 | 太陽・地球距離、角度、光の伝播時間 |
-| `orbit.eclipse_season` | 最長の食と β 角の範囲を求めます | 軌道要素、ミッション期間 | 本影・半影時間、β 角の極値 |
+| `orbit.eclipse_season` | 最長の蝕と β 角の範囲を求めます | 軌道要素、ミッション期間 | 本影・半影時間、β 角の極値 |
 | `orbit.decay` | 高度低下と軌道維持を見積もります | 地球周回軌道、抗力面積、質量 | 軌道寿命、高度履歴、年間 ΔV |
 
 ## 共通の前提
@@ -145,14 +145,14 @@ n&=\sqrt{\mu/a^3},\quad p=a(1-e^2),\quad k=nJ_2(R/p)^2\\
   どちらを使ったかは、`orbit.geometry` が区間ごとに `ephemeris` で報告します（区間の始めと終わりの両方が範囲内のときだけ `de440` です）。
   日付つきの惑星間遷移は解析式の範囲 1800 年から 2050 年の外の日付を、DE440 が覆わない限り受け付けません。
 
-### 食のモデル
+### 蝕のモデル
 
 ![β 角と円錐影](../../assets/figures/orbit-shadow.svg)
 
 *β 角は軌道面から測ります。内側の境界は本影、外側の境界は半影の端です。*
 
-食の判定は `sat_astro::shadow` だけが行います。中心天体（地球、月、惑星）は赤道半径の球とみなします。
-中心天体以外による食を扱うのは秤動点の軌道だけで、地球・月系の点では地球も影を作ります（2 つの日照率の小さいほうを使います）。
+蝕の判定は `sat_astro::shadow` だけが行います。中心天体（地球、月、惑星）は赤道半径の球とみなします。
+中心天体以外による蝕を扱うのは秤動点の軌道だけで、地球・月系の点では地球も影を作ります（2 つの日照率の小さいほうを使います）。
 
 既定は円錐影モデルです。宇宙機から見て、太陽と掩蔽する天体は視半径 $\alpha$ と $\rho$ の円盤で、中心は $c$ だけ離れています。
 
@@ -175,13 +175,13 @@ f=\begin{cases}
 A_\cap=\alpha^2\arccos\frac{c^2+\alpha^2-\rho^2}{2c\alpha}+\rho^2\arccos\frac{c^2+\rho^2-\alpha^2}{2c\rho}-\tfrac12\sqrt{(-c+\alpha+\rho)(c+\alpha-\rho)(c-\alpha+\rho)(c+\alpha+\rho)}\tag{6}
 ```
 
-場合分けは上から順に、全日照、本影（$f=0$）、環状食（天体が太陽より小さい場合）、2 つの円盤が部分的に重なる半影（$0<f<1$）です。$A_\cap$ は 2 つの円盤が重なるレンズ形の面積です（Montenbruck と Gill の 3.4.2 節）。
+場合分けは上から順に、全日照、本影（$f=0$）、環状蝕（天体が太陽より小さい場合）、2 つの円盤が部分的に重なる半影（$0<f<1$）です。$A_\cap$ は 2 つの円盤が重なるレンズ形の面積です（Montenbruck と Gill の 3.4.2 節）。
 宇宙機が天体の内側にあれば $f=0$、太陽の半径の内側にあれば $f=1$ です。太陽まわりでは影はありません。
 
 円柱影モデルは 2 値です。宇宙機が夜側（$\mathbf r\cdot\hat{\mathbf s}<0$）にあり、太陽と天体を結ぶ軸からの距離が $R_b$ より小さければ $f=0$、それ以外は $f=1$ です。
-半径 $a$ の円軌道では地球の視半径が $\rho=\arcsin(R/a)$ で、円柱影から下の計算例で使う食の半角が得られます。
+半径 $a$ の円軌道では地球の視半径が $\rho=\arcsin(R/a)$ で、円柱影から下の計算例で使う蝕の半角が得られます。
 
-![円柱影モデルでの食の弧](../../assets/figures/orbit-eclipse-arc.svg)
+![円柱影モデルでの蝕の弧](../../assets/figures/orbit-eclipse-arc.svg)
 
 *$\beta=0$ のときの軌道法線方向から見た図です。軌道が夜側にあり、太陽と地球を結ぶ軸から $R$ 以内にある間は影の中にいます。軸の両側にそれぞれ半角 $\varphi=\arcsin(R/a)$ の範囲です。*
 
@@ -224,7 +224,7 @@ $\hat{\mathbf s}$ は中心天体から太陽への単位ベクトル、$\hat{\m
 
 `orbit.geometry` と `orbit.eclipse_season` はケースを実行すべき日付を見つけます。CLI はその日付をケースに変えます。
 
-- `fune case from-eclipse <ID> --at longest|beta_min` は、最長の食の日か β 角が最小の日の β 角を保存し、説明に日付を書きます。
+- `fune case from-eclipse <ID> --at longest|beta_min` は、最長の蝕の日か β 角が最小の日の β 角を保存し、説明に日付を書きます。
 - `fune case from-geometry --phase <ID>` は、区間内で太陽距離が最大の日、最小の日、地球距離が最大の日を `epoch` とするケースを保存します。
 - `fune case from-sun-distance` は、太陽まわりの定常解析のために円軌道の上書きを書きます。
 
@@ -329,11 +329,11 @@ d_\mathrm{Earth}=\|\mathbf x\|,\quad d_\mathrm{Sun}=\|\mathbf s-\mathbf x\|,\qua
 
 [解析](../../../crates/lib/analysis/src/orbit/geometry.rs)、[幾何の評価器](../../../crates/lib/astro/src/timeline/geometry.rs)、[極値の探索](../../../crates/lib/astro/src/timeline/geometry/extremes.rs)、[入力変換](../../../crates/app/projection/src/orbit.rs)。
 
-## orbit.eclipse_season β 角と食の季節変化
+## orbit.eclipse_season β 角と蝕の季節変化
 
 ### 何に答えるか
 
-ミッション中に β 角と本影・半影の時間がどう変わるかと、最長の食になる日付を求めます。
+ミッション中に β 角と本影・半影の時間がどう変わるかと、最長の蝕になる日付を求めます。
 
 ### 入力
 
@@ -348,7 +348,7 @@ d_\mathrm{Earth}=\|\mathbf x\|,\quad d_\mathrm{Sun}=\|\mathbf s-\mathbf x\|,\qua
 
 各サンプル日では1 周のあいだ太陽を空間に固定します。サンプル日の太陽位置をその 1 周のすべての点に使い、影は式 (6) で求めます。
 中心天体は球です。ケースの `beta` と `epoch` は無視し、軌道そのものを使います。
-月周回機が地球に隠される食と、地球周回機が月に隠される食は数えません。
+月周回機が地球に隠される蝕と、地球周回機が月に隠される蝕は数えません。
 
 ### 式
 
@@ -359,7 +359,7 @@ T_I=P\,\frac{\sum_j(t_{j+1}-t_j)(I_j+I_{j+1})/2}{t_N-t_0},\qquad
 T_\mathrm{eclipse}=T_\mathrm{umbra}+T_\mathrm{penumbra}\tag{9}
 ```
 
-本影は $f\le0$ の状態、半影は $0<f<1$ の状態で、環状食も含みます。軌道の格子は $t_N-t_0=P$ を覆うので、係数 $P/(t_N-t_0)$ は 1 です。
+本影は $f\le0$ の状態、半影は $0<f<1$ の状態で、環状蝕も含みます。軌道の格子は $t_N-t_0=P$ を覆うので、係数 $P/(t_N-t_0)$ は 1 です。
 
 半径 $a$ の円軌道で太陽を固定した場合、円柱影モデルには閉じた形があります（上の図、Montenbruck と Gill の 3.4.1 節）。
 
@@ -375,8 +375,8 @@ $|\beta|\ge\arcsin(R/a)$ では 0 です。高度 550 km の軌道では、円�
 2. 各日付で、その日付の軌道から式 (7) の $\beta$ を求めます。
 3. その日付から 1 周を $\max(5\ \mathrm{s},P/1200)$ の刻みで伝播します（周期 6,000 s までは 5 s）。太陽はその日付の位置を使い、各点で式 (6) の $f$ を求めます。
 4. 式 (9) で本影と半影の時間を足し上げます。
-5. 最長の食（本影と半影の和）、最小の $\beta$、最大の $\beta$ を選びます。同値なら最初のサンプルです。
-6. 食がまったくない日付を数え、食なしの指標を季節の格子上で台形則により積分して、食なしの期間を推定します。
+5. 最長の蝕（本影と半影の和）、最小の $\beta$、最大の $\beta$ を選びます。同値なら最初のサンプルです。
+6. 蝕がまったくない日付を数え、蝕なしの指標を季節の格子上で台形則により積分して、蝕なしの期間を推定します。
 
 ### 検査と判定
 
@@ -389,7 +389,7 @@ $|\beta|\ge\arcsin(R/a)$ では 0 です。高度 550 km の軌道では、円�
 | `points` | date, rad, s | 各日付の β 角と 1 周あたりの本影・半影の時間 |
 | `longest`, `max_eclipse_duration` | date, s | 本影と半影の和が最長のサンプル |
 | `beta_min`, `beta_max` | rad | 符号つき β 角の最小値と最大値（日付つき） |
-| `eclipse_free_samples`, `eclipse_free_duration` | count, s | 食のない日付の数と、食なしの推定期間 |
+| `eclipse_free_samples`, `eclipse_free_duration` | count, s | 蝕のない日付の数と、蝕なしの推定期間 |
 | `step`, `shadow_step`, `fixed_sun_per_orbit` | s | 季節刻み、1 周内の刻み、太陽固定の近似を示すフラグ |
 | `series` | rad, s | 時間に対する β 角、本影、半影 |
 
@@ -405,13 +405,13 @@ $P=5738.99$ s を使うと、円柱影では $T_\mathrm{cyl}=P\varphi/180^\circ=
 
 ### 限界
 
-境界の分解能は 1 周内の刻みで決まり、最長の食の日付の分解能は季節刻みで決まります。
+境界の分解能は 1 周内の刻みで決まり、最長の蝕の日付の分解能は季節刻みで決まります。
 1 周分の窓はその日の衛星の位相から始まり、長さはケプラー周期 $P$ です。平均近点角はこれよりわずかに速く進むため、高度 550 km では 1 周のうち最大約 4 s が窓から漏れます。
-短い食や半影は、日付の間に隠れることがあります。極値はサンプルの中から選び、サンプルの間は探しません。
+短い蝕や半影は、日付の間に隠れることがあります。極値はサンプルの中から選び、サンプルの間は探しません。
 
 ### 検証
 
-`orbit/eclipse_season/tests.rs` の `cylindrical_shadow_matches_hand_calculation` は$\beta=0^\circ,30^\circ,60^\circ$ で式 (10) を確認し、円錐影の本影が 30 s 以内で一致することも確認します。`no_eclipse_above_critical_beta` は、$|\beta|>\arcsin(R/a)$ で食が見つからないことを確認します。
+`orbit/eclipse_season/tests.rs` の `cylindrical_shadow_matches_hand_calculation` は$\beta=0^\circ,30^\circ,60^\circ$ で式 (10) を確認し、円錐影の本影が 30 s 以内で一致することも確認します。`no_eclipse_above_critical_beta` は、$|\beta|>\arcsin(R/a)$ で蝕が見つからないことを確認します。
 `sso_year_and_solar_precession` は $\dot\Omega=0.9856^\circ$/日と 1 年の 367 サンプルを、`lunar_orbit_eclipse_season` は月周回軌道の手計算を、`extrema_ties_and_eclipse_free_duration_by_hand` は同値の扱いと時間積分を確認します。
 `astro` では、`timeline/tests.rs` の `eclipse_fraction_at_550_km_beta_zero` と `shadow.rs` が影の関数を、`orbit/tests.rs` が β 角、太陽同期傾斜角、昇交点の移動率を試験します。
 

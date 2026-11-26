@@ -81,7 +81,7 @@ maneuver = "MARS_TRANSFER"    # a maneuver with a dated [transfer] (§7.7)
   - `cycle()` は飛行全体の `OneOff` で、`central()` は共通の親です。`elements()` は弧が 2 本以上なら `None` で（ケプラー専用の解析は `state` の場合と同じく「適用外」と答えます）、`altitude_m()` も `None` です。
   - ケースの `epoch` がいずれかの弧の中にあれば、そこから始まります（その弧の残りと、あとの弧です。継ぎ目ちょうどなら出ていく側の弧から始まります）。飛行全体の外の epoch は1 本の弧の場合と同じく入力不足です。
   - 極値の絞り込み（`orbit.geometry`、`comm.link_budget` の地球距離と太陽合、`fune case from-sun-distance` の背後にある太陽距離の極値）は、探索の窓を継ぎ目で分け、継ぎ目そのものも候補に入れます（`extremes_by_split`）。そのため、距離は連続でも傾きが連続でないフライバイでの極値を正確に見つけ、窓が 2 本の弧を混ぜることもありません。
-  - 時系列の解析は通常のワンオフ用の格子で飛行全体をサンプル化します。サンプルの位置はフライバイをまたいで連続で、表や食の探索は弧ごとに進みます（太陽まわりには食がありません）。
+  - 時系列の解析は通常のワンオフ用の格子で飛行全体をサンプル化します。サンプルの位置はフライバイをまたいで連続で、表や蝕の探索は弧ごとに進みます（太陽まわりには蝕がありません）。
   JSON: 1 本の弧はこれまでと同じに書き出します（`OrbitSpec` のフィールドと `span_s`）。2 本以上の弧は `{ "source": "arcs", "arcs": [ <span_s つきの軌道>, … ] }` と書き出します（`ArcsRepr`。ケプラー弧だけです）。
 - `source = "state"` は、状態ベクトルから数値的に伝播した軌道を取ります（`sat_astro::orbit::StateSpec`。既存の N 体伝播 `propagate_states` を使い、新しいものはありません）。
 
@@ -165,19 +165,19 @@ step = { value = 1, unit = "day" }
 期間の始まりと終わりを含む各サンプルについて、既存の `beta_angle_rad` で β を求めます。J2 による RAAN の歳差と太陽の方向を考慮します。
 各サンプルの 1 周のあいだは太陽の位置を固定し、既存の軌道伝播と円錐影を 5 秒間隔でサンプル化します。
 本影の時間（日照の割合が 0）と、本影を含まない半影の時間（0 より大きく 1 より小さい）は、時間の割合に使う既存の台形則で集計します。
-境界の時間の精度は各境界でサンプルの間隔程度です。短い食や半影はサンプルの間に隠れることがあります。
+境界の時間の精度は各境界でサンプルの間隔程度です。短い蝕や半影はサンプルの間に隠れることがあります。
 影は中心天体の球が落とし（半径は `CentralBody::radius_m`、`shadow::central_shadow_factor`）、太陽の位置は中心天体から見たものです。
-月を回っているときに地球に隠れる時間（月食）や、地球を回っているときに月に隠れる時間は含みません。太陽を中心天体とする軌道には β も食もないので、入力エラーです
-（太陽中心の巡航は、食の季節ではなく、下の太陽距離のケースで解析します）。
+月を回っているときに地球に隠れる時間（月蝕）や、地球を回っているときに月に隠れる時間は含みません。太陽を中心天体とする軌道には β も蝕もないので、入力エラーです
+（太陽中心の巡航は、蝕の季節ではなく、下の太陽距離のケースで解析します）。
 
 出力の `points` は、日付（UTC）、β [rad]、本影 [s]、半影 [s] の一覧で、`series` は同じ値をグラフ用の系列にしたものです。
 `longest` と `max_eclipse_duration` は、本影と半影の和が最大のサンプルとその長さで、
 `beta_min` / `beta_max` は符号つき β の極値とそのサンプルです。極値が等しければ、最初の日付を選びます。
 極値はサンプルの中から選び、日付の間にある真の極値は探索しません。
-`eclipse_free_samples` は食の無いサンプルの数（端の点が端数のものを含む）で、
-`eclipse_free_duration` は、食の無いフラグを季節の格子で台形積分した、食の無い期間の推定値です。
+`eclipse_free_samples` は蝕の無いサンプルの数（端の点が端数のものを含む）で、
+`eclipse_free_duration` は、蝕の無いフラグを季節の格子で台形積分した、蝕の無い期間の推定値です。
 季節の間隔 `step`、軌道内の間隔 `shadow_step`、近似 `fixed_sun_per_orbit` も出力します。
-判定は情報としてのみで、検査は付きません。KPI は軌道トピックの下に、最長の食と β の範囲の下端と上端を並べます。
+判定は情報としてのみで、検査は付きません。KPI は軌道トピックの下に、最長の蝕と β の範囲の下端と上端を並べます。
 
 `fune case from-eclipse <新しい ID> --at longest|beta_min [--mode <mode>]` は、最新の前提条件で再解析し、
 サービスの `case_from_eclipse_op` で既存の `SetCase` Op を組み立てます。
@@ -188,9 +188,9 @@ HTTP は `{ "id": "season_longest", "at": "longest", "mode": null }` を `POST /
 既存の ID の上書きと未知のモードは拒否されます。`to_cli` は、値と日付を保つ `fune case set` を返します。
 
 **太陽中心の巡航（太陽を中心天体とする場合）。** 電力と熱の解析は `central = "sun"` で動きます。タイムラインは各時刻の太陽距離 `|r|` を与えるので（太陽束は `S₁ (AU/d)²`、
-発電も同じ割合で変わります）、食はなく（日照の割合は 1）、熱の解析は反射光と惑星赤外を 0 とします（§5.2）。
+発電も同じ割合で変わります）、蝕はなく（日照の割合は 1）、熱の解析は反射光と惑星赤外を 0 とします（§5.2）。
 ケースの `beta` はそこでは入力エラーです（太陽の方向には β を測る軌道面がないため）。そのため巡航のケースでは設定しません。
-`power.sizing` は太陽中心の軌道では使えません。最長の食と β の季節に対して寸法を決める解析で、太陽まわりの軌道にはそれがないからです（上の入力エラー）。
+`power.sizing` は太陽中心の軌道では使えません。最長の蝕と β の季節に対して寸法を決める解析で、太陽まわりの軌道にはそれがないからです（上の入力エラー）。
 巡航の最悪ケースは近日点と遠日点で、`sun_distance`（長さ。キーは `cases.<ID>.sun_distance`。次元は `beta` と同じく検査されます）を持つ解析ケースとして作ります。
 
 `fune case from-sun-distance <新しい ID> --at min|max [--mode <mode>]` は、epoch から `duration` までのあいだの軌道の太陽距離の最小または最大を求め
@@ -362,7 +362,7 @@ flowchart LR
 | CatalogItem | 購入品または設計品の定義（ElementDefinition） | 共有カタログ、または `catalog/[<dir>/…]<id>.toml`（§11.1） | 種別、型番、成熟度、タグ（`tags = ["flight_proven", "domestic"]`。製造元でも種別でもない自由な分類で、空なら書きません。`fune catalog set <item> tags a,b` / `unset`。タグは空でなく、前後に空白がなく、`,` を含まず、同じ品の中で重複しません）、属性値、ポートの値、形状、データシートの出典（出典の ID。§7.8） |
 | Group | 系または入れ子のフォルダ | `parts/` の下の、同名のファイルが無いディレクトリ（最上位は通常、系の ID） | なし（系の表示名は組み込みの語彙の項目です。配分は `budget/allocation.toml` にあります） |
 | Part | 製品ツリーでの使用（ElementUsage） | `parts/<…>/<ID>.toml` | 定義（カタログ / 種別）、トレードの候補、員数と冗長、取付先と相対姿勢、上書きの値、ポートが属するネット |
-| Mode | 衛星の運用モード | `modes/<ID>.toml` | 期間、部品 → {状態、時間の割合、稼働数、予備の状態}、食の上書き |
+| Mode | 衛星の運用モード | `modes/<ID>.toml` | 期間、部品 → {状態、時間の割合、稼働数、予備の状態}、蝕の上書き |
 | Net | 電気的な接続（論理） | `nets/<ID>.toml` | 種類（power / data / rf）、レール電圧、供給元のポート、電流の上限、プロトコル |
 | Harness | ケーブルの区間（物理） | `harness/<ID>.toml` | 両端のポート、運ぶネット、電線、芯数、長さ |
 | Case | 解析ケース | `cases/<ID>.toml` | モードまたはモードの時系列、フェーズ（§7.10）、不確かさのどちら側を読むか、太陽距離（巡航）、開始時刻 `epoch`（軌道上のある日）、軌道、姿勢則、環境条件、期間 |
@@ -640,8 +640,8 @@ KPI の電力収支は平均電力（`orbit_average_balance`。電池効率を�
   `eclipse_overlap`、そして `orbit_average_balance` と `energy_margin_per_orbit`（窓の立ち上がりからの 1 周。1 周に 1 回挿入したとき）です。
   窓はサンプルの刻みに丸め、窓の中のサンプルにはそのモードの姿勢則での負荷と発電を使います。
 - モードの並び（`sequence`）: 使用中の並び（下の「名前つきのシーケンス」を参照。古い形の `[[sequence]]`）を、解析スパンを覆うように繰り返し、積分は並びの始まり（解析の始まり、または並びのアンカー）からの経過時間を
-  1 周期（日照と食、および食の上書きは、`mode_load` と同じく評価します）で割った余りが入るセグメントのモードの負荷と、姿勢則での発電を使います。結果は出力の
-  `sequence.balance`（ケースと同じ形で、`load_sunlit` と `load_eclipse` は日照と食のサンプルでの平均）で、運用全体にわたる
+  1 周期（日照と蝕、および蝕の上書きは、`mode_load` と同じく評価します）で割った余りが入るセグメントのモードの負荷と、姿勢則での発電を使います。結果は出力の
+  `sequence.balance`（ケースと同じ形で、`load_sunlit` と `load_eclipse` は日照と蝕のサンプルでの平均）で、運用全体にわたる
   DoD、最小 SOC、周回あたりの収支（`orbits`）、判定を持ち、加えて `name`（使った並び。古い名前なしの形では無し）、`cycle`、`origin`（並びの始まりの時刻）を持ちます。並びが無ければ `sequence = null` です。
 
 デューティ（状態の時間の割合）は平均の消費電力に換算し、どの運用でも一定として適用します（周回内の時間配分は扱いません）。使うモードに
@@ -681,9 +681,9 @@ duration = { value = 10.0, unit = "min" }
   存在しない名前は check のエラーです（別の並びを黙って使うことはありません）。並びは解析ケースごとではなく、解析の設定ごとに選びます。
 - 古い形は引き続きそのまま読め（後方互換）、`fune fmt` は書き換えません。`[sequences.default]` と同時には書けません（check のエラー）。
   `fune sequence set default …` で `default` を書くと、`[sequences.default]` に移行し、`[[sequence]]` を削除します。
-- `anchor` は、並びの始まりを食のイベントに置きます。`from` は `eclipse_exit`（食のあとに再び日照になる）または `eclipse_entry` で、`offset` は時間です（負なら前。既定は 0）。
+- `anchor` は、並びの始まりを蝕のイベントに置きます。`from` は `eclipse_exit`（蝕のあとに再び日照になる）または `eclipse_entry` で、`offset` は時間です（負なら前。既定は 0）。
   並びは解析スパンで最初のそのイベントから始まり、その周期で繰り返します（イベントはサンプルの刻みに丸めます）。`anchor` が無ければ解析の始まりから始まります。
-  イベントがスパンの中で起きなければ（たとえば食が無い）、並びはスパンの始まりから始まり、並びの `checks` に警告（`sequence_anchor`）が付きます。
+  イベントがスパンの中で起きなければ（たとえば蝕が無い）、並びはスパンの始まりから始まり、並びの `checks` に警告（`sequence_anchor`）が付きます。
 - CLI と GUI は Op で編集します。`SetSequence`（名前つきの並び 1 つを丸ごと書きます。`fune sequence set <name> --segments "NOMINAL=76 min,MISSION=10 min" --anchor eclipse_exit --offset "5 min"`）、
   `RemoveSequence`（`fune sequence rm`。削除した並びが `active_sequence` だったときは、それも解除します）、`analysis.power.active_sequence` の `SetSetting` です。GUI のモードのページは並びを一覧し、使うものを選びます。
   GUI でのセグメントの編集はまだありません（CLI を使います）。
@@ -742,7 +742,7 @@ start = { from = "eclipse_exit", offset = { value = 5.0, unit = "min" } }   # op
 プリセットの太陽束（1 AU での近日点と遠日点）は地球と月だけに使い、プリセットのアルベドと赤外（代表的な LEO の値）は地球だけに使うので、
 それ以外の天体にプリセットを書くなら `solar_flux` も書かなければなりません（さもなければ入力不足です）。使った値は出力の `environment` にあります
 （月では `planet_ir` が null で、夜側の値は `night_ir`）。地球を回るときに月から受けるアルベドと赤外は扱いません（地球のものの数百分の 1 以下）。
-太陽が中心天体のとき（惑星間巡航）は、アルベドと惑星赤外は 0 で食もなく、直達太陽光だけが外面を温めます。
+太陽が中心天体のとき（惑星間巡航）は、アルベドと惑星赤外は 0 で蝕もなく、直達太陽光だけが外面を温めます。
 書かれた `albedo`、`planet_ir`、`preset` は使わず（プリセットの値は地球軌道を表すため）、太陽束は各時刻の太陽距離から求めます
 （最悪ケースの束には、書かれた `solar_flux` をそのまま使います）。姿勢固定の定常ケース（`Fixed`）は `solar_flux` が必要です（慣例の距離はありません）。使った値は出力の `environment` に出ます
 （`albedo` は 0、`planet_ir` は 0、`solar_flux` は null で距離から求めたもの）。`thermal.steady` は 1 周（または太陽距離のケースでは、その距離での定常状態。§1.1「太陽中心の巡航」）で平均し、
@@ -890,12 +890,12 @@ v = 5
 - 許容誤差。1 刻みの誤差は節点ごとに `abs_tol + rel_tol·|T|` 以内でなければなりません（節点にわたる RMS）。既定値は解析が持ちます。`rel_tol = 1e-8`、`abs_tol = 1e-6 K` です（`DEFAULT_REL_TOL`、`DEFAULT_ABS_TOL_K`）。
   入力 `rel_tol` と `abs_tol` がそれを上書きします。`max_step` は積分器の刻みの任意の上限です（刻みの設定はほかにありません。固定刻みの RK4 の古い安定性の見積もりはなくなりました）。
   使った値と費用は、出力の `integration` に返ります。`smooth_segments`、`accepted_steps`、`rejected_steps`、`rhs_evaluations`、`events`（積分を止めたヒーターの切り替え）です。
-- 積分を分ける場所。誤差制御が働くには、1 回の積分の中で右辺が滑らかでなければならないので、すべてのサンプルの時刻、熱の位相（モード）が変わるたび、食の境界で分けます
+- 積分を分ける場所。誤差制御が働くには、1 回の積分の中で右辺が滑らかでなければならないので、すべてのサンプルの時刻、熱の位相（モード）が変わるたび、蝕の境界で分けます
   （日照の割合が 1 を離れる、または 0 に達する所。円筒の影のモデルでは境界が跳びで、既定の円錐モデルでは、そこで半影が折れ曲がりを持って始まり、終わります）。
-  境界は2 つのサンプルのあいだで、日照の割合の二分法で求めます（`sat_astro::timeline::TimelineEvaluator::shadow_edges`。許容誤差 1 µs）。1 つのサンプルの間隔の中で始まって終わる短い食は見つかりません。
+  境界は2 つのサンプルのあいだで、日照の割合の二分法で求めます（`sat_astro::timeline::TimelineEvaluator::shadow_edges`。許容誤差 1 µs）。1 つのサンプルの間隔の中で始まって終わる短い蝕は見つかりません。
 - サンプル間の外部熱（実装済み: 連続評価）。外面が吸収する熱は、右辺の中で、積分器自身の時刻に、その時刻の軌道、太陽、姿勢則、影から評価します
   （`TimelineEvaluator::at`。ケプラーと J2 は直接評価し、数値伝播器は周期の最大 1/100 の格子で 1 度積分して、3 次のエルミート多項式で補間します。直接の伝播と 1 m 以内で一致します）。
-  サンプルの時刻ではタイムライン自身の値に等しくなります。そのため入射角、中心天体の形態係数、食の入りと出がサンプルの間でも解像され、サンプルの刻みは出力の間隔だけを決めます
+  サンプルの時刻ではタイムライン自身の値に等しくなります。そのため入射角、中心天体の形態係数、蝕の入りと出がサンプルの間でも解像され、サンプルの刻みは出力の間隔だけを決めます
   （以前のサンプルホールドの評価は、各サンプルの間隔の始まりの値を保持していました）。セグメントの端はセグメントのすぐ内側（5 µs）で評価するので、日照の割合の跳びを、誤った側から読むことはありません。
   入力のほかの折れ曲がり（たとえば、面が太陽から外れ、その吸収熱が傾きを変えて 0 に達する所）は探しません。誤差制御がそこで小さな刻みを取ります。
 - イベントの位置決めによるヒーターの切り替え。ヒーターがオンのあいだは、その節点の余裕 `off_above − T` を、オフのあいだは `T − on_below` を監視し、動作中のヒーターの最小の余裕がイベント関数です。それが刻みの中で 0 に達すると、交差の時刻を、刻みの密な出力に対する二分法
@@ -903,19 +903,19 @@ v = 5
   切り替えの時刻、デューティ、最長のオン期間、最後の周回の窓は、正確な時刻を使います。切り替えのあと、反対側の設定点までの余裕はバンドの幅で、少なくとも `0.001 K` です（それより狭いバンドは入力エラー）。
   そのため、同じ時刻に切り替えが繰り返されることはありません。サーモスタットがある位相でオフのヒーターはオフに保たれ、積分を止めません。1 つの刻みの中で出て戻る交差は見えません（バンドは刻みに比べて広いからです）。
 - 軌道の表示座標（`orbit_plane`）。出力は過渡の再生中に、GUI の「熱画像」が衛星の位置を示すのに必要なものも運びます。`series.t` とまったく同じサンプルの時刻です
-  （`sat_astro::timeline::orbit_plane_track`、型 `OrbitPlaneTrack`）。固定の軌道面の座標への位置の投影（`x`、`y`、単位は m）、各サンプルが食かどうか（`eclipse`。日照の割合が `spec::SUNLIT_THRESHOLD` を下回る。解析が判断し、GUI は判断しません）、
+  （`sat_astro::timeline::orbit_plane_track`、型 `OrbitPlaneTrack`）。固定の軌道面の座標への位置の投影（`x`、`y`、単位は m）、各サンプルが蝕かどうか（`eclipse`。日照の割合が `spec::SUNLIT_THRESHOLD` を下回る。解析が判断し、GUI は判断しません）、
   サンプルごとの太陽方向 `sun_dir_body` と中心天体の方向 `nadir_body`（機体座標の単位ベクトル）、および中心天体の `body_radius` と、軌道面からの太陽の高さ `sun_elevation`
   （最初のサンプルでの、β に似た角度）、描くバンドの `shadow_half_width` です。座標は最初のサンプルから固定されます。z は軌道の法線（r × v）、x は軌道面に投影した太陽方向
   （太陽がほぼ法線に沿っていれば、最初の位置の方向）、y = z × x なので、太陽は常に +x 側、影は −x 側にあります。軌道面が歳差運動しても、座標は更新しません。
-  太陽が中心天体のとき、太陽は原点にあるので太陽側はありません。x は最初の位置の方向で、`sun_elevation`、`body_radius`、`shadow_half_width` は 0 で、食のサンプルはありません
+  太陽が中心天体のとき、太陽は原点にあるので太陽側はありません。x は最初の位置の方向で、`sun_elevation`、`body_radius`、`shadow_half_width` は 0 で、蝕のサンプルはありません
   （`body_radius` が 0 なら、描く中心天体が無く、GUI は挿入図を描きません。太陽の矢印は今も `sun_dir_body` を使います）。
-  図は模式図です。影のバンドは円筒の影（半幅 = 天体の半径）で、実際の食はサンプルごとの `sunlit` です。温度も検査も変えません。
+  図は模式図です。影のバンドは円筒の影（半幅 = 天体の半径）で、実際の蝕はサンプルごとの `sunlit` です。温度も検査も変えません。
 - 硬いネットワーク。この方法は陽的です。熱容量のごく小さい節点が大きな節点と強く結合していると、精度にかかわらず、刻みは速い時定数まで小さくなります。0.09 J/K と 900 J/K の節点が交互に並ぶ 12 節点の鎖
   （G = 10 W/K）の 5 周では、約 100 万刻み、右辺の評価が 1200 万回になります（デバッグビルドで約 1 分。`stiff_chain_five_orbits_cost` を参照）。陰的な積分器はありません。そのような節点は隣の節点の一部としてモデル化してください。
   1 部品 1 節点では、小さな部品が小さな節点になります。デモで `[nodes]` を外して測ると（38 節点、容量 4.4 から 782 J/K、取付あたりの既定 0.5 W/K）、`thermal.transient` の 5 周は約 1100 刻み、15 000 回の評価（リリースビルドで 0.04 s）で、まとめた節点の場合と同じです。
   費用が増えるのは、部品の結合あたりの容量が 1 秒に近づくときだけです。0.05 g のヒーター（0.045 J/K）と 0.02 g のヒーターが同じ設計にあると、約 100 000 刻み、130 万回の評価になります（リリースビルドで 2 s、デバッグビルドで 27 s）。軽い部品について、制限も警告もありません。非常に軽い部品は取り付け先の部品と一緒に `[nodes]` に挙げてください。分割した板は例外で、そのセルの時定数は報告され、警告されます（「板の中の温度分布」を参照）。
 - 精度。円錐影の半影は、日照の割合が `x^(3/2)` のように立ち上がって始まり、終わります。誤差の推定はそれを部分的にしか見ないので、半影を通る軌道では、全体の誤差は許容誤差の数倍になります
-  （既定で約 1e-5 K）。半影が無ければ（円筒モデル、または食が無い）、誤差は許容誤差よりはるかに小さくなります。
+  （既定で約 1e-5 K）。半影が無ければ（円筒モデル、または蝕が無い）、誤差は許容誤差よりはるかに小さくなります。
 
 #### ヒーター
 
@@ -1054,10 +1054,10 @@ A_abs 太陽に面する面積、A_rad 放射する面積、C 熱容量、T_s �
 | 孤立した 2 つの質量 | τ = C₁C₂ / (G (C₁ + C₂))、最終温度 = 熱容量で重みづけした平均 | `isolated_masses_relax_to_the_energy_weighted_mean` |
 | 放射のみ | Q = σ E (T₁⁴ − T₂⁴) | `radiation_only_steady_and_transient`、`radiation_to_a_fixed_temperature_node` |
 | エネルギー保存 | ∫(Q_in − Q_rad) dt = Σ C ΔT（放射熱は温度の系列から再計算） | `transient_conserves_energy` |
-| 食のある軌道 | 周期的な過渡では、C にかかわらず、(⟨T⁴⟩ + C ΔT/(P ε σ A))^¼ が軌道平均の入力での定常解に等しい（ΔT は最後の周回の温度変化） | `steady_matches_the_fourth_power_mean_of_the_periodic_transient` |
+| 蝕のある軌道 | 周期的な過渡では、C にかかわらず、(⟨T⁴⟩ + C ΔT/(P ε σ A))^¼ が軌道平均の入力での定常解に等しい（ΔT は最後の周回の温度変化） | `steady_matches_the_fourth_power_mean_of_the_periodic_transient` |
 | ヒーターのオンオフ | 切り替えの時刻 τ ln 3、τ ln 1.5、τ ln 2（270 K と 280 K のあいだの 1 次応答）、したがって切り替え、デューティ、最長のオン期間、電力の系列 | `bang_bang_period_duty_and_band_by_hand` |
 | 収束 | 許容誤差を半分にしても、結果の変化は許容誤差の尺度より小さい | `halving_the_tolerance_changes_the_result_by_less_than_the_tolerance`、`conical_shadow_converges_within_a_few_tolerances` |
-| 食の境界 | ε ≈ 0 の板は、円筒の影の幾何学的な入りで加熱が止まり（出で再開し）、時刻は 1 つのサンプルの中の温度変化から読む | `temperature_stops_rising_at_the_analytic_eclipse_entry_and_exit` |
+| 蝕の境界 | ε ≈ 0 の板は、円筒の影の幾何学的な入りで加熱が止まり（出で再開し）、時刻は 1 つのサンプルの中の温度変化から読む | `temperature_stops_rising_at_the_analytic_eclipse_entry_and_exit` |
 | サンプルの刻みに依存しないこと | サンプルの刻みが 10 s と 120 s の同じケースは、同じ温度と同じヒーターの統計を与える | `results_do_not_depend_on_the_sample_step`、`heater_switching_does_not_depend_on_the_sample_step` |
 | 地球向きの板 | 吸収 = ε F q_IR A + α S ρ F A（正午）、F = (R/(R+h))² | `nadir_plate_planet_ir_and_albedo` |
 | 太陽中心の板と立方体（太陽が中心天体） | T_eq⁴ = α S₁ (AU/d)² A_abs / (ε σ A_rad)、したがって T ∝ d^(-1/2)（0.5 / 1 / 2 AU。0.5 AU と 2 AU の比は 2）。定常と過渡 | `steady_plate_follows_the_inverse_square_root_of_distance`、`steady_cube_follows_the_inverse_square_root_of_distance`、`transient_plate_converges_to_the_distance_equilibrium`（`thermal_validation_heliocentric.rs`） |
@@ -1200,7 +1200,7 @@ PFD の限度は、要求が持つ基準です。`verify.analysis = "comm.link_b
 結果は、必要な面積が最大の運用（`area_mode`）と、必要な容量が最大の運用（`capacity_mode`）で決まります。
 時系列の逆算は`power.energy_balance` と同じように、モードの `max_duration` とタイミング（`when`、`start`）、使用中の並び（`analysis.power.active_sequence`、`[[sequence]]`、`[sequences.<name>]`）、`analysis.power.base_mode` を使います。
 容量は判定する運用のスパン全体（初期の過渡を含む）にわたる閉形式なので、窓のあとの DoD が必要とする値より小さくなることはありません。
-成長マージン、員数、冗長、食の上書きは、`power.mode_load` の集計を共有します。
+成長マージン、員数、冗長、蝕の上書きは、`power.mode_load` の集計を共有します。
 割り当てや電力値が欠けたモードを含むときは、要求を過小評価しないよう、解析は止まります。
 
 **部品間の影（#424）。** すべての太陽電池パネルの発電（`power.solar_sunlit`、`power.orbit_generation`、`power.energy_balance`、およびそれらを通じて `power.sizing` と `power.thrust_balance`）は、`P = Φ · A · η · … · max(0, n̂·ŝ) · ν · λ` です。ここで `λ` は、そのサンプルでの機体座標の太陽方向 `ŝ` に対する、パネルの箱の面の日照の割合です（§5.9。有効な形態でのほかの部品の箱の影なので、折りたたんだパドルは、その下にあるセルに影を落とします）。
@@ -1209,12 +1209,12 @@ PFD の限度は、要求が持つ基準です。`verify.analysis = "comm.link_b
 `power.solar_sunlit`（ケースごと）、`power.orbit_generation`、`power.energy_balance` の出力は、影が適用されたときだけ `shadowing` を持ちます。各パネルについて、パネルが照らされたサンプル（日照のサンプルで `n̂·ŝ > 0`。それらのサンプルの単純平均）にわたる `λ` の最小と平均、およびその数です。
 `power.sizing` は、幾何ではなくパネルの面積をスケールするので（日照の割合は、現在の箱が与えるままです）、必要な面積と容量には**現在のレイアウトの影が含まれます**。出力フィールド `shadowed` がそれを示し、日照の割合は `power.orbit_generation` / `power.energy_balance` の `shadowing` にあります。太陽は点光源で、アルベドは発電しません（反射光に影はありません）。
 
-最長の食は同じ軌道、周期、季節の step で `orbit.eclipse_season` を呼びます（本影と半影の和）。
-日照の時間は、軌道周期から最長の食を引いたもので、寿命は、ミッション期間をユリウス年に換算したものです。
+最長の蝕は同じ軌道、周期、季節の step で `orbit.eclipse_season` を呼びます（本影と半影の和）。
+日照の時間は、軌道周期から最長の蝕を引いたもので、寿命は、ミッション期間をユリウス年に換算したものです。
 太陽距離は 1 AU に限ります。太陽定数は sat-astro の値を使います。1 AU 以外は未対応の入力のエラーです。
 地球の太陽距離の季節変動はこの近似では扱いません。
 
-日照の負荷と食の負荷を `Pd` と `Pe`、その期間を `Td` と `Te` とすると、必要な発電は
+日照の負荷と蝕の負荷を `Pd` と `Pe`、その期間を `Td` と `Te` とすると、必要な発電は
 `(Pe*Te/Xe + Pd*Td/Xd)/Td` です。必要な SAP の面積はこれを単位面積あたりの EOL の発電で割ったものです。
 発電は既存の `solar` モデルで、部品ごとの `cell_efficiency`、`packing_factor`、`eol_factor` を使って計算します。
 入射は`power.energy_balance` と同じ時系列、SAP、モードごとの姿勢則（`analysis.aocs.law.<mode>`、無ければ上位の姿勢則）で `power.orbit_generation` を走らせて求め、
@@ -1227,7 +1227,7 @@ PFD の限度は、要求が持つ基準です。`verify.analysis = "comm.link_b
 1 組の必要な電池容量は `Pe*Te/(dod_max*N*Xbattery)` で（`dod_max` は DoD の限度の要求）、総容量はその N 倍です。
 既存の集中定数の電池モデルと同じく、設計の容量はすべての部品の容量の和で、DoD と放電効率は最初の電池から取ります。電圧、効率、初期 SOC、DoD が電池間で異なると、結果が部品の順序で変わるので、`battery_mismatch` の警告が出ます（出力の最上位の `checks` に 1 つだけ。電力収支とサイジングで共通）。
 面積と容量は部品の員数を含みます。マージンは `spec::ratio_margin` で、判定は `ratio_margin_verdict` です（警告の幅は 0）。
-負荷または食が 0 で、要求が 0 なら、マージンは null です（判定は OK）。
+負荷または蝕が 0 で、要求が 0 なら、マージンは null です（判定は OK）。
 
 SMAD の式は、日照の発電を 1 つの平均値として扱うので、日照の発電が負荷を下回る姿勢（ナディア指向の固定パネルなど）では、
 日照のあいだにも電池から引かれる分とその損失を数えず、面積と容量を過小評価します。そのため判定は、次の時系列の逆算を使い、SMAD の値は、
@@ -1236,7 +1236,7 @@ SMAD の式は、日照の発電を 1 つの平均値として扱うので、日
 **時系列の逆算。** `power.energy_balance` と同じ発電、電池、運用のモデルで、1 周の収支が 0 以上になる最小の面積と、
 DoD が `dod_max` に収まる最小の容量を求めます。
 
-- 時系列は最長の食の時刻に走らせます。上位の時系列（`power.energy_balance` と同じ姿勢則、周期、刻み）の日付と β を、
+- 時系列は最長の蝕の時刻に走らせます。上位の時系列（`power.energy_balance` と同じ姿勢則、周期、刻み）の日付と β を、
   `orbit.eclipse_season` の `longest` の日付と β に置き換えます。
 - 発電はSAP の変換効率と EOL を含む `power.energy_balance` のモデルです（Xd、Xe、Xbattery は使いません）。これに
   `(1-annual_degradation)^lifetime_years` と `inherent_degradation` を掛けます。時系列はモードの姿勢則ごとに 1 度だけ作り、
@@ -1251,16 +1251,16 @@ DoD が `dod_max` に収まる最小の容量を求めます。
   （`battery::required_capacity`。満充電で切る積分では、満充電からの不足は `max(initial shortfall − cumulative, peak − cumulative)` なので、
   `capacity ≥ max(deepest drop / dod_max, smallest magnitude of cumulative / (dod_max − (1 − initial SOC)))`）。最大継続時間の運用の最悪の始まりは、
   空にならない大きさの電池で、満充電から選びます。初期 SOC だけで許容 DoD に達するなら、容量は決められません。
-- 必要な面積と容量は、運用のうち最大のものです（`area_mode`、`capacity_mode`。並びなら `sequence`）。この面積と容量を最長の食の時刻の `power.energy_balance` に渡すと、
+- 必要な面積と容量は、運用のうち最大のものです（`area_mode`、`capacity_mode`。並びなら `sequence`）。この面積と容量を最長の蝕の時刻の `power.energy_balance` に渡すと、
   すべての運用で、1 周の収支が 0 以上、DoD が `dod_max` 以下になります。
 - 太陽指向（日照の発電が一定）で、SMAD の経路の効率を電力収支のモデルに揃えれば（Xd = 変換効率、Xe = 変換効率 × 充電効率 × 放電効率、
-  Xbattery = 放電効率）、時系列の値と SMAD の値の差は食の長さの違いだけで（季節の解析の円錐影と、時系列の影）、テストでは 1% 以内です。
+  Xbattery = 放電効率）、時系列の値と SMAD の値の差は蝕の長さの違いだけで（季節の解析の円錐影と、時系列の影）、テストでは 1% 以内です。
 - 判定ができないとき（時系列が 1 周より短いなど）は、SMAD の値を判定に使い、`checks` に `time_series` の注意を入れます（`basis` は `smad`）。
 
 出力 `SizingOutput` は、判定に使った方法 `basis`、必要な面積と電池容量（総量と 1 組あたり）、マージン、決め手の運用、設計の面積と容量、
-全体の SMAD の値 `smad`（必要な発電、面積、容量、マージン、決め手のモード、日照と食の負荷）、時系列の逆算 `time_series`（使った日付と β、
+全体の SMAD の値 `smad`（必要な発電、面積、容量、マージン、決め手のモード、日照と蝕の負荷）、時系列の逆算 `time_series`（使った日付と β、
 運用ごとの面積、その面積での 1 周の収支、容量、評価の回数）、モードごとの逆算 `modes`（入射係数、SMAD の値、時系列の値、
-SMAD との比 `area_ratio` と `capacity_ratio`）、日照と食の期間、最長の食のサンプル（日付つき）、使った仮定 `used`、判定を持ちます。
+SMAD との比 `area_ratio` と `capacity_ratio`）、日照と蝕の期間、最長の蝕のサンプル（日付つき）、使った仮定 `used`、判定を持ちます。
 電力のページの KPI「SAP margin」と「Battery margin」と判定文は、`basis` の値に従います（判定文では、方法が括弧に書かれます）。
 任意の `cell_voltage` と `cell_current`、`sizing.bus_voltage` がすべて与えられれば、直列の数は、バス電圧をセル電圧で割ったもの、
 並列の数は、必要な電流を EOL のセル電流で割ったもので、どちらも切り上げます（必要な電流は SMAD の必要発電から）。セルの種類が混在する、または属性が欠けていれば、直並列の構成は出ません。
@@ -1271,13 +1271,13 @@ SMAD との比 `area_ratio` と `capacity_ratio`）、日照と食の期間、�
 | 設定 | 省略したとき |
 |---|---|
 | `sunlit_efficiency`（Xd） | `analysis.power.conversion_efficiency` があればそれ、なければ 0.8（教科書の大まかな値。`DEFAULT_SUNLIT_EFFICIENCY`） |
-| `eclipse_efficiency`（Xe） | 0.6（SAP から食の負荷までの経路全体。教科書の大まかな値。`DEFAULT_ECLIPSE_EFFICIENCY`） |
+| `eclipse_efficiency`（Xe） | 0.6（SAP から蝕の負荷までの経路全体。教科書の大まかな値。`DEFAULT_ECLIPSE_EFFICIENCY`） |
 | `battery_efficiency`（Xbattery） | 最初の電池の `discharge_efficiency`（それが省略されていれば、既存のモデルでは 1） |
 | `annual_degradation` | 0（追加の経年劣化なし） |
 | `inherent_degradation` | 1（追加の固有の劣化なし） |
 | `battery_strings`（N） | 1 |
 | `bus_voltage` | なし（直並列の構成なし） |
-| `sun_distance` | 中心天体の慣例の太陽距離（地球と月は 1 AU。`CentralBody::nominal_sun_distance_m`）。ほかの天体（惑星）では、軌道から求めた**ミッション期間のあいだの最大の太陽距離**（最悪の日。束が最小。`sat_analysis::orbit::sun_distance_extremes_over`。`sat_astro::timeline::geometry` のミッション幾何を使います）。`used.sun_distance_source`（`span_max`、`used.sun_distance_epoch` つき）がそれを示します。書かれた値や慣例の値には印が付きません。`power.sizing` は、太陽まわりや `transfer` / `state` の軌道では走りません（ケプラー要素の食の季節がないため。適用外）。解析ケースの `epoch` もこれを変えません |
+| `sun_distance` | 中心天体の慣例の太陽距離（地球と月は 1 AU。`CentralBody::nominal_sun_distance_m`）。ほかの天体（惑星）では、軌道から求めた**ミッション期間のあいだの最大の太陽距離**（最悪の日。束が最小。`sat_analysis::orbit::sun_distance_extremes_over`。`sat_astro::timeline::geometry` のミッション幾何を使います）。`used.sun_distance_source`（`span_max`、`used.sun_distance_epoch` つき）がそれを示します。書かれた値や慣例の値には印が付きません。`power.sizing` は、太陽まわりや `transfer` / `state` の軌道では走りません（ケプラー要素の蝕の季節がないため。適用外）。解析ケースの `epoch` もこれを変えません |
 
 太陽束は`sun_distance` を使って `illumination::solar_flux_w_m2` から求め（束の式はそこにしかありません）、SMAD と時系列の逆算の両方で使います
 （2 AU では 1/4 で、必要な面積は 4 倍です）。部品の `packing_factor` と `eol_factor` が省略されていれば、既存の発電モデルと同じく 1 です。
@@ -1679,15 +1679,15 @@ HTR = { state = "on" }
 - `active` は `count` 以下です。省略すると全数です。明示して書くには、`redundancy = "cold"` または `"warm"` が必要です。
 - 稼働する数は `state` と `duty` に従い、残りの数は常に予備の状態にあります。冷予備は組み込みの停止状態 `STATE_OFF` にあります。
   温予備は`spare_state`、次に種別の語彙の項目 `standby`、次に `idle` から選びます（`WARM_SPARE_DEFAULT_STATES`）。予備の状態が決められない、または語彙に無ければ、エラーです。
-- `[eclipse]` は、そこに書かれた各部品の割り当てを丸ごと、食のあいだだけ置き換えます（`active` や `duty` などのフィールドは個別には継承されません）。
+- `[eclipse]` は、そこに書かれた各部品の割り当てを丸ごと、蝕のあいだだけ置き換えます（`active` や `duty` などのフィールドは個別には継承されません）。
   書かれていない部品は `[states]` を使います。`[states]` に無い上書きの対象は未指定と同じく警告で、解析には加えません。
 - `when` と `start`（最長継続時間の評価のタイミング。§5.1）は任意です。`start.offset` は時間として次元を検査します。
 - `max_duration` は次元を検査し、CLI の一覧と GUI のモードのヘッダに表示します。`power.energy_balance` は、基準モードの上で、このモードを最大継続時間だけ走らせて判定します
   （§5.1）。解析のスパンやモードの時間の割合（`mode_share`）には影響しません。
 - 数は `sat_analysis::modes::counted_states` だけが評価します。電力は「稼働数 × その状態の平均電力 + 予備の数 × 予備の状態の電力」です。
   `power.mode_load.total` は日照用、`total_eclipse` は食用です（成長マージンつきは、それぞれ `*_with_growth`）。
-  `power.energy_balance` はこれらの日照と食の負荷を使います。C&DH は日照の割り当てから同じ数を数えます。
-- 熱のモード負荷は同じ数の評価を使います。この段階では日照の割り当てだけを使い、食の上書きと軌道平均による発熱の変化は扱いません。
+  `power.energy_balance` はこれらの日照と蝕の負荷を使います。C&DH は日照の割り当てから同じ数を数えます。
+- 熱のモード負荷は同じ数の評価を使います。この段階では日照の割り当てだけを使い、蝕の上書きと軌道平均による発熱の変化は扱いません。
 - CLI は `fune set RW.redundancy warm`、`fune mode set NOMINAL RW on --active 3 --spare-state idle`、
   `fune mode set NOMINAL HTR on --eclipse` です。`fune mode unset NOMINAL HTR --eclipse` は、日照の割り当てを継承する状態に戻します。
   `fune mode duration NOMINAL --max-duration "90 min"` は継続時間を書き、フラグを省くと削除します。

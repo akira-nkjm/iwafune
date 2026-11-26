@@ -372,7 +372,7 @@ $ fune mode table
 | `fune mode duration <MODE> --max-duration "90 min"` | 最大継続時間を書きます（フラグを省くと削除します） |
 | `fune mode timing <MODE> --when sunlit` | 最長継続時間の評価でそのモードを使う時機を書きます。別の形は `--start eclipse_exit --offset "5 min"` です |
 | `fune mode move`, `rename`, `rm` | 並べ替え、名前の変更、削除。ケース、シーケンス、フェーズがまだ使っているモードの削除は拒否され、メッセージにそれらが挙がります |
-| `fune mode view <SYSTEM>` | `power`、`cdh`、`thermal`、`aocs` のモードごとの値を、日照と食に分けて表示します |
+| `fune mode view <SYSTEM>` | `power`、`cdh`、`thermal`、`aocs` のモードごとの値を、日照と蝕に分けて表示します |
 
 例: ダウンリンク中はカメラをスタンバイにします（ドライラン）。
 

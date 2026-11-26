@@ -19,7 +19,7 @@ cargo run -p fune-cli -- -C fixtures/demo-6u analyze power.energy_balance
 | パス | 内容 |
 |---|---|
 | `crates/lib/units` (`sat-units`) | 単位、次元、型付きの量 |
-| `crates/lib/astro` (`sat-astro`) | 数学、積分器、時刻、軌道、天体暦、食、地球のモデル、姿勢則、放射線帯と遮蔽 |
+| `crates/lib/astro` (`sat-astro`) | 数学、積分器、時刻、軌道、天体暦、蝕、地球のモデル、姿勢則、放射線帯と遮蔽 |
 | `crates/lib/checkkey` (`sat-checkkey`) | 解析の判定のキーの書式。解析とモデルが共有する |
 | `crates/lib/analysis` (`sat-analysis`) | 型付きの SI 入出力を持つサブシステム解析。設計モデルを知らない |
 | `crates/app/model` (`fune-model`) | 設計データの型、組み込みの語彙、解決と検証 |

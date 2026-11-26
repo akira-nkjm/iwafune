@@ -85,7 +85,7 @@ flowchart TD
 型付きの量、単位式の解析、量の表示文字列を持ちます。衛星のことは何も知りません。
 
 **`sat-astro`**（[lib.rs](../../crates/lib/astro/src/lib.rs)）は、共通の物理と数学を持ちます。積分器（`ode`）、時刻、軌道、天体（`ephem`）、
-食（`shadow`）、座標変換（`earth`）、地磁気、大気、捕捉放射線のマップ、地上局、姿勢則、ロケット方程式です。
+蝕（`shadow`）、座標変換（`earth`）、地磁気、大気、捕捉放射線のマップ、地上局、姿勢則、ロケット方程式です。
 解析固有の判断はせず、ファイルも読みません。大きなデータはバイト列として受け取ります（6 節）。
 
 **`sat-checkkey`**（[lib.rs](../../crates/lib/checkkey/src/lib.rs)）は小さな葉の crate で、解析の検査のキーの書式（`margin:<link>@<station>`、`heater:<part>` など）を定めます。
