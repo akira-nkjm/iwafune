@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 320" role="img" aria-labelledby="t d">
+  <title id="t">Shell mesh and rail support</title>
+  <desc id="d">A box of gridded shell panels with the body axes X, Y and Z, Z being the launch axis. The four edges parallel to Z are the rails, where the X and Y translations are fixed at every node. At the eight rail ends the Z translation is fixed too.</desc>
+  <defs>
+    <marker id="a-ink" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#062654"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="319" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M124 268 L320 268 L408 216 L408 48 L212 48 L124 100 Z" fill="#e8f1f9"/>
+    <path d="M173 268 L173 100" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M124 226 L320 226" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M342 255 L342 87" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M320 226 L408 174" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M173 100 L261 48" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M146 87 L342 87" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M222 268 L222 100" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M124 184 L320 184" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M364 242 L364 74" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M320 184 L408 132" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M222 100 L310 48" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M168 74 L364 74" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M271 268 L271 100" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M124 142 L320 142" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M386 229 L386 61" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M320 142 L408 90" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M271 100 L359 48" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M190 61 L386 61" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M124 268 L320 268" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M320 268 L408 216" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M124 100 L320 100" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M320 100 L408 48" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M408 48 L212 48" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M212 48 L124 100" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M212 216 L408 216" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M212 216 L124 268" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M212 216 L212 48" fill="none" stroke="#3382c2" stroke-width="3.2" stroke-dasharray="6 6"/>
+    <path d="M124 268 L124 100" fill="none" stroke="#3382c2" stroke-width="3.2"/>
+    <path d="M320 268 L320 100" fill="none" stroke="#3382c2" stroke-width="3.2"/>
+    <path d="M408 216 L408 48" fill="none" stroke="#3382c2" stroke-width="3.2"/>
+    <circle cx="124" cy="268" r="5" fill="#e7bd41" stroke="#062654" stroke-width="1.8"/>
+    <circle cx="124" cy="100" r="5" fill="#e7bd41" stroke="#062654" stroke-width="1.8"/>
+    <circle cx="320" cy="268" r="5" fill="#e7bd41" stroke="#062654" stroke-width="1.8"/>
+    <circle cx="320" cy="100" r="5" fill="#e7bd41" stroke="#062654" stroke-width="1.8"/>
+    <circle cx="408" cy="216" r="5" fill="#e7bd41" stroke="#062654" stroke-width="1.8"/>
+    <circle cx="408" cy="48" r="5" fill="#e7bd41" stroke="#062654" stroke-width="1.8"/>
+    <circle cx="212" cy="216" r="5" fill="#e7bd41" stroke="#062654" stroke-width="1.8"/>
+    <circle cx="212" cy="48" r="5" fill="#e7bd41" stroke="#062654" stroke-width="1.8"/>
+    <path d="M40 276 L75 276" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <text x="88" y="281" font-size="14" fill="#062654">X</text>
+    <path d="M40 276 L59.7 264.5" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <text x="72" y="264" font-size="14" fill="#062654">Y</text>
+    <path d="M40 276 L40 237" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <text x="40" y="224" font-size="14" fill="#062654" text-anchor="middle">Z</text>
+    <path d="M458 96 L494 96" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <text x="506" y="101" font-size="14" fill="#062654">shell grid</text>
+    <path d="M458 136 L494 136" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <text x="506" y="133" font-size="14" fill="#062654">box edge:</text>
+    <text x="506" y="151" font-size="14" fill="#062654">frame member, if any</text>
+    <path d="M458 186 L494 186" fill="none" stroke="#3382c2" stroke-width="3.2"/>
+    <text x="506" y="191" font-size="14" fill="#062654">rail: X and Y fixed</text>
+    <circle cx="476" cy="226" r="5" fill="#e7bd41" stroke="#062654" stroke-width="1.8"/>
+    <text x="506" y="231" font-size="14" fill="#062654">rail end: Z fixed too</text>
+  </g>
+</svg>

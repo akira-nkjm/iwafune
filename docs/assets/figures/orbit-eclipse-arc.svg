@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" role="img" aria-labelledby="t d">
+  <title id="t">Eclipse arc of a circular orbit in the cylindrical shadow model</title>
+  <desc id="d">View along the orbit normal with the Sun to the left. The shadow is a cylinder of the Earth's radius R behind the Earth, parallel to the Sun direction. A circular orbit of radius a is in shadow over the arc within the half-angle phi = arcsin(R/a) on each side of the anti-Sun axis.</desc>
+  <defs>
+    <marker id="a-gold" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#8a6400"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="359" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="300" y="118" width="340" height="124" fill="#062654" fill-opacity="0.07"/>
+    <path d="M300 118 L640 118" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M300 242 L640 242" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M40 180 L640 180" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <circle cx="300" cy="180" r="124" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M407.4 242 A124 124 0 0 0 407.4 118" fill="none" stroke="#3382c2" stroke-width="2.4"/>
+    <circle cx="300" cy="180" r="62" fill="#e8f1f9" stroke="#062654" stroke-width="1.8"/>
+    <path d="M300 118 A62 62 0 0 1 300 242 Z" stroke="none" fill="#062654" fill-opacity="0.12"/>
+    <path d="M300 180 L407.4 118" fill="none" stroke="#062654" stroke-width="1.2"/>
+    <path d="M300 180 L407.4 242" fill="none" stroke="#062654" stroke-width="1.2"/>
+    <path d="M300 180 L300 118" fill="none" stroke="#062654" stroke-width="1.2"/>
+    <path d="M330 180 A30 30 0 0 0 326 165" fill="none" stroke="#3382c2" stroke-width="1.8"/>
+    <path d="M330 180 A30 30 0 0 1 326 195" fill="none" stroke="#3382c2" stroke-width="1.8"/>
+    <circle cx="300" cy="180" r="3" fill="#062654"/>
+    <circle cx="407.4" cy="118" r="4" fill="#3382c2"/>
+    <circle cx="407.4" cy="242" r="4" fill="#3382c2"/>
+    <path d="M40 84 L105 84" fill="none" stroke="#8a6400" stroke-width="1.8" marker-end="url(#a-gold)"/>
+    <path d="M40 132 L105 132" fill="none" stroke="#8a6400" stroke-width="1.8" marker-end="url(#a-gold)"/>
+    <path d="M40 228 L105 228" fill="none" stroke="#8a6400" stroke-width="1.8" marker-end="url(#a-gold)"/>
+    <path d="M40 276 L105 276" fill="none" stroke="#8a6400" stroke-width="1.8" marker-end="url(#a-gold)"/>
+    <text x="40" y="72" font-size="14" fill="#8a6400">sunlight</text>
+    <text x="342.5" y="172.6" font-size="14" fill="#1f63a0" text-anchor="middle">φ</text>
+    <text x="342.5" y="195.4" font-size="14" fill="#1f63a0" text-anchor="middle">φ</text>
+    <text x="292" y="154" font-size="14" fill="#062654" text-anchor="end">R</text>
+    <text x="388" y="152" font-size="14" fill="#062654">a</text>
+    <text x="280" y="206" font-size="12" fill="#5b6577" text-anchor="end">Earth</text>
+    <text x="433.4" y="166" font-size="14" fill="#1f63a0">eclipse arc</text>
+    <text x="640" y="108" font-size="12" fill="#5b6577" text-anchor="end">shadow cylinder, radius R</text>
+    <text x="648" y="184" font-size="12" fill="#5b6577">axis</text>
+    <text x="220.9" y="72.4" font-size="12" fill="#5b6577" text-anchor="end">orbit</text>
+    <text x="640" y="280" font-size="14" fill="#1f63a0" text-anchor="end">φ = arcsin(R/a)</text>
+  </g>
+</svg>

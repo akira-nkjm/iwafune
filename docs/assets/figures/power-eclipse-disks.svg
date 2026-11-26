@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 320" role="img" aria-labelledby="t d">
+  <title id="t">Apparent disks and illumination fraction</title>
+  <desc id="d">Left: seen from the spacecraft, the Sun disk of angular radius a is partly covered by the disk of the occulting body of angular radius b, with the centres separated by the angle c. Right: the illumination fraction nu against c, zero up to b minus a, rising through the penumbra and one from a plus b.</desc>
+  <defs>
+    <marker id="a-ink" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#062654"/></marker>
+    <marker id="a-sec" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#5b6577"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="319" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <text x="24" y="36" font-size="14" fill="#062654" font-weight="700">(a) Disks seen from the spacecraft</text>
+    <text x="400" y="36" font-size="14" fill="#062654" font-weight="700">(b) Illumination fraction ν</text>
+    <path d="M372 24 L372 296" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <circle cx="238" cy="168" r="34" fill="#e7bd41" stroke="#8a6400" stroke-width="1.8"/>
+    <circle cx="132" cy="168" r="88.4" fill="#e8f1f9" stroke="#062654" stroke-width="1.8"/>
+    <circle cx="238" cy="168" r="34" fill="none" stroke="#8a6400" stroke-width="1.2" stroke-dasharray="3 3"/>
+    <circle cx="132" cy="168" r="3" fill="#062654"/>
+    <circle cx="238" cy="168" r="3" fill="#062654"/>
+    <path d="M132 168 L64.3 111.2" fill="none" stroke="#062654" stroke-width="1.2"/>
+    <text x="102.1" y="131.6" font-size="14" fill="#062654">b</text>
+    <path d="M238 168 L257.5 140.1" fill="none" stroke="#062654" stroke-width="1.2"/>
+    <text x="263.5" y="138.1" font-size="14" fill="#062654">a</text>
+    <path d="M132 260.4 L132 280.4" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M238 206 L238 280.4" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M137 274.4 L233 274.4" fill="none" stroke="#5b6577" stroke-width="1.2" marker-end="url(#a-sec)" marker-start="url(#a-sec)"/>
+    <text x="185" y="294.4" font-size="14" fill="#062654" text-anchor="middle">c</text>
+    <text x="108" y="210" font-size="14" fill="#062654" text-anchor="middle">occulting body</text>
+    <text x="280" y="134" font-size="14" fill="#8a6400">Sun</text>
+    <text x="24" y="60" font-size="12" fill="#5b6577">not to scale</text>
+    <path d="M519.5 244 L519.5 66" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M628.9 244 L628.9 66" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M432 244 L432 67" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <path d="M432 244 L695 244" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <path d="M427 92 L432 92" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M432 244 L433.1 244 L434.1 244 L435.2 244 L436.3 244 L437.3 244 L438.4 244 L439.5 244 L440.5 244 L441.6 244 L442.7 244 L443.7 244 L444.8 244 L445.9 244 L446.9 244 L448 244 L449.1 244 L450.1 244 L451.2 244 L452.3 244 L453.3 244 L454.4 244 L455.5 244 L456.5 244 L457.6 244 L458.7 244 L459.7 244 L460.8 244 L461.9 244 L462.9 244 L464 244 L465.1 244 L466.1 244 L467.2 244 L468.3 244 L469.3 244 L470.4 244 L471.5 244 L472.5 244 L473.6 244 L474.7 244 L475.7 244 L476.8 244 L477.9 244 L478.9 244 L480 244 L481.1 244 L482.1 244 L483.2 244 L484.3 244 L485.3 244 L486.4 244 L487.5 244 L488.5 244 L489.6 244 L490.7 244 L491.7 244 L492.8 244 L493.9 244 L494.9 244 L496 244 L497.1 244 L498.1 244 L499.2 244 L500.3 244 L501.3 244 L502.4 244 L503.5 244 L504.5 244 L505.6 244 L506.7 244 L507.7 244 L508.8 244 L509.9 244 L510.9 244 L512 244 L513.1 244 L514.1 244 L515.2 244 L516.3 244 L517.3 244 L518.4 244 L519.5 244 L520.5 243.7 L521.6 243.2 L522.7 242.4 L523.7 241.6 L524.8 240.6 L525.9 239.6 L526.9 238.5 L528 237.3 L529.1 236 L530.1 234.7 L531.2 233.4 L532.3 232 L533.3 230.5 L534.4 229 L535.5 227.5 L536.5 226 L537.6 224.4 L538.7 222.8 L539.7 221.1 L540.8 219.4 L541.9 217.7 L542.9 216 L544 214.3 L545.1 212.5 L546.1 210.8 L547.2 209 L548.3 207.2 L549.3 205.4 L550.4 203.6 L551.5 201.7 L552.5 199.9 L553.6 198 L554.7 196.2 L555.7 194.3 L556.8 192.4 L557.9 190.6 L558.9 188.7 L560 186.8 L561.1 184.9 L562.1 183 L563.2 181.1 L564.3 179.3 L565.3 177.4 L566.4 175.5 L567.5 173.6 L568.5 171.7 L569.6 169.9 L570.7 168 L571.7 166.1 L572.8 164.2 L573.9 162.4 L574.9 160.5 L576 158.7 L577.1 156.9 L578.1 155 L579.2 153.2 L580.3 151.4 L581.3 149.6 L582.4 147.8 L583.5 146 L584.5 144.3 L585.6 142.5 L586.7 140.8 L587.7 139.1 L588.8 137.3 L589.9 135.6 L590.9 134 L592 132.3 L593.1 130.6 L594.1 129 L595.2 127.4 L596.3 125.8 L597.3 124.2 L598.4 122.7 L599.5 121.1 L600.5 119.6 L601.6 118.1 L602.7 116.7 L603.7 115.2 L604.8 113.8 L605.9 112.4 L606.9 111.1 L608 109.7 L609.1 108.4 L610.1 107.1 L611.2 105.9 L612.3 104.7 L613.3 103.5 L614.4 102.4 L615.5 101.3 L616.5 100.2 L617.6 99.2 L618.7 98.2 L619.7 97.3 L620.8 96.4 L621.9 95.6 L622.9 94.8 L624 94.1 L625.1 93.4 L626.1 92.9 L627.2 92.4 L628.3 92.1 L629.3 92 L630.4 92 L631.5 92 L632.5 92 L633.6 92 L634.7 92 L635.7 92 L636.8 92 L637.9 92 L638.9 92 L640 92 L641.1 92 L642.1 92 L643.2 92 L644.3 92 L645.3 92 L646.4 92 L647.5 92 L648.5 92 L649.6 92 L650.7 92 L651.7 92 L652.8 92 L653.9 92 L654.9 92 L656 92 L657.1 92 L658.1 92 L659.2 92 L660.3 92 L661.3 92 L662.4 92 L663.5 92 L664.5 92 L665.6 92 L666.7 92 L667.7 92 L668.8 92 L669.9 92 L670.9 92 L672 92 L673.1 92 L674.1 92 L675.2 92 L676.3 92 L677.3 92 L678.4 92 L679.5 92 L680.5 92 L681.6 92 L682.7 92 L683.7 92 L684.8 92 L685.9 92 L686.9 92 L688 92" fill="none" stroke="#3382c2" stroke-width="2.4"/>
+    <text x="422" y="97" font-size="14" fill="#062654" text-anchor="end">1</text>
+    <text x="422" y="249" font-size="14" fill="#062654" text-anchor="end">0</text>
+    <text x="422" y="70" font-size="14" fill="#062654" text-anchor="end">ν</text>
+    <text x="519.5" y="264" font-size="14" fill="#062654" text-anchor="middle">b − a</text>
+    <text x="628.9" y="264" font-size="14" fill="#062654" text-anchor="middle">a + b</text>
+    <text x="700" y="264" font-size="14" fill="#062654" text-anchor="end">c</text>
+    <text x="475.8" y="80" font-size="12" fill="#5b6577" text-anchor="middle">umbra</text>
+    <text x="574.2" y="80" font-size="12" fill="#5b6577" text-anchor="middle">penumbra</text>
+    <text x="662.5" y="80" font-size="12" fill="#5b6577" text-anchor="middle">sunlight</text>
+    <text x="432" y="290" font-size="12" fill="#5b6577">drawn for b / a = 2.6</text>
+  </g>
+</svg>

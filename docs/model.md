@@ -15,7 +15,7 @@ This document describes what structures hold the design-data model and how it is
   Membership is expressed by the child pointing to the parent (a part's port points to a net).
 - **What the system lead decides (allocations and margin policy) is gathered in `budget/`** (§8). It is not placed in subsystem directories.
 - **The file format is TOML, and output is kept within TOML 1.0** (§10). Tabular data is CSV, and machine-oriented exchange uses JSON.
-- **Formats are confined to the codec layer.** The model does not know TOML; only the store's `Codec` does. Changing the format in the future does not ripple into the model or the analyses.
+- **Formats are confined to the codec layer.** The model does not know TOML; only the store (its `codec`, `read`, `write` and `format` modules) does. Changing the format in the future does not ripple into the model or the analyses.
 
 ### 1.1 Conditions and analysis categories
 
@@ -37,8 +37,8 @@ A ground station file (`label`, `latitude`, `longitude`, `altitude`, `min_elevat
 Orbits and other items in the old layout are not read, and a missing orbit is reported as an existing missing input. There is no migration and no compatibility with old keys.
 
 The analysis category is `sat_analysis::spec::AnalysisArea`. It has `System(System)` and `Condition(ConditionTopic)`,
-and the first topic is `Orbit` (spelled `orbit`; display name "軌道" / "Orbit"). All 16 existing analyses remain in the subsystem category,
-and their IDs are `<category key>.<analysis name>`. Topic keys and subsystem keys do not overlap. Parts, budgets, colors and `parts/<subsystem>/` are still handled by subsystem.
+and the first topic is `Orbit` (spelled `orbit`; display name "軌道" / "Orbit"). The analyses of the subsystems stay in the subsystem category,
+and the IDs of all analyses are `<category key>.<analysis name>` (`fune analyze ls` lists them with their area). Topic keys and subsystem keys do not overlap. Parts, budgets, colors and `parts/<subsystem>/` are still handled by subsystem.
 The API's `AnalysisInfo.area` is `{ "kind": "system", "value": "power" }` or
 `{ "kind": "condition", "value": "orbit" }`. KPIs are arranged by subsystem or by topic according to the analysis category.
 
@@ -80,7 +80,7 @@ maneuver = "MARS_TRANSFER"    # a maneuver with a dated [transfer] (§7.7)
   - `track` (the table behind interpolation, used by the thermal solver, the timeline evaluator and extremum refinement): one table per arc, so interpolation never straddles a break and the velocity jump is kept.
   - `cycle()` is `OneOff` over the whole flight and `central()` is the common parent; `elements()` is `None` for more than one arc (Kepler-only analyses answer "Not applicable" as for `state`), and `altitude_m()` is `None`.
   - A case `epoch` inside any arc starts there: the remaining part of that arc followed by the later arcs (a break exactly at the epoch starts the outgoing arc); an epoch outside the whole flight is a missing input, as for one arc.
-  - Extremum refinement (`orbit.geometry`, the Earth range and solar conjunction of `comm.link_budget`, `orbit.sun_distance`) splits its search window at a break and takes the break itself as a candidate (`extremes_by_split`), so an extreme at the flyby (where distances are continuous but their slope is not) is found exactly and a window never mixes two arcs.
+  - Extremum refinement (`orbit.geometry`, the Earth range and solar conjunction of `comm.link_budget`, and the Sun-distance extremes behind `fune case from-sun-distance`) splits its search window at a break and takes the break itself as a candidate (`extremes_by_split`), so an extreme at the flyby (where distances are continuous but their slope is not) is found exactly and a window never mixes two arcs.
   - The time-series analyses sample the whole flight on the usual one-off grid; the sampled position is continuous across the flyby, and tables and eclipse searches work arc by arc (there is no eclipse about the Sun).
   JSON: a single arc is written exactly as before (`OrbitSpec` fields plus `span_s`); two or more arcs are written `{ "source": "arcs", "arcs": [ <orbit with span_s>, … ] }` (`ArcsRepr`, only Kepler arcs).
 - `source = "state"` takes the orbit from a state vector that is propagated numerically (`sat_astro::orbit::StateSpec`; the existing N-body propagation `propagate_states`, nothing new):
@@ -336,14 +336,14 @@ about 3 km per month for medium and about 11 km for high (the same order as NASA
 
 | Layer | Contents | Created by | Used by | Storage |
 |---|---|---|---|---|
-| File layer | A `toml_edit::DocumentMut` per file, and position information | store (Codec) | the store's writes | the git working tree |
+| File layer | A `toml_edit::DocumentMut` per file, and position information | store (`read`) | the store's writes | the git working tree |
 | Design | Values as written (`0.62 kg`; `1.0 mN*m` keeps its unit as written), sources, file locations. Normalized with typed IDs | the store's read + structural checks | ops (the target of edits), the GUI's "original value" display | the file layer itself |
 | Resolved | Each part's values (SI) with catalog, kind and overrides layered, the origin of values (catalog / override / derived), the weakest evidence, body-frame coordinates obtained by following mounts, the selected candidate | `resolve(&Design)` (a pure function) | projection to analyses, GUI tables, check() | no (rebuilt each time; tens of ms for thousands of items) |
 | Derived | Mass properties (total mass, center of mass, inertia), budgets, analysis and SIM results | budget, the analysis library, SIM | GUI, CLI, PR comments | not as a rule. Output location in §9 |
 
 ```mermaid
 flowchart LR
-  F["File layer<br/>TOML / CSV"] -->|"Codec.read"| D["Design<br/>as written"]
+  F["File layer<br/>TOML / CSV"] -->|"store read"| D["Design<br/>as written"]
   D -->|"resolve()"| R["Resolved<br/>SI, with provenance"]
   R -->|"project()"| I["Per-analysis input types"]
   I --> A["Analysis library / SIM"]
@@ -356,7 +356,7 @@ flowchart LR
 | Entity | Role | File | Main contents |
 |---|---|---|---|
 | Project | Settings for the whole project | `fune.toml` | schema version, the TOML version to write, references to shared catalogs |
-| Allocation | Allocation | `budget/allocation.toml` | limits for mass, power and so on, system margin, allocation per subsystem (or per part) |
+| Allocation | Allocation | `budget/allocation.toml` | system margin and the allocation per subsystem (or per part) for each of mass, power and data. The limits are requirements (`verify.budget`, §7.9), not keys here |
 | BudgetPolicy | Margin policy | `budget/policy.toml` | growth margin per maturity, default width of uncertainty, harness allowance |
 | AttributeDef | Quantity kind | `defs/attribute/<id>.toml` | value type, dimension, allowed units, display unit, value range, whether it is looked up by state, which budget it enters, whether it is a direction (`unit_vector`: a unit vector in the part frame, drawn as an axis in 3D), and for a field-of-view half angle the direction attribute it is around (`fov_axis`, e.g. the built-in `fov_half_angle` has `fov_axis = "boresight"`; 3D draws the view cone from it). `fune attr add` takes `--unit-vector` and `--fov-axis <attribute>`; the Web does not know the attribute IDs. A text attribute can name a part with `references = "part"` (and `reference_roles`, with `fune attr add --references part --reference-roles a,b`): the GUI offers those parts to choose from |
 | KindDef | Part kind | `defs/kind/<id>.toml` | parent kind, required and optional attributes, vocabulary of equipment states (off / standby / on …), port templates, role |
@@ -370,10 +370,10 @@ flowchart LR
 | Phase | Mission phase (commissioning, nominal operations, disposal) | `phases/<ID>.toml` | order, start and end conditions (free text), duration, the modes used, and optional configuration selection and overrides of the orbit and of the attitude law per mode for the cases that name the phase (§7.10) |
 | Configuration | A named overlay of part poses (stowed, deployed and other placement variants) | `configurations/<ID>.toml` | label, optional English label (`label_en`), description, and a replacement pose per part (§7.11) |
 | Maneuver | Maneuver | `maneuvers/<ID>.toml` | category (a row of the ΔV budget), calculation stage, thrusters, preceding maneuver, target orbit, constraints for fine-grained stages only, dates of an interplanetary transfer (§7.7) |
-| Source | Ledger of sources | `sources/[<dir>/…]<ID>.toml` (§11.1) | kind (datasheet / measured / analysis / judgement / placeholder), reference, date, author |
+| Ground station | A ground station for the communication analyses | `conditions/ground/<ID>.toml` | label, latitude, longitude, altitude, minimum elevation, and the antenna and receiver values per band (`[link.<band>]`; §1.1) |
 | Source | Ledger of sources | `sources/[<dir>/…]<ID>.toml` (§11.1) | kind (datasheet / measured / analysis / judgement / placeholder), reference, document version, retrieval date, SHA-256, distribution category, date, author (§7.8) |
 | Requirement | Requirement (lightweight, a flat list) | `requirements/<ID>.toml` | statement (Japanese and English), the dimension of the constrained quantity, constraint (direction and value), quantification (all cases / named cases), source (a source ID), and what verifies it (an analysis check or a budget). The verdict itself comes from the analysis or budget (§7.9). Formal verdicts written out to external verification tools are not decided yet |
-| Table | Tabular data | `tables/<ID>.csv` + `tables/<ID>.toml` | curves and characteristic tables. Units per column are declared on the TOML side |
+| Table | Tabular data (reserved: the directory is recognized but not read yet) | `tables/<ID>.csv` + `tables/<ID>.toml` | curves and characteristic tables. Units per column are declared on the TOML side |
 | View | Presentation-only information (outside Design) | `view/…` | coordinates of the system diagram, the 3D camera |
 
 ### 3.1 Roles and states of kinds
@@ -384,7 +384,7 @@ every reference found by the reference index (`Design::references`) is rewritten
 (built-in ones included), and `fune check` still rejects names that clash with field names (`def.reserved`). Items of shared catalogs are read-only and cannot be rewritten, so a rename is refused
 while one of them uses the definition (change the shared catalog first). Nothing else refers to a definition (analysis settings, view files and mode tables hold part, group, mode and net IDs only).
 
-- A kind's `role` is a value of `fune_model::builtin::Role` (`enum_text!`). Its spelling is defined in one place, `builtin/role.rs`, and unknown roles are rejected when serde reads them. If omitted, the parent kind's role is used, and if the parent has none, there is no role. Custom kind IDs are free, but the vocabulary of roles is not extended.
+- A kind's `role` is a value of `fune_model::builtin::Role` (`enum_text!`). Its spelling is defined in one place, `role.rs` of fune-model (re-exported as `builtin::Role`), and unknown roles are rejected when serde reads them. If omitted, the parent kind's role is used, and if the parent has none, there is no role. Custom kind IDs are free, but the vocabulary of roles is not extended.
 - A role's display name is the Japanese and English name of the corresponding built-in kind. `labels.role_system` holds the subsystem of every role, keyed by Role (correspondences that belong to no subsystem are made explicit as `None`). The API returns roles as the TS `Role` type, and the Web icon table covers all roles.
 - The vocabulary of states is defined freely per kind. Only the conventional stopped state uses `fune_model::builtin::STATE_OFF`, and the processing that chooses the default state also refers to this constant (it is not made an enum). The convention is that a kind with the thruster role has the firing state `STATE_THRUSTER_FIRING` (`on`) in its vocabulary; if it does not, `fune check` emits a warning (`def.thruster_firing_state`).
 
@@ -407,9 +407,15 @@ pub struct Design {
     pub nets: BTreeMap<Id<Net>, Arc<Net>>,
     pub harnesses: BTreeMap<Id<Harness>, Arc<Harness>>,
     pub cases: BTreeMap<Id<Case>, Arc<Case>>,
+    pub maneuvers: BTreeMap<Id<Maneuver>, Arc<Maneuver>>,  // maneuvers/ (§7.7)
+    pub phases: BTreeMap<Id<Phase>, Arc<Phase>>,           // phases/ (§7.10)
+    pub configurations: BTreeMap<Id<Configuration>, Arc<Configuration>>,  // configurations/ (§7.11)
     pub sources: BTreeMap<Id<Source>, Arc<Source>>,
     pub requirements: BTreeMap<Id<Requirement>, Arc<Requirement>>,
-    pub tables: BTreeMap<Id<Table>, Arc<TableDecl>>,
+    pub conditions: ConditionsSettings,                    // conditions/ (§1.1)
+    pub analysis: AnalysisSettings,                        // analysis/ (§5)
+    pub views: BTreeMap<String, ViewLayout>,               // view/ (§10.4)
+    pub catalog_lock: Option<CatalogLock>,                 // catalog.lock (§12.2)
     pub revision: Revision,                                // BLAKE3 of the tracked files' (path, bytes)
 }
 
@@ -449,7 +455,8 @@ pub enum Value {
     Bool(bool),
     Text(String),
     Range { min: Quantity, max: Quantity },
-    Table(Id<Table>),
+    Curve { at: Vec<f64>, at_unit: UnitExpr, values: Vec<f64>, unit: UnitExpr },  // §5.6
+    Table(Id<Table>),                                    // reserved: tables/ is not read yet
 }
 
 /// The number and unit as written. mN*m is kept as mN*m, and conversion to SI is done in Resolved.
@@ -504,7 +511,7 @@ pub struct Budget {
     pub policy: BudgetPolicy,
 }
 pub struct Allocation {
-    pub limit: Authored<Quantity>,
+    pub limit: Option<Authored<Quantity>>,                 // an old key that is no longer read: the limit is a requirement (§7.9)
     pub system_margin: f64,
     pub alloc: BTreeMap<NodeRef, Authored<Quantity>>,
 }
@@ -519,34 +526,35 @@ pub struct BudgetPolicy {
 
 ```rust
 pub struct Resolved {
-    pub parts: BTreeMap<Id<Part>, ResolvedPart>,
-    pub tree: Tree<NodeRef>,               // product tree (functional hierarchy)
-    pub mounts: Tree<Id<Part>>,            // mount hierarchy (physical hierarchy)
-    pub diagnostics: Vec<Diagnostic>,      // severity, code, target (Target), file location
+    pub parts: BTreeMap<Id<Part>, ResolvedPart>,   // each part holds its product-tree parent (`parent`) and its mount (`mount`)
+    pub configurations: BTreeMap<String, Resolved>, // the design resolved per configuration (§7.11); not part of any API output
 }
+// Diagnostics (severity, code, target `Target`, file location) are not a field of Resolved:
+// they come from `fune_model::check` (and the load diagnostics of Design).
 
 pub struct ResolvedPart {
     pub catalog: Option<CatalogRef>,       // the selected one when there are candidates
     pub kind: Id<KindDef>,
     pub count: u32,
     pub attr: BTreeMap<Id<AttributeDef>, ResolvedValue>,
-    pub pose_body: Option<PoseSi>,         // body-frame coordinates obtained by following the chain of mounts
+    pub mount: Option<ResolvedMount>,      // the mounting target and the pose relative to it (the body-frame pose is composed by following the chain: `fune_projection::pose`)
+    pub root_pose: Option<PoseSi>,         // the `[pose]` of a part with no mount (a root), in the body frame
 }
 
 pub struct ResolvedValue {
     pub value: Cell<SiValue>,              // even if missing it is held as Unset and is not an error
-    pub origin: Origin,                    // Catalog / Override / KindDefault / Derived
+    pub origin: Origin,                    // Catalog / Override / KindDefault / Derived / Unset
     pub evidence: Evidence,                // the weakest evidence (placeholder if any placeholder is mixed in)
     pub loc: Option<Loc>,
 }
 pub enum Cell<T> { Set(T), Unset }
 
 /// Projection to the analysis library's input types. The analysis library does not depend on the design model.
-pub trait Project<I> {
-    fn project(r: &Resolved, case: &CaseCtx) -> Result<I, MissingInputs>;
+/// (`fune_projection::dispatch`: one table row per analysis; `Context` carries the resolved design, the case and the configuration.)
+pub trait Projects: Analysis {
+    fn project(ctx: &Context<'_>) -> Result<Self::Input, ProjectionError>;
 }
-// Example: impl Project<rw_unloading::Input> for RwUnloadingProjection { … }
-// MissingInputs is returned by target (fune_model::Target). It is displayed as a path such as "RW_X.max_momentum" or "<part>.power"
+// A missing input is reported by target (fune_model::Target) as `MissingInputs`. It is displayed as a path such as "RW_X.max_momentum" or "<part>.power"
 ```
 
 - Edit flow: an Op targets a path in Design (`RW_X.attr.mass`). The store turns it into a minimal-diff file edit,
@@ -1436,7 +1444,7 @@ reason        = "The sun sensor is not used while the paddle is folded"
 - **Semantics** (`sat_analysis::structure::acknowledged`, the only place): an acknowledged finding is still computed and listed (`acknowledged: true`, `reason`, and `acknowledged_configuration` when the acknowledgement names a configuration, so that withdrawing it points at the same entry),
   but its check is `ok` instead of `warning` and its text starts with `Acknowledged: <reason>.` (the verdict has no informational level; `ok` with the text keeps the finding visible). A configuration-specific acknowledgement applies only when that configuration is in effect (`fune_projection::structure::acknowledgements`). The overall verdict follows the checks, so an analysis whose findings are all acknowledged is `ok`.
 - **KPIs** (`structure_kpi`): the tally has `flagged` (unacknowledged findings; for cones, carriers with an unacknowledged part in the cone) and `acknowledged` (acknowledged findings; for cones, carriers whose parts in the cone are all acknowledged), so the web never counts.
-  The demo reads `5 of 573 need attention, 13 acknowledged` for `structure.interference`.
+  The text has the form `N / M need review, K acknowledged` (`M` is the number of pairs judged).
 - **Stale acknowledgements**: an entry that matches no current finding is a **warning** `acknowledged.stale` from `fune check` (and the GUI's diagnostics). The model's `check` cannot run analyses, so `fune_service::stale_acknowledgements` runs both analyses (for the placement the default case selects and for each configuration) and compares; it is called from `Snapshot::of`, next to the other diagnostics that need the projection.
   An entry with a `configuration` is compared only with that configuration's findings; an entry without one only has to match some placement (findings differ between configurations, so one placement cannot call it stale). An entry whose analysis could not run for any comparable placement (a size is missing, say) is not called stale.
   Limit: the placement "the default case selects" is the base placement unless the default case's phase names a configuration.
@@ -1444,7 +1452,7 @@ reason        = "The sun sensor is not used while the paddle is folded"
 - **Parts and configurations are references**: `fune check` reports a part or configuration that does not exist (`ref.part`, `ref.configuration`). Renaming a part or a configuration rewrites the entries (`RefSite::{AcknowledgedPart, AcknowledgedConfiguration}` of the reference index), and removing a part or a configuration an entry names is refused until the entry is withdrawn (the same behaviour as the other settings that name parts).
 - **Editing** (Ops `Acknowledge` / `Unacknowledge`; a list of records cannot be edited sensibly with `SetSetting`): `fune acknowledged add interference SAP_PY SP_PY --reason "…" [--configuration STOWED]` and `fune acknowledged rm interference SAP_PY SP_PY [--configuration STOWED]`. Acknowledging a pair that is already acknowledged (same configuration, either order for an overlap) rewrites its reason.
   Withdrawing a pair that is not acknowledged is refused. The GUI sends the same Ops from the analysis result ("Acknowledge" asks for a reason and offers "only in this configuration" when the result was computed for a configuration; "Withdraw"). The CLI and HTTP write byte-identical files (parity test).
-- **In the demo** (`fixtures/demo-6u`): the 1 mm hinge-edge overlap of `SAP_PY` and `SP_PY` is acknowledged. (The twelve panel-corner overlaps, 0.75 mm, are edge contacts by the rule of §5.7 and need no acknowledgement. The hinge-edge pair is not an edge contact: the overlap is 1.0 mm × 1.6 mm × 366 mm, but along the paddle box's Y axis (113 to 339 mm) it spans 113.7 to 115.3 mm, which does not touch the paddle's lower end (0.7 mm away, more than the 0.1 mm tolerance), so the rule keeps it an overlap and it stays acknowledged.) The other findings are left as warnings: the sun-sensor boxes sunk into the solar panel boxes (`SP_*`/`SS_*`), `EPT` against `PANEL_MZ`,
+- **In the demo** (`fixtures/demo-6u`): the 1 mm hinge-edge overlap of `SAP_PY` and `SP_PY` is acknowledged. (The panel-corner overlaps, 0.75 mm, are edge contacts by the rule of §5.7 and need no acknowledgement. The hinge-edge pair is not an edge contact: the overlap is 1.0 mm × 1.6 mm × 366 mm, but along the paddle box's Y axis (113 to 339 mm) it spans 113.7 to 115.3 mm, which does not touch the paddle's lower end (0.7 mm away, more than the 0.1 mm tolerance), so the rule keeps it an overlap and it stays acknowledged.) The other findings are left as warnings: the sun-sensor boxes sunk into the solar panel boxes (`SP_*`/`SS_*`), `EPT` against `PANEL_MZ`,
   and the cone findings (the paddle in the field of view of the sun sensors, `STT` against `SP_MY`) are not documented as accepted, and some of them may be real.
 - **3D** (layout page): a switch (off by default) paints the parts that the findings of the configuration being viewed involve: parts with an unacknowledged finding in the warning colour, parts whose findings are all acknowledged in the good colour, the others grey (`lib/tone.ts` `findingHex`), and lists the findings; choosing a part name selects and focuses it.
   The state of each part is decided by the service (`AnalysisRunResult.part_findings`, `analysis::part_findings`); the web paints. The cones themselves are not drawn.
@@ -2288,15 +2296,18 @@ does not include growth margin, so the with-propellant total is larger than `pro
 
 ## 9. Output destinations for Derived
 
-The basic rule for Derived is "do not save". Output destinations differ by purpose.
+The basic rule for Derived is "do not save". Output destinations differ by purpose. Some are implemented and some are planned; the status column says which.
 
-| Output | Location | Tracked in git | Purpose |
-|---|---|---|---|
-| Things that can be computed immediately, such as budgets and mass properties | none (in memory) | — | GUI and CLI display. Recomputed every time |
-| Run results of analyses and SIM | `.fune/runs/<analysis>/<case>/<fingerprint>/` | no | cache, and manual re-runs |
-| Results to keep | `results/<name>/` | yes | only those chosen with `fune results pin`. Shown at reviews and design reviews |
-| Export to other tools | `exports/` (budget.json, etc.) | yes | files read by external verification tools and the like |
-| Summaries for reviews (PDF, etc.) | attachments to a GitHub Release | not put in the repository | `git tag pdr-2026-12` and the output of `fune report` |
+| Output | Location | Tracked in git | Purpose | Status |
+|---|---|---|---|---|
+| Things that can be computed immediately, such as budgets and mass properties | none (in memory) | — | GUI and CLI display. Recomputed every time | implemented |
+| The edit history for undo and redo | `.fune/history.json` | no | `fune history`, `fune undo` and `fune redo` (the files each edit changed, before and after) | implemented |
+| Tables and figures for a design report | `exports/report/` (`fune report export`, [report.md](report.md)) | your choice | files you include from your own Typst document. `exports/` is not read as design data | implemented |
+| Run results of analyses and SIM | `.fune/runs/<analysis>/<case>/<fingerprint>/` | no | cache, and manual re-runs | planned (nothing writes it yet) |
+| Results to keep | `results/<name>/` | yes | only those chosen with `fune results pin`. Shown at reviews and design reviews | planned (no `fune results` command yet; `results/` is already skipped when the design is read) |
+| Summaries for reviews (PDF, etc.) | attachments to a GitHub Release | not put in the repository | `git tag pdr-2026-12` and the output of `fune report` | planned |
+
+The layout planned for a pinned result is as follows.
 
 ```
 results/thermal-hot/
@@ -2323,9 +2334,9 @@ The reasons for not committing all computed results are as follows.
 - Stale results that disagree with the inputs remain.
 - Diffs are filled with numerical changes, making review difficult.
 
-On a PR, CI recomputes on both revisions and comments the changes, so differences can be seen without committing results.
-Only the results of time-consuming thermal analyses and of external tools that CI cannot run are pinned in `results/`. A pinned result has the input fingerprint,
-so if the inputs change, `fune check` warns "this result is stale". Large series files are placed in Git LFS.
+The plan is that CI recomputes on both revisions of a PR and comments the changes, so differences can be seen without committing results.
+Only the results of time-consuming thermal analyses and of external tools that CI cannot run would be pinned in `results/`. A pinned result has the input fingerprint,
+so if the inputs change, `fune check` would warn "this result is stale". Large series files would be placed in Git LFS.
 
 ## 10. File formats
 
@@ -2476,7 +2487,7 @@ The conditions for the automatic layout are as follows (`web/src/features/diagra
   aspect ratios)". "The whole" in the formula is the shape after placing frames with no lines below or to the right. The expected crossings are the sum of the number of pairs that cross another net's line
   when the card centers are joined by straight lines, and the number of tangles around a card among the counterparts of different nets leaving one card (the number of runs of the same
   net − the number of nets). The expected passes across other cards is the number of lines that pass over a card other than the two ends in both of the two vertical-and-horizontal routes joining the centers of the end cards (go out horizontally and then
-  vertically, or vertically and then horizontally) (this dislikes arrangements in which the line of a card behind in a horizontal row has to go around the card in front). One candidate is made for each grid shape (1 to 4 rows) (`layout-estimate.ts`).
+  vertically, or vertically and then horizontally) (this dislikes arrangements in which the line of a card behind in a horizontal row has to go around the card in front). One candidate is made for each grid shape (1 to 4 rows) (`estimate.ts`).
 - Compaction: frames placed in cells are pulled toward their line counterparts, horizontally and then vertically (the median of positions aligned with the counterparts). Frames in the same band keep their
   order and leave a gap of at least 64 px. Extra gaps left by the cell sizes and line lengths shrink, and frames do not come too close to each other.
 - The side (top, bottom, left, right) of a terminal is chosen by where the counterpart (average) of its lines lies farthest outside the card. Terminals on the same side are lined up in the order of their counterparts' positions
@@ -2494,7 +2505,7 @@ The conditions for the automatic layout are as follows (`web/src/features/diagra
   (lines of the same terminal or the same net are not counted as crossings or overlaps). The result is the same every time. Fewer crossings are better, but they are not weighed as heavily as bends and
   length (crossings are drawn with hops, so they remain readable).
 - Reselecting terminals: with all lines of the chosen candidate drawn, the next proposal is made for each terminal, and those that lower the cost of redrawing only that terminal's lines (other
-  lines unchanged) are kept (`layout-refine.ts`).
+  lines unchanged) are kept (`refine.ts`).
   - Side: from the other three sides, the terminal comes out at the position closest to its line counterpart that does not overlap other terminals of the same card (if none is free,
     just outside the lined-up terminals; the card grows as terminals increase, so this is anticipated)
   - Position: a line that leaves the terminal, shifts sideways and heads outward again (a step) is straightened by shifting the terminal along the side by the step
@@ -2569,12 +2580,12 @@ my-sat-design/
 ├── maneuvers/<ID>.toml          # maneuvers (§7.7)
 ├── sources/<ID>.toml            # subdirectories allowed: sources/<dir>/<ID>.toml (§11.1)
 ├── requirements/<ID>.toml       # requirements (§7.9)
-├── tables/<ID>.csv  tables/<ID>.toml
+├── tables/<ID>.csv  tables/<ID>.toml   # reserved (not read for now)
 ├── view/
-├── results/<name>/               # only pinned analysis results
-├── exports/                     # export to other tools
+├── results/<name>/               # planned: pinned analysis results (§9; not read)
+├── exports/                     # output files such as the report tables (§9; not read)
 ├── .github/CODEOWNERS
-└── .fune/                       # gitignored: cache (shared catalogs are in .fune/catalogs/. §12.3), runs/
+└── .fune/                       # gitignored: shared catalogs in .fune/catalogs/ (§12.3), the edit history (history.json), the write lock
 ```
 
 ### 11.1 Subdirectories of the catalog and of sources
@@ -2780,7 +2791,7 @@ What is fetched is placed in the project's `.fune/catalogs/` (`.fune/` is not tr
 
 The directory for each commit is put in place only after its contents are complete (temporary directory → rename), so one that exists is read as complete.
 If the lock's commit is in the cache, it can be read even without a connection to the fetch source. In the CI of a satellite's repository,
-run `fune catalog fetch --locked` followed by `fune check` (README's "Shared catalogs in CI").
+run `fune catalog fetch --locked` followed by `fune check` (README's "Shared catalogs").
 
 ### 12.4 Loading and references
 
@@ -2830,6 +2841,8 @@ The implementation (fune-model / fune-store / fune-ops) follows this document, b
 | Editing is impossible while there are error diagnostics | Only Ops that add **new** errors through the edit are rejected | So that edits fixing things remain possible even when existing errors are present |
 | The mount chain is composed in model | model passes the chain on uncomposed, and projection composes it with sat-astro's Quat | So that fune-model does not depend on sat-astro |
 | The ID comes from the file name (not written in the file) | Same. In addition, a JSON Op accepts the payload's `id`, and if the file has an `id` that differs from the file name, `id.mismatch` | So that new items can be created from the GUI and `fune apply` |
+| `Part.def: PartDef` (`Catalog` or `Kind`) | `Part` has the optional fields `catalog` and `kind` | To match the keys of the part file (`kind` can also override the catalog item's kind) |
+| `Resolved` holds `tree`, `mounts` and `diagnostics` | `Resolved` holds the parts (each with its product-tree `parent` and its `mount`) and the designs resolved per configuration; diagnostics come from `fune_model::check` | The trees are read off the parts, and checking is a separate step from resolving |
 | Attribute default values | Built-in attributes can have a `default` (for example, specific heat 900 J/(kg·K)). A value resolved from a default has origin `kind_default` and evidence `placeholder` | To show on screen that it is a provisional value |
 
 Not yet loaded: `mission/` for #9 and `tables/` (the directories are recognized). The `#:schema` heading line is not yet written out.

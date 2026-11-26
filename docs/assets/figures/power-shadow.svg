@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 310" role="img" aria-labelledby="t d">
+  <title id="t">Shadow of a part box on a panel face</title>
+  <desc id="d">Left: side view. Parallel rays at the incidence angle theta pass a box of height h standing on the panel face; the shadow covers the footprint of the box and extends h tan theta beyond it. Right: top view of the face with the shadows of two boxes; the dark area is their union, with the overlap counted once.</desc>
+  <defs>
+    <marker id="a-gold" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#8a6400"/></marker>
+    <marker id="a-sec" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#5b6577"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="309" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <text x="24" y="36" font-size="14" fill="#062654" font-weight="700">(a) Side view</text>
+    <text x="400" y="36" font-size="14" fill="#062654" font-weight="700">(b) Top view of the face</text>
+    <path d="M372 24 L372 286" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M160 150 L209 220 L160 220 Z" fill="#062654" fill-opacity="0.08"/>
+    <path d="M113.8 84 L209 220" fill="none" stroke="#8a6400" stroke-width="1.8"/>
+    <path d="M175.8 84 L268.1 215.9" fill="none" stroke="#8a6400" stroke-width="1.8" marker-end="url(#a-gold)"/>
+    <path d="M77.8 84 L121.1 145.9" fill="none" stroke="#8a6400" stroke-width="1.8" marker-end="url(#a-gold)"/>
+    <rect x="96" y="150" width="64" height="70" fill="#f5f7fa" stroke="#062654" stroke-width="1.8"/>
+    <text x="128" y="190" font-size="14" fill="#062654" text-anchor="middle">box</text>
+    <path d="M40 220 L344 220" fill="none" stroke="#062654" stroke-width="2.4"/>
+    <path d="M96 220 L209 220" fill="none" stroke="#062654" stroke-width="5.5"/>
+    <path d="M78 155 L78 215" fill="none" stroke="#5b6577" stroke-width="1.2" marker-end="url(#a-sec)" marker-start="url(#a-sec)"/>
+    <path d="M72 150 L92 150" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <text x="70" y="190" font-size="14" fill="#5b6577" text-anchor="end">h</text>
+    <path d="M165 240 L204 240" fill="none" stroke="#5b6577" stroke-width="1.2" marker-end="url(#a-sec)" marker-start="url(#a-sec)"/>
+    <path d="M160 232 L160 248" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M209 232 L209 248" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <text x="184.5" y="262" font-size="14" fill="#5b6577" text-anchor="middle">h tan θ</text>
+    <text x="96" y="290" font-size="14" fill="#062654">shadow, footprint included</text>
+    <path d="M271 220 L271 124" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M271 164 A56 56 0 0 0 238.9 174.1" fill="none" stroke="#3382c2" stroke-width="1.8"/>
+    <text x="249.4" y="156.3" font-size="14" fill="#1f63a0" text-anchor="middle">θ</text>
+    <text x="171.8" y="72" font-size="14" fill="#8a6400" text-anchor="middle">sunlight</text>
+    <text x="344" y="240" font-size="12" fill="#5b6577" text-anchor="end">panel face</text>
+    <rect x="404" y="60" width="288" height="176" fill="#e8f1f9" stroke="#062654" stroke-width="1.8"/>
+    <g opacity="0.22"><path d="M436 92 L526 92 L566 160 L476 160 Z M520 132 L606 132 L646 196 L560 196 Z" fill="#062654"/></g>
+    <path d="M436 92 L526 92 L566 160 L476 160 Z" fill="none" stroke="#062654" stroke-width="1.2"/>
+    <path d="M520 132 L606 132 L646 196 L560 196 Z" fill="none" stroke="#062654" stroke-width="1.2"/>
+    <text x="436" y="82" font-size="12" fill="#062654">shadow of box 1</text>
+    <text x="646" y="214" font-size="12" fill="#062654" text-anchor="end">shadow of box 2</text>
+    <text x="404" y="262" font-size="14" fill="#062654">dark area: the union of the shadows,</text>
+    <text x="404" y="282" font-size="14" fill="#062654">overlap counted once</text>
+  </g>
+</svg>

@@ -2,12 +2,12 @@
 
 `fune report export` writes the tables and figures of a design report from the design data and the analyses, as files you include from **your own Typst document**.
 You write the prose; iwafune writes the numbers. Nothing in the design changes, and a new export is always the same bytes for the same design (a snapshot test checks it).
-This is the first stage of #13: there is no PDF build yet (`fune report build`), no LaTeX/CSV fragments, no `reports/<ID>.toml`, and no GUI buttons.
+There is no PDF build (`fune report build`), no LaTeX/CSV fragments, no `reports/<ID>.toml`, and no GUI buttons; the [roadmap](roadmap.md) says why and what would add them.
 
 ## Use
 
 ```bash
-fune report export                                  # all six items, the default case, English, into exports/report/
+fune report export                                  # every item, the default case, English, into exports/report/
 fune report export --case hot_imaging --case cold_safe --lang ja
 fune report export --item mass --item thermal-result --out build/report
 typst compile exports/report/example.typ            # a complete example that includes every item
@@ -41,7 +41,7 @@ Excerpt of `data.json` (the demo, mass table):
 ```json
 {
   "schema": 1,
-  "revision": "b3:f40b…",
+  "revision": "b3:5e54…",
   "project": "IWAFUNE 6U (demo)",
   "lang": "en",
   "items": ["mass", "mode-power", "link-budget", "thermal-result", "thermal-history", "power-history"],
@@ -58,7 +58,7 @@ Excerpt of `data.json` (the demo, mass table):
         { "style": "group", "cells": [{ "text": "AOCS" }] },
         { "style": "body", "cells": [{ "text": "Reaction wheel, 10 mN·m·s class (RW_X)" }, …, { "text": "152", "si": 0.152 }] }
       ],
-      "notes": ["Masses include the growth margin set per maturity. …", "Model revision: b3:f40b…"]
+      "notes": ["Masses include the growth margin set per maturity. …", "Model revision: b3:5e54…"]
     }
   ],
   "figures": [{ "item": "thermal-history", "case": "hot_imaging", "file": "figs/thermal-history-hot_imaging.svg", "…": "…" }],
@@ -107,7 +107,7 @@ The dry mass is #value("budget.mass.total"), of which the reaction wheels are #v
 - **Margins**: each table says whether the growth margin is included and how the margin is measured (notes under the table, and the labels of the rows).
 - **Case in the caption** for the items that depend on the case, and **the model revision in a note under every table and figure** and in `data.json`.
 - Values are the analyses' and the budget's results; nothing is recomputed in the export. Verdicts are the analyses' verdicts.
-- Figures are plain SVG: white background, thin axes, monochrome-safe line styles (8 colours and 4 dash patterns, in `fune_report::palette`), text as real `<text>`, fixed 2-decimal coordinates.
+- Figures are plain SVG: white background, thin axes, monochrome-safe line styles (colours first, then dash patterns, in `fune_report::palette`), text as real `<text>`, fixed 2-decimal coordinates.
   The width is 640 units (about 160 mm at report width).
 
 ## Where it lives

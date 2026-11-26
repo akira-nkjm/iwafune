@@ -8,7 +8,7 @@ which `orbit.total_dose` uses when a leg has no environment table of its own ([#
 
 1. The design orbit is propagated for one day (`spec::daily_sampling`; the step follows the orbital period, at most 10 minutes), long enough for the ground track of a low orbit to go once around the Earth.
 2. At each sample the position is turned into ECEF and the McIlwain L and the ratio B/B₀ are computed (`sat_astro::radiation::belt_position`). The default (`BeltConvention::Literature`) is the literature definition: L from the map's own field at its epoch with the fixed dipole moment M = 0.311653 G·Rₑ³, and B₀ = M/L³. A comparison variant (`ModelDipoleLineMinimum`: L from the field's own dipole moment, B₀ = the minimum of |B| on the field line, as `SHELLG` of the IGRF package gives) exists for checking; the analysis uses the default.
-3. For each of the four maps (protons and electrons, solar minimum and maximum) and for each energy of a standard grid, the integral omnidirectional flux above that energy (cm⁻² s⁻¹) is read from the map.
+3. For each map (protons and electrons, solar minimum and maximum) and for each energy of a standard grid, the integral omnidirectional flux above that energy (cm⁻² s⁻¹) is read from the map.
    The grids are 0.1 to 400 MeV for protons and 0.04 to 7 MeV for electrons (`proton_energies_mev`, `electron_energies_mev`).
 4. The output, per map and per energy, is the time-averaged flux, the peak flux, the fraction of time with a non-zero flux, and the **fluence** = time-averaged flux × the mission duration
    (the same mission duration that `orbit.total_dose` uses when the design has no phases). The one-day sample is taken to represent the whole mission; the orbit's evolution over the mission is not followed.
@@ -54,14 +54,14 @@ The old coefficient files are converted into the Schmidt semi-normalised convent
 
 The lookup is a re-implementation of the procedure of the NSSDC RADBELT program (TRMFUN.FOR, 1987: subroutines TRARA1 and TRARA2), written from reading that source; no code or text of it is in this repository.
 
-- NASA's sample output of the data set (`radbelt.log`): all 294 integral-flux values of the AE8MIN tables (0 and non-zero, on and off the nodes of the map, B/B₀ = 1 and > 1) agree with the printed 4 digits; the largest relative difference is 4.98·10⁻⁴, the rounding of the 4-digit table. (The earlier approximate scheme differed by up to 0.19 % for L between nodes at B/B₀ > 1.)
+- NASA's sample output of the data set (`radbelt.log`): every integral-flux value of the AE8MIN tables that the test uses (zero and non-zero, on and off the nodes of the map, B/B₀ = 1 and > 1) agrees with the printed 4 digits; the largest relative difference is 4.98·10⁻⁴, the rounding of the 4-digit table. (The earlier approximate scheme differed by up to 0.19 % for L between nodes at B/B₀ > 1.)
 - The proton tables of that log are for the older compressed map AP8MAC, not AP8MAX/AP8MIN. At the energies and L ≤ 3 where the maps share nodes, AP8MAX agrees to 2.4·10⁻⁴; elsewhere the maps legitimately differ, so the log gives no complete proton check.
 - **Public end-to-end point** (NASA `radbelt` README: lon −45°, lat −30°, 500 km, 2021-03-01, AP8MAX, > 20 MeV, IGRF → 2642.50 cm⁻² s⁻¹), with the same lookup and IGRF-14 at that date: L = 1.4310, B = 18997 nT, B₀ = 10635 nT, B/B₀ = 1.7863 and a flux of 3504 (+33 %) with the literature definition; L = 1.4133, B₀ = 10648 nT, B/B₀ = 1.7842 and 2636 (−0.3 %) with the comparison variant. The flux near L = 1.4 changes by about 15 % per 0.01 in L, so small differences in how L is defined are visible. The README value comes from a tool that takes L and B₀ from the IGRF routines with the field's own dipole moment for the date, which is what the comparison variant does; a test pins that agreement to 1 %. The literature definition uses a fixed moment and therefore a different L at the same point.
 - These comparisons run in the tests when the data files are installed (see `crates/lib/astro/src/radiation/tests/nasa.rs`); the files are not in the repository.
 
 ## Data sources
 
-The analyses need eight files. They are **not** in the repository or in the program: they are installed into the per-user data cache (the same place as the DE440 ephemeris) with
+The analyses need the files listed below. They are **not** in the repository or in the program: they are installed into the per-user data cache (the same place as the DE440 ephemeris) with
 
 ```text
 fune data fetch radiation                       # from the project's release (needs gh)
@@ -69,7 +69,7 @@ fune data fetch radiation --from <DIR>          # from a directory that holds th
 fune data status                                # shows the state, the SHA-256 check and the attribution of each
 ```
 
-The GUI settings page fetches with `POST /data/{id}/fetch`; `--from` is deliberately CLI-only (HTTP does not take a path on the server). The id `radiation` stands for all eight.
+The GUI settings page fetches with `POST /data/{id}/fetch`; `--from` is deliberately CLI-only (HTTP does not take a path on the server). The id `radiation` stands for the whole group.
 Each file's size and SHA-256 are checked before it replaces anything.
 
 | id | file | what |
@@ -100,18 +100,18 @@ for solar minimum (AP8MIN + AE8MIN) and maximum (AP8MAX + AE8MAX), split into tr
 
 | Analysis id | `orbit.trapped_dose` (area: orbit conditions, kind: steady) |
 |---|---|
-| Needs | the orbit (Earth only) and the eight data files (a missing one is a missing input that says `fune data fetch radiation`) |
+| Needs | the orbit (Earth only) and the data files above (a missing one is a missing input that says `fune data fetch radiation`) |
 | Output | `cases[]` (solar minimum, maximum) each with a table (aluminium thickness → protons, electrons, bremsstrahlung, total dose rate), and `used` (everything below) |
-| Defaults (inputs are optional and the output says which were used) | detector silicon; geometry centre of a solid aluminium sphere; no nuclear attenuation of protons; 13 thicknesses 0.1, 0.2, 0.5, 1, 1.5, 2, 3, 4, 5, 7, 10, 15, 20 mm |
+| Defaults (inputs are optional and the output says which were used) | detector silicon; geometry centre of a solid aluminium sphere; no nuclear attenuation of protons; thicknesses 0.1, 0.2, 0.5, 1, 1.5, 2, 3, 4, 5, 7, 10, 15, 20 mm |
 
 ### Method
 
 1. **Orbit positions** are those of `orbit.trapped_flux` (one day of the orbit; the (L, B/B₀) of each sample are found once and reused).
-2. **Integral spectrum.** For each of the four maps the integral flux `F(>E)` is read at every sample on a log-spaced grid (25 points per decade: 0.1–400 MeV for protons, 0.04–7 MeV for electrons; 92 and 58 points) and averaged over time (trapezoid).
+2. **Integral spectrum.** For each map the integral flux `F(>E)` is read at every sample on a log-spaced grid (25 points per decade: 0.1–400 MeV for protons, 0.04–7 MeV for electrons) and averaged over time (trapezoid).
 3. **Differential spectrum** (what SHIELDOSE-2 needs): `j = (F_i − F_{i+1}) / (E_{i+1} − E_i)` between neighbouring grid points, placed at their geometric mean energy. The ratio of neighbouring energies is 1.10, so the difference from the arithmetic midpoint is below 0.1 %.
    At the **low-energy end** ln j is extended along a straight line in ln E to the first energy (otherwise the half interval below the first midpoint would lose particles). At the **high-energy end**, where F reaches 0, only the run of positive differences is used (ln j needs j > 0); the interval in which F falls to 0 gets the average `F_i / ΔE`.
    A test with an exact power law shows the differences within 0.2 %; for the synthetic map used in the analysis test the dose computed from the differenced spectrum differs by 0.02 % from the dose of the exact differential spectrum.
-4. **SHIELDOSE-2** (`sat_astro::radiation::shielding`): ln j is interpolated by a natural cubic spline in ln E (no extrapolation beyond half a grid step), 1001 log-spaced energy nodes are integrated with Simpson's rule (the procedure's `INTEG`), the dose kernels (tables of dose versus depth scaled by the CSDA range)
+4. **SHIELDOSE-2** (`sat_astro::radiation::shielding`): ln j is interpolated by a natural cubic spline in ln E (no extrapolation beyond half a grid step), a log-spaced energy grid (up to 1001 nodes) is integrated with Simpson's rule (the procedure's `INTEG`), the dose kernels (tables of dose versus depth scaled by the CSDA range)
    are interpolated by spline in energy and depth for protons, and linearly in ln T for electrons and bremsstrahlung (version 2), the detector/aluminium ratios convert aluminium to silicon, and the unit constant is 1.6021892·10⁻¹⁰ Gy g/MeV. Depth in g/cm² is thickness × 2.70 g/cm³.
 5. **Sphere.** For the centre of a solid sphere the dose is computed from the slab curve `D(z)` as `D (1 − dlnD/dlnz)` (straight-ahead approximation) as SHIELDOSE-2 does.
 
@@ -131,7 +131,7 @@ SHIELDOSE-2's `INUC` options are all implemented: `none` (1, default: protons lo
 ### Limits
 
 - Trapped protons, trapped electrons and bremsstrahlung **only**: no solar energetic particles, no galactic cosmic rays, no particles produced in the spacecraft structure beyond SHIELDOSE-2's own treatment.
-- Aluminium shielding in the three simple geometries; the real mass distribution around a part is not modelled. The sphere formula is the straight-ahead approximation and is not exact where scattering matters.
+- Aluminium shielding in simple geometries (sphere centre and slabs); the real mass distribution around a part is not modelled. The sphere formula is the straight-ahead approximation and is not exact where scattering matters.
 - The AP-8/AE-8 limits above apply (static models, no outer-belt dynamics). The solar minimum and maximum maps differ also in the field they are defined in.
 - The spectrum is the **orbit-averaged** spectrum of one day; the rate is a mean over the mission and the orbit's evolution is not followed.
 
@@ -143,8 +143,8 @@ Legs without a duration are not computed. If a computation is impossible (other 
 
 ### Verification (SHIELDOSE-2 part)
 
-- **Reading**: every one of the 1297 DATA statements of the source was compared with the converted file by an independent script (array order: last index fastest; detector and the two `m` tables of the electron and bremsstrahlung arrays); the tests pin representative values and the reader rejects wrong counts, names, dimensions, missing `end` and non-numbers.
-- **Near-zero depth, single energy** (the dose per fluence of the kernel against the range table of the same data, `S = dE/dR`, dose = φ/2 × S × 1.6021892·10⁻¹⁰): nine energies from 0.1 MeV to 1 GeV agree within 0.7 %. At 100 MeV `S` from the table is 5.65 MeV cm²/g, and the literature value for protons in aluminium is about 5.7 (ICRU Report 49, NIST PSTAR); the surface dose of a 99–101 MeV band is 0.7 % above φ/2 × S.
+- **Reading**: every DATA statement of the source was compared with the converted file by an independent script (array order: last index fastest; detector and the two `m` tables of the electron and bremsstrahlung arrays); the tests pin representative values and the reader rejects wrong counts, names, dimensions, missing `end` and non-numbers.
+- **Near-zero depth, single energy** (the dose per fluence of the kernel against the range table of the same data, `S = dE/dR`, dose = φ/2 × S × 1.6021892·10⁻¹⁰): energies from 0.1 MeV to 1 GeV agree within 0.7 %. At 100 MeV `S` from the table is 5.65 MeV cm²/g, and the literature value for protons in aluminium is about 5.7 (ICRU Report 49, NIST PSTAR); the surface dose of a 99–101 MeV band is 0.7 % above φ/2 × S.
 - **Range**: protons whose CSDA range is below the shield depth give exactly zero slab and sphere dose (10 MeV protons, range ≈ 0.17 g/cm², behind 1 g/cm²); electrons stop in a thick shield while bremsstrahlung remains.
 - **Sphere from slab**: for a power-law slab curve `D = A z^−p` the sphere value is `D (1 + p)` (exact to 1e-12); for a curve quadratic in ln z it agrees with the analytic derivative within 0.1 % inside the grid.
 - **Spectrum integration** (NBS TN 1116 appendix C sample, exponential solar-proton spectrum E₀ = 26.5 MeV, C = 2.45·10¹⁰, limits 2–1000 MeV): the integral spectrum is 2.2719·10¹⁰ (printed 2.2719E+10) for 201, 501 and 1001 points, and the mean energy is 28.5000 MeV. The report prints 28.50006; the exact value for this exponential is 28.5 and the printed 28.50006 differs by 2·10⁻⁶ in relative terms (the sample's grid size is not known here; the same Simpson rule gives between 28.4965 and 28.5001 for 16–30 points).

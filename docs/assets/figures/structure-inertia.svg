@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 306" role="img" aria-labelledby="t d">
+  <title id="t">Parallel-axis shift of a part inertia</title>
+  <desc id="d">The body origin O with the body axes X, Y and Z, the spacecraft centre of mass C at r_cm and the centre P of a part box at r_i. The offset d_i = r_i - r_cm runs from C to P. Axes parallel to the body axes are drawn at C and at P.</desc>
+  <defs>
+    <marker id="a-acc" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#3382c2"/></marker>
+    <marker id="a-ink" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#062654"/></marker>
+    <marker id="a-sec" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#5b6577"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="305" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M471 155 L583 155 L609 137 L609 197 L583 215 L471 215 Z" fill="#e8f1f9" stroke="#062654" stroke-width="1.8"/>
+    <path d="M471 155 L583 155 L583 215" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M583 155 L609 137" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M471 155 L497 137 L609 137" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M270 110 L307.9 110" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#a-sec)"/>
+    <path d="M270 110 L270 72.1" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#a-sec)"/>
+    <path d="M270 110 L248.9 124.9" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#a-sec)"/>
+    <path d="M540 176 L577.9 176" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#a-sec)"/>
+    <path d="M540 176 L540 138.1" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#a-sec)"/>
+    <path d="M540 176 L518.9 190.9" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#a-sec)"/>
+    <path d="M120 250 L173 250" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <text x="188" y="255" font-size="14" fill="#062654">X</text>
+    <path d="M120 250 L120 197" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <text x="110" y="196" font-size="14" fill="#062654" text-anchor="end">Z</text>
+    <path d="M120 250 L90.1 271.1" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <text x="78" y="288" font-size="14" fill="#062654" text-anchor="end">Y</text>
+    <path d="M120 250 L261.2 118.2" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <path d="M120 250 L528.2 178.1" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <path d="M276.8 111.7 L528.3 173.2" fill="none" stroke="#3382c2" stroke-width="2.4" marker-end="url(#a-acc)"/>
+    <circle cx="120" cy="250" r="4" fill="#062654"/>
+    <circle cx="270" cy="110" r="5" fill="#e7bd41" stroke="#062654" stroke-width="1.8"/>
+    <circle cx="540" cy="176" r="5" fill="#e7bd41" stroke="#062654" stroke-width="1.8"/>
+    <text x="183" y="178" font-size="14" fill="#062654" text-anchor="end"><tspan font-weight="700">r</tspan><tspan dy="4" font-size="10">cm</tspan></text>
+    <text x="340" y="237" font-size="14" fill="#062654"><tspan font-weight="700">r</tspan><tspan dy="4" font-size="10">i</tspan></text>
+    <text x="411" y="131" font-size="14" fill="#1f63a0"><tspan font-weight="700">d</tspan><tspan dy="4" font-size="10">i</tspan></text>
+    <text x="130" y="276" font-size="14" fill="#062654">O</text>
+    <text x="148" y="276" font-size="12" fill="#5b6577">body origin</text>
+    <text x="256" y="102" font-size="14" fill="#062654" text-anchor="end">C</text>
+    <text x="238" y="102" font-size="12" fill="#5b6577" text-anchor="end">centre of mass</text>
+    <text x="550" y="198" font-size="14" fill="#062654">P</text>
+    <text x="471" y="237" font-size="12" fill="#5b6577">part box, centre P</text>
+  </g>
+</svg>
