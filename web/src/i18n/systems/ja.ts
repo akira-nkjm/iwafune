@@ -317,6 +317,8 @@ export const systemsJa = {
       helpers: "座標の表示",
       zoomIn: "拡大",
       zoomOut: "縮小",
+      rollLeft: "見ている向きを軸に左へ回す（角から見ているときは 120°、ほかは 90°）",
+      rollRight: "見ている向きを軸に右へ回す（角から見ているときは 120°、ほかは 90°）",
       home: "ホームポジション（初めの視点に戻す）",
       viewCubeFace: (name: string) => `${name} の向きから見る`,
       helper: {

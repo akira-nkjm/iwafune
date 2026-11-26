@@ -68,7 +68,7 @@ export function SurfaceField({
 }) {
   const nodes = mesh.nodes as V3[];
   const extent = useMemo(() => meshExtent(nodes), [nodes]);
-  const { home, zoom, zoomBy, goHome } = useViewRequests();
+  const { home, zoom, zoomBy, roll, rollBy, goHome } = useViewRequests();
   return (
     <div className={className ?? "relative h-full min-h-[320px]"}>
       <SceneShell
@@ -79,6 +79,7 @@ export function SurfaceField({
         }}
         home={home}
         zoom={zoom}
+        roll={roll}
       >
         <FieldMesh
           mesh={mesh}
@@ -91,7 +92,7 @@ export function SurfaceField({
           animate={animate}
         />
       </SceneShell>
-      <ViewControls3D onZoom={zoomBy} onHome={goHome} />
+      <ViewControls3D onZoom={zoomBy} onRoll={rollBy} onHome={goHome} />
     </div>
   );
 }

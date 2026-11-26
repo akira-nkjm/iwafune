@@ -322,6 +322,8 @@ export const systemsEn: typeof systemsJa = {
       helpers: "Coordinate helpers",
       zoomIn: "Zoom in",
       zoomOut: "Zoom out",
+      rollLeft: "Rotate the view counter-clockwise (120° from a corner, otherwise 90°)",
+      rollRight: "Rotate the view clockwise (120° from a corner, otherwise 90°)",
       home: "Home view (reset the camera)",
       viewCubeFace: (name: string) => `Look from ${name}`,
       helper: {

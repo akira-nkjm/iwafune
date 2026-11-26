@@ -3,6 +3,7 @@ import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Material, Mesh } from "three";
 import { ArrowHelper, Color, DoubleSide, Quaternion, Vector3 } from "three";
+import type { RollRequest } from "@/kit/scene3d/CameraMover";
 import { SceneShell } from "@/kit/scene3d/SceneShell";
 import type { ZoomRequest } from "@/kit/scene3d/ViewInput3D";
 import { useHex } from "@/lib/theme";
@@ -53,6 +54,7 @@ export function Scene3D({
   focus = null,
   home = 0,
   zoom = null,
+  roll = null,
   fovs = [],
   sun = null,
 }: {
@@ -80,6 +82,8 @@ export function Scene3D({
   home?: number;
   /** ボタンからの拡大・縮小の依頼（`ViewInput3D`）。無ければ依頼なし */
   zoom?: ZoomRequest | null;
+  /** ボタンからの、視線まわりに画面を回す依頼。無ければ依頼なし */
+  roll?: RollRequest | null;
 }) {
   const { scheme, tone, ui } = useHex();
   const [target, setTarget] = useState<Mesh | null>(null);
@@ -103,6 +107,7 @@ export function Scene3D({
       }}
       home={home}
       zoom={zoom}
+      roll={roll}
       focus={focus}
       gizmo={helpers.gizmo}
       onPointerDown={(e) => {

@@ -8,6 +8,9 @@ import {
   lookQuaternion,
   poseForView,
   positionOf,
+  rollPose,
+  rollStep,
+  uprightQuaternions,
   viewBySign,
 } from "./view-cube";
 
@@ -53,7 +56,7 @@ it("面は 6 つの軸、辺・角は面の法線の和を正規化した向き"
   expect(byName("PX+PY+PZ").direction[2]).toBeCloseTo(1 / Math.sqrt(3), 12);
 });
 
-it("上の向き: 単位ベクトルで視線と垂直。PZ・MZ は +Y、それ以外は +Z を射影した向き（水平線が水平）", () => {
+it("上の向き: 単位ベクトルで視線と垂直。PZ・MZ は +Y、MZ 側の角は −Z、それ以外は +Z を射影した向き（水平線が水平）", () => {
   for (const v of CUBE_VIEWS) {
     const d = vec(v.direction);
     const up = vec(v.up);
@@ -71,8 +74,16 @@ it("上の向き: 単位ベクトルで視線と垂直。PZ・MZ は +Y、それ
     } else {
       // 傾きがない: 画面の右が水平（Z 成分が 0）で、上が +Z 側を向く
       expect(Math.abs(right.z)).toBeLessThan(1e-12);
-      expect(up.z).toBeGreaterThan(0);
+      const down = v.kind === "corner" && v.sign[2] < 0;
+      expect(up.z * (down ? -1 : 1)).toBeGreaterThan(0);
     }
+  }
+  // 角はどれも Y 字: 角から出る Z の辺（角から立方体の中心側へ向かう向き）が画面の真下へ伸びる
+  for (const v of CUBE_VIEWS.filter((c) => c.kind === "corner")) {
+    const q = lookQuaternion(v.direction, v.up).invert();
+    const edge = new Vector3(0, 0, -v.sign[2]).applyQuaternion(q);
+    expect(Math.abs(edge.x)).toBeLessThan(1e-12);
+    expect(edge.y).toBeLessThan(0);
   }
   // 側面の上は +Z そのもの
   expect(byName("PX").up).toEqual([0, 0, 1]);
@@ -85,7 +96,7 @@ it("符号の組から区画を引く（0 でない成分の符号だけを見�
   expect(viewBySign([0, 0, 0])).toBeUndefined();
 });
 
-it("押したときの姿勢: 注視点と距離はそのまま、位置 = 注視点 + 向き × 距離、注視点を見て、上は表のとおり", () => {
+it("押したときの姿勢: 注視点と距離はそのまま、位置 = 注視点 + 向き × 距離、注視点を見る", () => {
   const from: CameraPose = {
     target: new Vector3(1, -2, 0.5),
     quaternion: new Quaternion().setFromAxisAngle(new Vector3(1, 1, 0).normalize(), 2.5),
@@ -101,9 +112,126 @@ it("押したときの姿勢: 注視点と距離はそのまま、位置 = 注�
     // 視線（−Z）が注視点を向く
     const look = new Vector3(0, 0, -1).applyQuaternion(pose.quaternion);
     expect(look.distanceTo(from.target.clone().sub(pos).normalize())).toBeLessThan(1e-12);
-    const up = new Vector3(0, 1, 0).applyQuaternion(pose.quaternion);
-    expect(up.distanceTo(vec(v.up))).toBeLessThan(1e-12);
   }
+});
+
+it("押したときの上の向き: まっすぐに見える姿勢（面と辺は 4 つ、角は 3 つ）のうち今の姿勢にいちばん近いもの。面はどれも軸がまっすぐ", () => {
+  const starts = [
+    new Quaternion(),
+    new Quaternion().setFromAxisAngle(new Vector3(1, 1, 0).normalize(), 2.5),
+    new Quaternion().setFromAxisAngle(new Vector3(0.2, -1, 0.4).normalize(), 1.1),
+    new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), 3.0),
+  ];
+  for (const v of CUBE_VIEWS) {
+    const all = uprightQuaternions(v);
+    expect(all.length).toBe(v.kind === "corner" ? 3 : 4);
+    // 先頭は基準の向き（表の上の向き）
+    const baseUp = new Vector3(0, 1, 0).applyQuaternion(all[0] ?? new Quaternion());
+    expect(baseUp.distanceTo(vec(v.up))).toBeLessThan(1e-12);
+    for (const q of all) {
+      // どれも同じ向きから見る
+      const back = new Vector3(0, 0, 1).applyQuaternion(q);
+      expect(back.distanceTo(vec(v.direction))).toBeLessThan(1e-9);
+      if (v.kind === "face") {
+        // 面: 画面の上が機体の軸のどれか 1 本にそろう
+        const up = new Vector3(0, 1, 0).applyQuaternion(q);
+        expect(Math.max(Math.abs(up.x), Math.abs(up.y), Math.abs(up.z))).toBeCloseTo(1, 9);
+      }
+    }
+    for (const quaternion of starts) {
+      const from: CameraPose = { target: new Vector3(), quaternion, distance: 2 };
+      const pose = poseForView(v, from);
+      const turn = pose.quaternion.angleTo(quaternion);
+      expect(all.some((q) => q.angleTo(pose.quaternion) < 1e-6)).toBe(true);
+      for (const q of all) expect(turn).toBeLessThanOrEqual(q.angleTo(quaternion) + 1e-6);
+      // すでにまっすぐな向きにいれば動かない（`angleTo` は acos なので 0 の近くの分解能は 1e-8 程度）
+      expect(poseForView(v, pose).quaternion.angleTo(pose.quaternion)).toBeLessThan(1e-6);
+    }
+  }
+  // 基準の向きから押せば基準の向きのまま（PX は +Z が上）
+  const px = poseForView(byName("PX"), {
+    target: new Vector3(),
+    quaternion: lookQuaternion(byName("PX+PY").direction, byName("PX+PY").up),
+    distance: 2,
+  });
+  expect(
+    new Vector3(0, 1, 0).applyQuaternion(px.quaternion).distanceTo(new Vector3(0, 0, 1)),
+  ).toBeLessThan(1e-9);
+});
+
+it("角を押したときの姿勢: Y 字の 3 つの向きのうち今の姿勢にいちばん近いもの（どれも Y 字。表の上の向きより遠くはならない）", () => {
+  const starts = [
+    new Quaternion(),
+    new Quaternion().setFromAxisAngle(new Vector3(1, 1, 0).normalize(), 2.5),
+    new Quaternion().setFromAxisAngle(new Vector3(0.2, -1, 0.4).normalize(), 1.1),
+    new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), 3.0),
+  ];
+  for (const quaternion of starts) {
+    const from: CameraPose = { target: new Vector3(), quaternion, distance: 2 };
+    for (const v of CUBE_VIEWS.filter((c) => c.kind === "corner")) {
+      const pose = poseForView(v, from);
+      // Y 字: 角から出る 3 本の辺のうち 1 本が画面の真下へ伸びる
+      const inv = pose.quaternion.clone().invert();
+      const down = [0, 1, 2].filter((i) => {
+        const e = new Vector3().setComponent(i, -(v.sign[i] ?? 0)).applyQuaternion(inv);
+        return Math.abs(e.x) < 1e-9 && e.y < 0;
+      });
+      expect(down.length).toBe(1);
+      // 3 つの候補のどれよりも遠くない
+      const base = lookQuaternion(v.direction, v.up);
+      for (const k of [0, 1, -1]) {
+        const q = base
+          .clone()
+          .multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), (k * 2 * Math.PI) / 3));
+        expect(pose.quaternion.angleTo(from.quaternion)).toBeLessThanOrEqual(
+          q.angleTo(from.quaternion) + 1e-6,
+        );
+      }
+      // すでにその角の Y 字の向きにいれば動かない（`angleTo` は acos なので 0 の近くの分解能は 1e-8 程度）
+      expect(poseForView(v, pose).quaternion.angleTo(pose.quaternion)).toBeLessThan(1e-6);
+    }
+  }
+});
+
+it("視線まわりの回転: 注視点・距離・カメラの位置はそのまま、画面の上にあった向きが 90° で画面の右へ来る（時計回り）", () => {
+  const from = poseForView(byName("PX+PY+PZ"), {
+    target: new Vector3(1, -2, 0.5),
+    quaternion: new Quaternion(),
+    distance: 3.7,
+  });
+  const to = rollPose(from, Math.PI / 2);
+  expect(to.target.equals(from.target)).toBe(true);
+  expect(to.distance).toBe(3.7);
+  expect(positionOf(to).distanceTo(positionOf(from))).toBeLessThan(1e-12);
+  const wasUp = new Vector3(0, 1, 0).applyQuaternion(from.quaternion);
+  const right = new Vector3(1, 0, 0).applyQuaternion(to.quaternion);
+  expect(right.distanceTo(wasUp)).toBeLessThan(1e-12);
+  // 逆向きに回すと元に戻る
+  const back = rollPose(to, -Math.PI / 2);
+  expect(back.quaternion.angleTo(from.quaternion)).toBeLessThan(1e-12);
+});
+
+it("視線まわりに回す刻み: 角から見ているときは 120°（3 回で元に戻り、毎回 Y 字のまま）、面・辺・自由な向きは 90°", () => {
+  const start: CameraPose = { target: new Vector3(), quaternion: new Quaternion(), distance: 1 };
+  for (const v of CUBE_VIEWS) {
+    const pose = poseForView(v, start);
+    const step = rollStep(pose.quaternion);
+    expect(step).toBeCloseTo(v.kind === "corner" ? (2 * Math.PI) / 3 : Math.PI / 2, 12);
+    if (v.kind !== "corner") continue;
+    // 120° 回すと、角から出る別の軸の辺が画面の真下へ来る（Y 字のまま）
+    const turned = rollPose(pose, step);
+    const inv = turned.quaternion.clone().invert();
+    const edges = [0, 1, 2].map((i) => {
+      const e = new Vector3();
+      e.setComponent(i, -(v.sign[i] ?? 0));
+      return e.applyQuaternion(inv);
+    });
+    const down = edges.filter((e) => Math.abs(e.x) < 1e-9 && e.y < 0);
+    expect(down.length).toBe(1);
+    expect(rollStep(turned.quaternion)).toBeCloseTo(step, 12);
+  }
+  const free = new Quaternion().setFromAxisAngle(new Vector3(1, 2, 0.3).normalize(), 0.7);
+  expect(rollStep(free)).toBeCloseTo(Math.PI / 2, 12);
 });
 
 it("補間: 端はそのまま、途中は注視点のまわりの弧（距離一定）を通る。反対側へ回っても注視点を通り抜けない", () => {
