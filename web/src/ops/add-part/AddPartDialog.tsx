@@ -137,7 +137,7 @@ export function AddPartDialog({
           options={groups}
         />
       </Field>
-      <div className="grid gap-1.5">
+      <div className="grid min-w-0 grid-cols-1 gap-1.5">
         <Segmented
           label={ta.definition}
           value={by}

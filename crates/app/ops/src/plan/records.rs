@@ -1,5 +1,6 @@
 //! 解析ケース・出典・ハーネス・マヌーバの Op の解釈（ID の検査 → store の書き込み）。
 
+use super::referrers::refuse_if_referenced;
 use super::subdir::{move_file, placed_file};
 use crate::error::OpError;
 use crate::op::Op;
@@ -18,7 +19,7 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
             Ok(write_record(edits, &layout::case_file(id), case)?)
         }
         Op::RemoveCase { id } => {
-            refuse_if_case_referenced(design, id)?;
+            refuse_if_referenced("Analysis case", id, &design.references(Referent::Case(id)))?;
             remove(
                 edits,
                 design.cases.contains_key(id.as_str()),
@@ -29,6 +30,7 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
         }
         Op::SetSource { source, dir } => set_source(edits, design, source, dir.as_deref()),
         Op::RemoveSource { id } => writable_source(design, id).and_then(|()| {
+            refuse_if_referenced("Source", id, &design.references(Referent::Source(id)))?;
             remove(
                 edits,
                 design.sources.contains_key(id.as_str()),
@@ -61,38 +63,6 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
         Op::RemoveManeuver { id } => remove_maneuver(edits, design, id),
         _ => Err(OpError::invalid("This op is not handled here")),
     }
-}
-
-/// 解析ケースを指しているもの（既定のケース・要求の `quantify.cases`）があれば、それを挙げて消すのを拒む。
-/// 参照元の索引は model の `Design::references`。
-fn refuse_if_case_referenced(design: &Design, id: &str) -> Result<(), OpError> {
-    if !design.cases.contains_key(id) {
-        return Ok(());
-    }
-    let mut parts = Vec::new();
-    let mut requirements = Vec::new();
-    for site in design.references(Referent::Case(id)) {
-        match site {
-            RefSite::CommonDefaultCase => parts.push(
-                "it is the default case (`default_case` in analysis/common.toml)".to_string(),
-            ),
-            RefSite::RequirementCase { requirement } => requirements.push(requirement),
-            _ => {}
-        }
-    }
-    if !requirements.is_empty() {
-        parts.push(format!(
-            "`quantify.cases` of requirement(s) {} refers to it",
-            requirements.join(", ")
-        ));
-    }
-    if parts.is_empty() {
-        return Ok(());
-    }
-    Err(OpError::invalid(format!(
-        "Analysis case `{id}` cannot be removed: {}. Change those first",
-        parts.join("; ")
-    )))
 }
 
 /// 共有カタログの出典（`<カタログ名>/<ID>`）は読み取り専用（共有カタログのリポジトリで直す）。
@@ -165,6 +135,13 @@ fn remove_maneuver(edits: &mut Edits, design: &Design, id: &str) -> Result<(), O
     let Some(gone) = design.maneuvers.get(id) else {
         return Err(OpError::not_found(format!("Maneuver `{id}`")));
     };
+    // 前のマヌーバ（`after`）は下でつなぎ直す。つなぎ直せない参照（設計とフェーズの軌道の `maneuver`）があれば消さない
+    let sites: Vec<RefSite> = design
+        .references(Referent::Maneuver(id))
+        .into_iter()
+        .filter(|s| !matches!(s, RefSite::ManeuverAfter { .. }))
+        .collect();
+    refuse_if_referenced("Maneuver", id, &sites)?;
     edits.remove(&layout::maneuver_file(id))?;
     for m in design
         .maneuvers

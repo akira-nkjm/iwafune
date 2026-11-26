@@ -1,10 +1,11 @@
+import { plural, verb } from "../plural";
 import type { overviewJa } from "./ja";
 
 export const overviewEn: typeof overviewJa = {
   overview: {
     title: "Overview",
     subtitle: (name: string, parts: number, modes: number, nets: number, cases: number) =>
-      `${name} · ${parts} parts · ${modes} modes · ${nets} nets · ${cases} cases`,
+      `${name} · ${plural(parts, "part")} · ${plural(modes, "mode")} · ${plural(nets, "net")} · ${plural(cases, "case")}`,
     massMargin: "Mass margin",
     massTotal: (v: string) => `Total ${v}`,
     massDryWet: (dry: string, wet: string) => `Dry ${dry} · wet ${wet}`,
@@ -13,9 +14,10 @@ export const overviewEn: typeof overviewJa = {
     consumption: (v: string) => `Load ${v}`,
     generationLimit: (v: string) => `Expected generation ${v}`,
     allInRange: "All within range",
-    nodesToCheck: (n: number) => `${n} nodes need attention`,
+    nodesToCheck: (n: number) => `${plural(n, "node")} ${verb(n, "needs", "need")} attention`,
     diagnostics: "Diagnostics",
-    diagCounts: (e: number, w: number, i: number) => `${e} errors · ${w} warnings · ${i} info`,
+    diagCounts: (e: number, w: number, i: number) =>
+      `${plural(e, "error")} · ${plural(w, "warning")} · ${i} info`,
     seeAll: "See all",
     noProblems: "No problems",
     budgetError: (kind: string, msg: string) => `Cannot load the ${kind} budget: ${msg}`,

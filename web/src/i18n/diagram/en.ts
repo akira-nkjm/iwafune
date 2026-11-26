@@ -1,3 +1,4 @@
+import { plural } from "../plural";
 import type { diagramJa } from "./ja";
 
 export const diagramEn: typeof diagramJa = {
@@ -5,13 +6,9 @@ export const diagramEn: typeof diagramJa = {
     eyebrow: "Design",
     title: "System diagram",
     subtitle: (cards: number, containers: number, edges: number) =>
-      `${cards} cards · ${containers} groups · ${edges} lines`,
+      `${plural(cards, "card")} · ${plural(containers, "group")} · ${plural(edges, "line")}`,
     reattach: "Drag the end to any point on the card edge",
     editRoute: "Edit line route",
-    undo: "Undo",
-    redo: "Redo",
-    undoTitle: "Undo the last edit (⌘Z / Ctrl+Z)",
-    redoTitle: "Redo the edit you undid (⇧⌘Z / Ctrl+Y)",
     cannotLayOut: (msg: string) => `Cannot lay out the system diagram: ${msg}`,
     resetLayout: "Reset positions and wires",
     resetLayoutTitle:
@@ -94,7 +91,8 @@ export const diagramEn: typeof diagramJa = {
       detach: "Disconnect",
       detachSummary: (port: string, net: string) => `Disconnect ${port} from ${net}`,
       removeTitle: (id: string) => `Delete net ${id}`,
-      removeDescription: (file: string, n: number) => `Deletes ${file} and disconnects ${n} ports.`,
+      removeDescription: (file: string, n: number) =>
+        `Deletes ${file} and disconnects ${plural(n, "port")}.`,
       removeSummary: (id: string) => `Delete net ${id}`,
       removeConfirm: "Delete",
     },

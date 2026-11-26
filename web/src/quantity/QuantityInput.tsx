@@ -9,7 +9,8 @@ import { useParseQuantity } from "./use-parse";
 
 /**
  * 単位付きの量の入力欄。打鍵ごとに /units/parse で解析し、SI での値（`= 0.018 N*m*s`）か次元のエラーを
- * 入力欄の下に出す。Enter で確定し、文字列のまま onCommit に渡す（Escape は onCancel）。
+ * 入力欄の下に出す。`onCommit` があれば Enter で確定し、文字列のまま渡す（Escape は onCancel）。`onCommit` が無い（ダイアログの `<form>` の中）
+ * ときは Enter を止めず、フォームの送信に任せる。
  * 次元が合わないとき・解析できないときは確定させない。
  */
 export function QuantityInput({
@@ -72,7 +73,9 @@ export function QuantityInput({
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter") {
+          // onCommit が無いとき（ダイアログの `<form>` の中）は Enter を止めず、フォームの送信に任せる
+          // （確定ボタンが無効なら、ブラウザは送信しない）
+          if (e.key === "Enter" && onCommit) {
             e.preventDefault();
             commit();
           } else if (e.key === "Escape") {

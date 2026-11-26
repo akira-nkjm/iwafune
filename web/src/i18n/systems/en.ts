@@ -1,3 +1,4 @@
+import { plural, verb } from "../plural";
 import type { systemsJa } from "./ja";
 
 export const systemsEn: typeof systemsJa = {
@@ -98,7 +99,9 @@ export const systemsEn: typeof systemsJa = {
     },
     kpiTally: (checked: number, flagged: number, acknowledged = 0) => {
       const main =
-        flagged === 0 ? `All OK (${checked})` : `${flagged} of ${checked} need attention`;
+        flagged === 0
+          ? `All OK (${checked})`
+          : `${flagged} of ${checked} ${verb(flagged, "needs", "need")} attention`;
       return acknowledged === 0 ? main : `${main}, ${acknowledged} acknowledged`;
     },
     findings: {
@@ -216,9 +219,10 @@ export const systemsEn: typeof systemsJa = {
       source: "Source",
       contact: (area: string, mounts: number, fixed: number) =>
         fixed > 0
-          ? `Contact area ${area} (${mounts} mounts; ${fixed} use the fixed value)`
-          : `Contact area ${area} (${mounts} mounts)`,
-      viewFactor: (area: string, pairs: number) => `Visible area ${area} (${pairs} face pairs)`,
+          ? `Contact area ${area} (${plural(mounts, "mount")}; ${fixed} ${verb(fixed, "uses", "use")} the fixed value)`
+          : `Contact area ${area} (${plural(mounts, "mount")})`,
+      viewFactor: (area: string, pairs: number) =>
+        `Visible area ${area} (${plural(pairs, "face pair")})`,
       withdraw: "Withdraw",
       withdrawHint: "Withdraw the written value and fall back to the default source",
       undo: "Undo this change",
@@ -257,9 +261,9 @@ export const systemsEn: typeof systemsJa = {
       effectWorking: "Computing temperatures…",
       effectMin: "Min",
       effectMax: "Max",
-      effectMore: (n: number) => `${n} more nodes`,
+      effectMore: (n: number) => `${plural(n, "more node")}`,
       draftNote: "The tables and the temperature effect include this draft (not saved yet).",
-      changed: (n: number) => `${n} changes`,
+      changed: (n: number) => plural(n, "change"),
       saveSummary: (n: number) => `Save thermal couplings and surfaces (${n})`,
     },
     thermalImage: {
@@ -337,7 +341,7 @@ export const systemsEn: typeof systemsJa = {
         wireframe: "Wireframe",
       },
       pageHint: "Select parts to inspect and edit their mounts, positions and orientations.",
-      parts: (n: number) => `${n} parts`,
+      parts: (n: number) => plural(n, "part"),
       unplacedCount: (n: number) => ` · ${n} unplaced`,
       com: " · checkered ball = center of mass",
       operation: "Operation",

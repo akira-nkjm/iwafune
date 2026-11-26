@@ -1,10 +1,12 @@
+import { plural } from "../plural";
 import type { projectJa } from "./ja";
 
 export const projectEn: typeof projectJa = {
   project: {
     eyebrow: "Project",
     diagnostics: "Diagnostics",
-    diagSubtitle: (e: number, w: number, i: number) => `${e} errors · ${w} warnings · ${i} info`,
+    diagSubtitle: (e: number, w: number, i: number) =>
+      `${plural(e, "error")} · ${plural(w, "warning")} · ${i} info`,
     filterBySeverity: "Filter by severity",
     cannotLoadDiagnostics: (msg: string) => `Cannot load diagnostics: ${msg}`,
     noDiagnostics: "No matching diagnostics",

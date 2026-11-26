@@ -1,5 +1,5 @@
 import { Plus, RefreshCw, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useFetchCatalogs, useUpdateCatalog } from "@/api/catalog";
 import { useEnumLabel } from "@/api/labels";
 import type { CatalogSourceView, SharedCatalogState, SharedCatalogStatus } from "@/api/types";
@@ -52,6 +52,8 @@ export function SharedCatalogsDialog({
   const [adding, setAdding] = useState(false);
   /** 外す確認を開いている共有カタログの名前 */
   const [removing, setRemoving] = useState<string | null>(null);
+  /** 足す・外すを開いたボタンの印（`data-opener`）。一覧に戻ったとき、フォーカスをそこへ戻す */
+  const childOpener = useRef<string | null>(null);
   const shared = sharedOf(catalogs);
   const needed = neededCount(catalogs) > 0;
   return (
@@ -68,7 +70,21 @@ export function SharedCatalogsDialog({
           onOpenChange(next);
         }}
       >
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent
+          className="sm:max-w-2xl"
+          onOpenAutoFocus={(event) => {
+            const key = childOpener.current;
+            childOpener.current = null;
+            const target =
+              key === null
+                ? null
+                : document.querySelector<HTMLElement>(`[data-opener="${CSS.escape(key)}"]`);
+            if (target) {
+              event.preventDefault();
+              target.focus();
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>{m.title}</DialogTitle>
             <DialogDescription>
@@ -113,7 +129,11 @@ export function SharedCatalogsDialog({
                     size="icon-xs"
                     aria-label={m.remove(s.name)}
                     title={m.remove(s.name)}
-                    onClick={() => setRemoving(s.name)}
+                    data-opener={`remove:${s.name}`}
+                    onClick={() => {
+                      childOpener.current = `remove:${s.name}`;
+                      setRemoving(s.name);
+                    }}
                   >
                     <Trash2 />
                   </Button>
@@ -130,7 +150,15 @@ export function SharedCatalogsDialog({
             <CatalogUpdateResult name={update.variables.name} result={update.data} />
           )}
           <div className="flex items-center gap-1.5">
-            <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              data-opener="add"
+              onClick={() => {
+                childOpener.current = "add";
+                setAdding(true);
+              }}
+            >
               <Plus />
               {m.add}
             </Button>
@@ -161,7 +189,7 @@ export function SharedCatalogsDialog({
           description={m.removeDesc}
           ops={[{ op: "remove_catalog_source", name: removing }]}
           summary={m.summaryRemove(removing)}
-          confirmLabel={t.common.remove}
+          confirmLabel={m.removeConfirm}
           destructive
         />
       )}

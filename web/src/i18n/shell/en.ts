@@ -1,3 +1,4 @@
+import { plural } from "../plural";
 import type { shellJa } from "./ja";
 
 export const shellEn: typeof shellJa = {
@@ -40,9 +41,10 @@ export const shellEn: typeof shellJa = {
     groupParts: "Parts",
     groupNets: "Nets",
     groupModes: "Modes",
-    diagTitle: (errors: number, warnings: number) => `${errors} errors · ${warnings} warnings`,
+    diagTitle: (errors: number, warnings: number) =>
+      `${plural(errors, "error")} · ${plural(warnings, "warning")}`,
     diagLabel: (errors: number, warnings: number) =>
-      `Diagnostics: ${errors} errors, ${warnings} warnings`,
+      `Diagnostics: ${plural(errors, "error")}, ${plural(warnings, "warning")}`,
     errors: (n: number) => `Errors ${n}`,
     warnings: (n: number) => `Warnings ${n}`,
     offline: "Cannot reach the server",
@@ -71,7 +73,7 @@ export const shellEn: typeof shellJa = {
   },
   ops: {
     changed: (files: string) => `Changed: ${files}`,
-    warnings: (n: number) => `${n} warnings`,
+    warnings: (n: number) => plural(n, "warning"),
     conflict: "The design changed elsewhere",
     conflictDetail: "Reloaded the latest design. Please try again.",
     failed: (summary: string) => `${summary}: failed`,

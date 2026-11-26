@@ -1,12 +1,13 @@
-import { LayoutGrid, Redo2, RotateCcw, Undo2 } from "lucide-react";
+import { LayoutGrid, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
-import { onBeforeHistoryStep, useHistoryStep, useHistoryView } from "@/api/history";
+import { onBeforeHistoryStep } from "@/api/history";
 import { useDesign } from "@/api/queries";
 import { useT } from "@/i18n";
 import { SkeletonCanvas } from "@/kit/feedback/Loading";
 import { QueryState } from "@/kit/feedback/QueryState";
 import { Refreshable } from "@/kit/feedback/Refreshable";
+import { UndoRedoButtons } from "@/kit/UndoRedoButtons";
 import { afterPaint } from "@/lib/after-paint";
 import { diagramHiddenSystems, withDiagramHiddenSystems } from "@/lib/nav";
 import { CanvasFrame } from "@/shell/CanvasFrame";
@@ -37,8 +38,6 @@ export function DiagramPage() {
   const [layers, setLayers] = useState<ReadonlySet<Layer>>(new Set<Layer>(["power", "signal"]));
   const [merge, setMerge] = useState(true);
   const { editRoute } = useViewEdits();
-  const history = useHistoryView();
-  const step = useHistoryStep();
   const [inspectorOpen, setInspectorOpen] = useState(() => {
     try {
       return localStorage.getItem("iwafune.diagram.inspector") !== "hidden";
@@ -130,26 +129,7 @@ export function DiagramPage() {
                   merge={merge}
                   onMerge={(next) => later(() => setMerge(next))}
                 />
-                <Button
-                  size="icon-sm"
-                  variant="outline"
-                  title={td.undoTitle}
-                  aria-label={td.undo}
-                  disabled={!history?.can_undo || step.isPending}
-                  onClick={() => step.mutate("undo")}
-                >
-                  <Undo2 size={13} />
-                </Button>
-                <Button
-                  size="icon-sm"
-                  variant="outline"
-                  title={td.redoTitle}
-                  aria-label={td.redo}
-                  disabled={!history?.can_redo || step.isPending}
-                  onClick={() => step.mutate("redo")}
-                >
-                  <Redo2 size={13} />
-                </Button>
+                <UndoRedoButtons />
                 <Button
                   size="sm"
                   variant="outline"

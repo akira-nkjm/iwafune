@@ -422,12 +422,12 @@ fn rename_maneuver_rewrites_the_orbit_maneuver_of_the_design_and_of_a_phase() {
         }],
     );
     match removed {
-        Err(OpError::Rejected { diagnostics }) => {
+        Err(OpError::Invalid { message }) => {
             assert!(
-                diagnostics.iter().any(|d| d.code == "ref.maneuver"),
-                "{diagnostics:?}"
+                message.starts_with("Maneuver `MV_MARS` cannot be removed: referred to by "),
+                "{message}"
             );
         }
-        other => panic!("expected a rejection, got {other:?}"),
+        other => panic!("expected a refusal, got {other:?}"),
     }
 }
