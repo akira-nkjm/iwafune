@@ -7,12 +7,9 @@ import { Empty } from "@/kit/feedback/Empty";
 import { SkeletonPanel } from "@/kit/feedback/Loading";
 import { QueryState } from "@/kit/feedback/QueryState";
 import { Panel } from "@/kit/panel/Panel";
-import { ChipLink } from "@/kit/selection/Chip";
 import { DataTable } from "@/kit/table/DataTable";
 import { Td } from "@/kit/table/Td";
 import { Th } from "@/kit/table/Th";
-import { systemTitle } from "@/lib/design";
-import { paths } from "@/lib/nav";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 import { Button } from "@/ui/button";
@@ -21,6 +18,7 @@ import { CaseActions } from "./CaseActions";
 import { CaseEpochDialog } from "./CaseEpochDialog";
 import { CasePhaseDialog } from "./CasePhaseDialog";
 import { CasesFromGeometryButton } from "./CasesFromGeometryDialog";
+import { OpenWithMenu } from "./OpenWithMenu";
 
 /** 前提条件 / 解析ケース: cases/ の一覧。各系のページをそのケースで開ける */
 export function CasesPage() {
@@ -48,7 +46,7 @@ export function CasesPage() {
   );
 }
 
-/** ケースの表。最後の列は、そのケースで開く系のページへのリンク */
+/** ケースの表。最後の列は、行の操作と、そのケースで開く系のページへのメニュー */
 function CasesTable({ design: d }: { design: DesignView }) {
   const m = useT().conditions;
   const [editing, setEditing] = useState<CaseView | null>(null);
@@ -65,7 +63,6 @@ function CasesTable({ design: d }: { design: DesignView }) {
             <Th>{m.phase}</Th>
             <Th>{m.epoch}</Th>
             <Th>{m.file}</Th>
-            <Th>{m.openWith}</Th>
             <Th>{m.caseActions.actions}</Th>
           </>
         }
@@ -106,16 +103,10 @@ function CasesTable({ design: d }: { design: DesignView }) {
               {c.file}
             </Td>
             <Td>
-              <span className="flex flex-wrap gap-1">
-                {d.defs.systems.map((s) => (
-                  <ChipLink key={s} to={paths.system(s, { kase: c.id })} mono={false}>
-                    {systemTitle(s, d.defs)}
-                  </ChipLink>
-                ))}
-              </span>
-            </Td>
-            <Td>
-              <CaseActions kase={c} />
+              <div className="flex items-center gap-1.5">
+                <CaseActions kase={c} />
+                <OpenWithMenu kase={c} defs={d.defs} />
+              </div>
             </Td>
           </tr>
         ))}

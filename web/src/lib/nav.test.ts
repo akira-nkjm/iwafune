@@ -11,9 +11,11 @@ import {
   nav,
   navItemTitle,
   paths,
+  resolveCaseParam,
   SEARCH,
   withDiagramHiddenSystems,
   withLayoutConfiguration,
+  withoutCase,
 } from "./nav";
 
 /** routes.ts のルートの形（`design/components/:id?`）→ 道筋に合うかの正規表現 */
@@ -211,4 +213,28 @@ it("配置の形態は URL を往復し、基準へ戻してもほかの検索�
   const selected = withLayoutConfiguration(params, id);
   expect(selected.get(SEARCH.configuration)).toBe(id);
   expect(withLayoutConfiguration(selected, null)).toEqual(params);
+});
+
+describe("解析ケースの指定", () => {
+  const cases = [{ id: "hot" }, { id: "cold" }];
+
+  it("設計にあるケースはそのまま使う", () => {
+    expect(resolveCaseParam("hot", cases)).toEqual({ kase: "hot", stale: null });
+  });
+
+  it("設計に無いケースは既定の選択に戻し、名指されていた ID を返す", () => {
+    expect(resolveCaseParam("gone", cases)).toEqual({ kase: null, stale: "gone" });
+    expect(resolveCaseParam("gone", [])).toEqual({ kase: null, stale: "gone" });
+  });
+
+  it("指定が無いとき、設計を読むまでは何も変えない", () => {
+    expect(resolveCaseParam(null, cases)).toEqual({ kase: null, stale: null });
+    expect(resolveCaseParam("gone", undefined)).toEqual({ kase: "gone", stale: null });
+  });
+
+  it("ケースの指定だけを外し、ほかの検索部分を残す", () => {
+    const params = new URLSearchParams("case=gone&maneuver=M1");
+    expect(withoutCase(params).toString()).toBe("maneuver=M1");
+    expect(params.get("case")).toBe("gone");
+  });
 });

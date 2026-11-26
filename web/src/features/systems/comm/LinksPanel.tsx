@@ -1,4 +1,5 @@
 import { Pencil, Trash2 } from "lucide-react";
+import { useEnumLabel } from "@/api/labels";
 import type { DesignView, LinkView } from "@/api/types";
 import { useT } from "@/i18n";
 import { DetailAction } from "@/kit/detail/DetailPane";
@@ -43,11 +44,12 @@ export function LinksPanel({ design }: { design: DesignView }) {
 /** 回線 1 本の行と、その編集・削除のダイアログ */
 function LinkRow({ link, design }: { link: LinkView; design: DesignView }) {
   const tl = useT().conditions.links;
+  const label = useEnumLabel();
   const dialogs = useDialogs<"edit" | "remove">();
   return (
     <tr>
       <Td mono>{link.id}</Td>
-      <Td mono>{link.direction}</Td>
+      <Td>{label("link_direction", link.direction)}</Td>
       <Td mono>{link.part}</Td>
       <Td mono>{link.band}</Td>
       <Td>

@@ -34,7 +34,7 @@ fn link_field_edits_match_cli() {
 }
 
 /// 参照されていないケースは消せる。参照されている（要求の `quantify.cases`）ケースは、
-/// CLI も HTTP も `ref.case` で拒み、ファイルは変わらない。
+/// CLI も HTTP も 参照元を挙げて拒み、ファイルは変わらない。
 #[test]
 fn case_removal_matches_cli_and_refuses_referenced_cases() {
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -59,7 +59,11 @@ fn case_removal_matches_cli_and_refuses_referenced_cases() {
         .output()
         .unwrap();
     assert!(!out.status.success());
-    assert!(String::from_utf8_lossy(&out.stderr).contains("ref.case"));
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("default case") && stderr.contains("R_STORAGE"),
+        "{stderr}"
+    );
     let ws = fune_service::Workspace::open(&http_root).unwrap();
     let router = fune_server::router(std::sync::Arc::new(ws));
     let body = json!({ "ops": [{ "op": "remove_case", "id": "hot_imaging" }] }).to_string();

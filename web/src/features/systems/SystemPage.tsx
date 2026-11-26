@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router";
 import { useAnalyses, useDesign, useSystemAnalyses } from "@/api/queries";
 import type { AnalysisEntry, System } from "@/api/types";
@@ -8,7 +8,7 @@ import { SkeletonPage, SkeletonPanel } from "@/kit/feedback/Loading";
 import { QueryState } from "@/kit/feedback/QueryState";
 import { PageTabs } from "@/kit/selection/PageTabs";
 import { systemTitle } from "@/lib/design";
-import { paths, SEARCH } from "@/lib/nav";
+import { paths, resolveCaseParam, SEARCH, withoutCase } from "@/lib/nav";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 import { resolveTab, systemExtras, systemRegistration, systemTabs } from "./dedicated";
@@ -65,7 +65,15 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
   const t = useT();
   const { tab: rawTab } = useParams();
   const [params, setParams] = useSearchParams();
-  const kase = params.get(SEARCH.case);
+  const requested = params.get(SEARCH.case);
+  // URL が名指すケースが設計に無ければ、既定の選択に戻して URL から外し（履歴は置き換える）、その旨を出す
+  const { kase, stale } = resolveCaseParam(requested, design.data?.cases);
+  const [gone, setGone] = useState<{ system: System; id: string } | null>(null);
+  useEffect(() => {
+    if (stale === null) return;
+    setGone({ system, id: stale });
+    setParams(withoutCase(params), { replace: true });
+  }, [stale, system, params, setParams]);
   const catalog = useSystemAnalyses(system);
   const states = useAnalyses(catalog.ids, kase);
   const entries = useMemo(
@@ -100,7 +108,10 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
               defaultCaseId={
                 states.find((s) => s.result?.case_source === "default")?.result?.case ?? null
               }
-              onCase={(c) => setParams(c ? { [SEARCH.case]: c } : {})}
+              onCase={(c) => {
+                setGone(null);
+                setParams(c ? { [SEARCH.case]: c } : {});
+              }}
               ids={catalog.ids}
             />
           </>
@@ -112,6 +123,11 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
           label: t.systems.tabs[k],
         }))}
       />
+      {gone?.system === system && (
+        <p role="status" className="px-6 pt-3 text-ink-2 text-sm">
+          {t.systems.staleCase(gone.id)}
+        </p>
+      )}
       {/* 部品 × モードの表は、本文の高さいっぱいを使い、表の中でスクロールする（見出しと合計の行を止めたままにする） */}
       <PageBody
         className={

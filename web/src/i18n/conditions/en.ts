@@ -108,6 +108,7 @@ export const conditionsEn: typeof conditionsJa = {
       removeConfirm: "Remove",
     },
     openWith: "Open with this case",
+    openWithCase: (id: string) => `Open a subsystem page with case ${id}`,
     caseActions: {
       rename: (id: string) => `Rename case ${id}`,
       renameTitle: (id: string) => `Rename case ${id}`,

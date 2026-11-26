@@ -55,6 +55,8 @@ export const systemsEn: typeof systemsJa = {
     eyebrow: "Subsystem analysis",
     unknown: (s: string) => `Unknown system: ${s}`,
     defaultDerivedCase: (name: string) => `Default for analyses requiring a condition: ${name}`,
+    staleCase: (id: string) =>
+      `Analysis case ${id} no longer exists; showing the default selection.`,
     caseLabel: "Analysis case",
     defaultCase: "Automatic (default where needed)",
     recompute: "Recompute",

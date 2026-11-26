@@ -55,6 +55,7 @@ export const systemsJa = {
     eyebrow: "系の解析",
     unknown: (s: string) => `知らない系です: ${s}`,
     defaultDerivedCase: (name: string) => `条件選択が必要な解析の既定: ${name}`,
+    staleCase: (id: string) => `解析ケース ${id} はもうありません。既定の選択で表示しています。`,
     caseLabel: "解析ケース",
     defaultCase: "自動（必要な解析だけ既定）",
     recompute: "再計算",
