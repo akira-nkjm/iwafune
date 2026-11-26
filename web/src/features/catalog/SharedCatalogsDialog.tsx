@@ -57,7 +57,8 @@ export function SharedCatalogsDialog({
   return (
     <>
       <Dialog
-        open={open}
+        // 足す・外すのダイアログを開いている間は一覧を畳む（2 枚重ねにしない）。閉じたら一覧に戻る
+        open={open && !adding && removing === null}
         onOpenChange={(next) => {
           // 閉じたら更新の結果とエラーを消す
           if (!next) {
