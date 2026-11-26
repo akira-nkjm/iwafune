@@ -73,7 +73,9 @@ function CasesTable({ design: d }: { design: DesignView }) {
               <span title={c.file}>{c.id}</span>
             </Td>
             <Td>{c.label}</Td>
-            <Td className="min-w-[14rem] max-w-[22rem] whitespace-normal text-ink-2">{c.description ?? "—"}</Td>
+            <Td className="min-w-[14rem] max-w-[22rem] whitespace-normal text-ink-2">
+              {c.description ?? "—"}
+            </Td>
             <Td mono>{c.modes.join(" → ")}</Td>
             <Td mono>
               <span className="flex items-center gap-1">
