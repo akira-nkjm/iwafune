@@ -214,7 +214,7 @@ function Layout3DFrame({
   const [hidden, setHidden] = useState<ReadonlySet<string>>(NONE_HIDDEN);
   const [helpers, setHelpers] = useState<SceneHelpers>(initialHelpers);
   const [focus, setFocus] = useState<FocusRequest | undefined>(undefined);
-  const { home, zoom, zoomBy, goHome } = useViewRequests();
+  const { home, zoom, zoomBy, roll, rollBy, goHome } = useViewRequests();
   const [showFindings, setShowFindings] = useState(false);
   const findingList = useMemo(() => (findings ?? []).flatMap(geometryFindings), [findings]);
   // 所見の表示が入っている間は、所見に関わる部品を状態の色で塗り、ほかの部品は灰色にする（状態は API の `part_findings`）
@@ -341,11 +341,14 @@ function Layout3DFrame({
               focus={focus ?? null}
               home={home}
               zoom={zoom}
+              roll={roll}
               fovs={fovs}
               sun={helpers.sun ? (sun ?? null) : null}
             />
           )}
-          {boxes.length > 0 && <ViewControls3D onZoom={zoomBy} onHome={goHome} />}
+          {boxes.length > 0 && (
+            <ViewControls3D onZoom={zoomBy} onRoll={rollBy} onHome={goHome} cube={helpers.gizmo} />
+          )}
           {overlay && (
             <div className="pointer-events-none absolute bottom-3 left-3 max-w-[calc(100%-1.5rem)] rounded-control bg-panel/90 px-2 py-1">
               {overlay}

@@ -3,14 +3,14 @@ import { Canvas } from "@react-three/fiber";
 import { type ComponentProps, type ReactNode, useCallback, useReducer, useState } from "react";
 import { useT } from "@/i18n";
 import { useHex } from "@/lib/theme";
-import { CameraMover, type ViewRequest } from "./CameraMover";
+import { CameraMover, type RollRequest, type ViewRequest } from "./CameraMover";
 import { FreeOrbit } from "./FreeOrbit";
 import type { FocusRequest, V3 } from "./types";
 import { ViewCube } from "./ViewCube";
 import { ViewInput3D, type ZoomRequest } from "./ViewInput3D";
 import type { CubeView } from "./view-cube";
 
-/** 視点の操作ボタン（拡大・縮小・ホームポジション）の依頼。`ViewControls3D` に渡し、`SceneShell` が読む */
+/** 視点の操作ボタン（拡大・縮小・視線まわりの回転・ホームポジション）の依頼。`ViewControls3D` に渡し、`SceneShell` が読む */
 export function useViewRequests() {
   const [home, setHome] = useState(0);
   // ボタンの拡大・縮小の依頼（押すたびに n が増える）
@@ -18,8 +18,13 @@ export function useViewRequests() {
     (old: ZoomRequest | null, factor: number) => ({ n: (old?.n ?? 0) + 1, factor }),
     null,
   );
+  // ボタンの視線まわりの回転の依頼（押すたびに n が増える）
+  const [roll, rollBy] = useReducer(
+    (old: RollRequest | null, turn: 1 | -1) => ({ n: (old?.n ?? 0) + 1, turn }),
+    null,
+  );
   const goHome = useCallback(() => setHome((n) => n + 1), []);
-  return { home, zoom, zoomBy, goHome };
+  return { home, zoom, zoomBy, roll, rollBy, goHome };
 }
 
 /** 場面の置き方（カメラの初めの位置と、描く範囲の手前・奥の限界。場面の大きさから呼び出し側が決める） */
@@ -39,6 +44,7 @@ export function SceneShell({
   camera,
   home = 0,
   zoom = null,
+  roll = null,
   focus = null,
   gizmo = true,
   onPointerDown,
@@ -52,6 +58,8 @@ export function SceneShell({
   home?: number;
   /** ボタンからの拡大・縮小の依頼 */
   zoom?: ZoomRequest | null;
+  /** ボタンからの、視線まわりに画面を回す依頼 */
+  roll?: RollRequest | null;
   /** 視点を寄せる部品（描いていなければ何もしない） */
   focus?: FocusRequest | null;
   /** 画面隅のビューキューブを出すか */
@@ -89,7 +97,7 @@ export function SceneShell({
       <directionalLight position={[2, -3, 4]} intensity={1.2} />
       {behind}
       <Bounds fit clip margin={1.3}>
-        <CameraMover home={home} position={camera.position} focus={focus} view={view} />
+        <CameraMover home={home} position={camera.position} focus={focus} view={view} roll={roll} />
         {children}
       </Bounds>
       {outside}

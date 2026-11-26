@@ -6,7 +6,8 @@ import type { V3 } from "./types";
  *
  * 向き `direction` は「注視点からカメラへ向かう」単位ベクトル（面 = その軸、辺 = 2 つの面の法線の和、角 = 3 つの面の法線の和を正規化）。
  * 上の向き `up` の約束（押したあとは傾きのない、まっすぐな画面になる）:
- * - 側面（PX・MX・PY・MY）とその辺（Z を含まない辺）、および Z を含む辺・角は、+Z を視線に垂直な面へ射影した向きを上にする（水平線が水平になる）
+ * - 側面（PX・MX・PY・MY）とその辺（Z を含まない辺）、および Z を含む辺・PZ 側の角は、+Z を視線に垂直な面へ射影した向きを上にする（水平線が水平になる）
+ * - MZ 側の角は −Z を射影した向きを上にする。どの角を押しても、角から出る 3 本の辺が Y 字（Z の辺が画面の下へ伸び、角の Z の面が上）に見える
  * - PZ（真上から見下ろす）と MZ（真下から見上げる）は +Z が視線と平行で射影できないので、どちらも +Y を上にする
  *   （PZ の面から PY 側の辺へ傾けた向きと、MZ の面から MY 側の辺へ傾けた向きに連続する）
  */
@@ -42,10 +43,12 @@ function unit(v: Vector3): V3 {
   return [v.x, v.y, v.z];
 }
 
-/** +Z を視線に垂直な面へ射影した単位ベクトル。視線が Z と平行（PZ・MZ）なら +Y */
-function upFor(direction: Vector3): V3 {
-  const z = new Vector3(0, 0, 1);
-  const up = z.addScaledVector(direction, -direction.z);
+/**
+ * Z 軸（`zSign` = 1 なら +Z、−1 なら −Z）を視線に垂直な面へ射影した単位ベクトル。視線が Z と平行（PZ・MZ）なら +Y
+ */
+function upFor(direction: Vector3, zSign: 1 | -1): V3 {
+  const z = new Vector3(0, 0, zSign);
+  const up = z.addScaledVector(direction, -direction.z * zSign);
   if (up.lengthSq() < 1e-12) return [0, 1, 0];
   return unit(up);
 }
@@ -61,7 +64,8 @@ function makeView(sign: V3): CubeView {
     kind: KINDS[count - 1] ?? "face",
     sign,
     direction: [direction.x, direction.y, direction.z],
-    up: upFor(direction),
+    // 下側（MZ 側）の角だけ −Z を上にする（Y 字に見せる）
+    up: upFor(direction, count === 3 && sign[2] < 0 ? -1 : 1),
   };
 }
 
@@ -101,6 +105,33 @@ export function poseForView(view: CubeView, from: CameraPose): CameraPose {
     quaternion: lookQuaternion(view.direction, view.up),
     distance: from.distance,
   };
+}
+
+/**
+ * 今見ている向き（視線）を軸に画面を回した姿勢: 注視点・距離・視線はそのまま、画面の中の絵が時計回りに `angle` [rad] 回る
+ * （負なら反時計回り）。カメラ自身は視線のまわりを逆向きに回る。
+ */
+export function rollPose(from: CameraPose, angle: number): CameraPose {
+  const turn = new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), angle);
+  return {
+    target: from.target.clone(),
+    quaternion: from.quaternion.clone().multiply(turn).normalize(),
+    distance: from.distance,
+  };
+}
+
+/** 視線が立方体の角の向き（3 成分の大きさが等しい）とみなす許容 */
+const CORNER_TOLERANCE = 1e-3;
+
+/**
+ * 視線まわりに 1 回で回す角 [rad]。角から見ているとき（視線が立方体の対角線）は 120°: 回しても Y 字のまま、次の面が上に来る
+ * （60° だと上下が逆の形になる）。それ以外は 90°（面から見ているときは、面の辺が画面にまっすぐなまま）。
+ */
+export function rollStep(quaternion: Quaternion): number {
+  const d = new Vector3(0, 0, 1).applyQuaternion(quaternion);
+  const [x, y, z] = [Math.abs(d.x), Math.abs(d.y), Math.abs(d.z)];
+  const corner = Math.abs(x - y) < CORNER_TOLERANCE && Math.abs(y - z) < CORNER_TOLERANCE;
+  return corner ? (2 * Math.PI) / 3 : Math.PI / 2;
 }
 
 /** 姿勢からカメラの位置（注視点 + 後ろ向きの単位ベクトル × 距離） */

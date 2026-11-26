@@ -12,12 +12,23 @@ import {
   MOVE_SECONDS,
   poseForView,
   positionOf,
+  rollPose,
+  rollStep,
 } from "./view-cube";
 
 /** ビューキューブの区画を押した依頼（n が増えるたびに 1 回動かす） */
 export interface ViewRequest {
   n: number;
   view: CubeView;
+}
+
+/**
+ * 今見ている向きを軸に画面を回す依頼（n が増えるたびに 1 回。`turn` = 1 は画面の中の絵が時計回り、−1 は反時計回り）。
+ * 1 回の角は見ている向きで決まる（`rollStep`: 角から見ていれば 120°、それ以外は 90°）
+ */
+export interface RollRequest {
+  n: number;
+  turn: 1 | -1;
 }
 
 /** 動かす注視点（`target`）だけを持つ視点の操作（`FreeOrbitControls`） */
@@ -29,11 +40,12 @@ interface Target {
 }
 
 /**
- * カメラを動かす唯一の経路。依頼は 3 つで、どれも今の姿勢から約 1 秒かけて滑らかに動かす
+ * カメラを動かす唯一の経路。依頼は 4 つで、どれも今の姿勢から約 1 秒かけて滑らかに動かす
  * （注視点と距離は補間し、向きは注視点のまわりの弧を通る。`Bounds` の全体を収める動きと同じ緩急）:
  * - ホームポジション（`home` が増える）: 全体が収まる距離で、初めの向き（`position` から原点を見る向き、上は +Z）へ戻す
  * - ツリーで押した部品（`focus`）: 向きは今のまま、部品の外形に注視点と距離を合わせる（描いていない部品なら何もしない）
  * - ビューキューブの区画（`view`）: 注視点と距離はそのまま、表の向き・上の向きへ（押したあとは傾きのない画面になる）
+ * - 視線まわりの回転（`roll`）: 注視点・距離・視線はそのまま、画面を 1 刻み回す（動いている途中で押したら、到達の姿勢からさらに回す）
  * ドラッグを始めたら（controls の `start`）動きを止める。frameloop="demand" なので、動いている間は描き直しを依頼し続ける。
  * `Bounds`（全体を収める範囲）の中に置く。
  */
@@ -42,12 +54,14 @@ export function CameraMover({
   position,
   focus,
   view,
+  roll,
 }: {
   home: number;
   /** 初めのカメラの位置（原点から見た向きだけを使う） */
   position: V3;
   focus: FocusRequest | null;
   view: ViewRequest | null;
+  roll: RollRequest | null;
 }) {
   const bounds = useBounds();
   const camera = useThree((s) => s.camera) as PerspectiveCamera;
@@ -56,11 +70,12 @@ export function CameraMover({
   const controls = useThree((s) => s.controls) as Target | null;
   const move = useRef<{ from: CameraPose; to: CameraPose; start: number } | null>(null);
   // 同じ依頼を 2 回動かさない（controls や bounds が作り直されても、視点を戻さない）
-  const done = useRef<{ home: number; focus: FocusRequest | null; view: ViewRequest | null }>({
-    home,
-    focus: null,
-    view: null,
-  });
+  const done = useRef<{
+    home: number;
+    focus: FocusRequest | null;
+    view: ViewRequest | null;
+    roll: RollRequest | null;
+  }>({ home, focus: null, view: null, roll: null });
 
   // 今の姿勢から、build が返す到達の姿勢へ動かし始める
   const begin = useCallback(
@@ -113,6 +128,17 @@ export function CameraMover({
     done.current.view = view;
     begin(controls, (now) => poseForView(view.view, now));
   }, [view, controls, begin]);
+
+  useEffect(() => {
+    if (!roll || !controls || done.current.roll === roll) return;
+    done.current.roll = roll;
+    // 続けて押したときに刻みが崩れないよう、動いている途中なら到達の姿勢から回す
+    const going = move.current?.to;
+    begin(controls, (now) => {
+      const base = going ?? now;
+      return rollPose(base, roll.turn * rollStep(base.quaternion));
+    });
+  }, [roll, controls, begin]);
 
   useFrame(() => {
     const m = move.current;
