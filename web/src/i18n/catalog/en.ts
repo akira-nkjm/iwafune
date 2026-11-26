@@ -1,9 +1,10 @@
+import { plural, verb } from "../plural";
 import type { catalogJa } from "./ja";
 
 export const catalogEn: typeof catalogJa = {
   catalog: {
     title: "Catalog",
-    subtitle: (n: number, local: number) => `${n} items (${local} in this project)`,
+    subtitle: (n: number, local: number) => `${plural(n, "item")} (${local} in this project)`,
     add: "New catalog item",
     search: "ID, kind, name",
     empty: "No catalog items",
@@ -65,7 +66,8 @@ export const catalogEn: typeof catalogJa = {
     renameDesc: "Parts that reference it (catalog / candidates) are updated in the same edit.",
     newId: "New ID",
     removeTitle: (id: string) => `Delete ${id}`,
-    removeDesc: (n: number) => `Deletes the file under catalog/. ${n} parts reference this item.`,
+    removeDesc: (n: number) =>
+      `Deletes the file under catalog/. ${plural(n, "part")} ${verb(n, "references", "reference")} this item.`,
     createDesc:
       "Creates catalog/<ID>.toml. Creating from a part copies that part's values (including overrides).",
     id: "ID",
@@ -85,7 +87,7 @@ export const catalogEn: typeof catalogJa = {
     summaryRemove: (id: string) => `Delete catalog item ${id}`,
     shared: {
       title: "Shared catalogs",
-      neededCount: (n: number) => `${n} need fetching`,
+      neededCount: (n: number) => `${n} ${verb(n, "needs", "need")} fetching`,
       ready: "The commits in catalog.lock are loaded. Shared items are read-only.",
       needed: "Fetching is needed. Fetch here, or run fune catalog fetch on the CLI.",
       fetch: "Fetch",
@@ -122,6 +124,7 @@ export const catalogEn: typeof catalogJa = {
       summaryAdd: (name: string) => `Add shared catalog ${name}`,
       remove: (name: string) => `Remove ${name}`,
       removeTitle: (name: string) => `Remove shared catalog ${name}`,
+      removeConfirm: "Remove",
       removeDesc:
         "Removes it from fune.toml. Its catalog.lock entry is dropped on the next fetch. Refused while parts or harnesses use items of this catalog.",
       summaryRemove: (name: string) => `Remove shared catalog ${name}`,

@@ -1,3 +1,4 @@
+import { plural } from "../plural";
 import type { componentsJa } from "./ja";
 
 export const componentsEn: typeof componentsJa = {
@@ -11,7 +12,8 @@ export const componentsEn: typeof componentsJa = {
     overviewGroup: "Group",
     overviewAssembly: "Assembly",
     overviewUnassigned: "Unassigned",
-    subtitle: (parts: number, groups: number) => `${parts} parts · ${groups} systems`,
+    subtitle: (parts: number, groups: number) =>
+      `${plural(parts, "part")} · ${plural(groups, "system")}`,
     searchLabel: "Search parts",
     searchPlaceholder: "ID, kind, catalog",
     groupFilter: "Filter by system",
@@ -136,7 +138,7 @@ export const componentsEn: typeof componentsJa = {
       idHint:
         "Becomes the folder name (parts/<subsystem>/<ID>/). An ID of an existing group under the same parent adds to it.",
       partsLabel: "Parts in the group (same parent)",
-      summary: (group: string, count: number) => `Group ${count} parts as ${group}`,
+      summary: (group: string, count: number) => `Group ${plural(count, "part")} as ${group}`,
       confirm: "Group",
       renameTitle: (id: string) => `Rename group ${id}`,
       renameDescription:
@@ -158,7 +160,7 @@ export const componentsEn: typeof componentsJa = {
     remove: {
       title: (id: string) => `Delete ${id}`,
       description: (file: string, modes: number, ports: number) =>
-        `Deletes ${file}. Its rows in ${modes} modes and the connections of ${ports} ports are removed too.`,
+        `Deletes ${file}. Its rows in ${plural(modes, "mode")} and the connections of ${plural(ports, "port")} are removed too.`,
       summary: (id: string) => `Delete ${id}`,
       confirm: "Delete",
     },

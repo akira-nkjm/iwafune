@@ -4,10 +4,11 @@
 
 use super::others::new_flat_id;
 use super::records::{remove, set_id};
+use super::referrers::refuse_if_referenced;
 use crate::error::OpError;
 use crate::op::Op;
 use fune_model::Design;
-use fune_model::design::{Configuration, Pose};
+use fune_model::design::{Configuration, Pose, Referent};
 use fune_model::value::{Quaternion, Vector3};
 use fune_store::Edits;
 use fune_store::layout;
@@ -33,13 +34,20 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
             label_en,
             description,
         } => set_heading(edits, design, id, [label, label_en, description]),
-        Op::RemoveConfiguration { id } => remove(
-            edits,
-            design.configurations.contains_key(id.as_str()),
-            &layout::configuration_file(id),
-            "Configuration",
-            id,
-        ),
+        Op::RemoveConfiguration { id } => {
+            refuse_if_referenced(
+                "Configuration",
+                id,
+                &design.references(Referent::Configuration(id)),
+            )?;
+            remove(
+                edits,
+                design.configurations.contains_key(id.as_str()),
+                &layout::configuration_file(id),
+                "Configuration",
+                id,
+            )
+        }
         Op::RenameConfiguration { id, to } => {
             existing(design, id)?;
             new_flat_id(

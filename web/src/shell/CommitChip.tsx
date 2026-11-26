@@ -5,6 +5,7 @@ import { Link } from "react-router";
 import { q } from "@/api/queries";
 import { useLang, useT } from "@/i18n";
 import { CliCopyButton } from "@/kit/CliCopyButton";
+import { UndoRedoButtons } from "@/kit/UndoRedoButtons";
 import { useChangeHistory } from "@/lib/history";
 import { paths } from "@/lib/nav";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
@@ -81,8 +82,11 @@ export function CommitChip({ rail = false }: { rail?: boolean }) {
           </button>
         </PopoverTrigger>
         <PopoverContent side="right" align="end" className="w-[420px] p-0">
-          <div className="border-line border-b px-3 py-2 font-medium text-sm">
-            {t.shell.historyTitle}
+          <div className="flex items-center gap-2 border-line border-b px-3 py-2">
+            <span className="font-medium text-sm">{t.shell.historyTitle}</span>
+            <span className="ml-auto flex items-center gap-1">
+              <UndoRedoButtons labelled />
+            </span>
           </div>
           <ul className="max-h-[360px] overflow-y-auto">
             {history.length === 0 && (

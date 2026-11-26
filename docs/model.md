@@ -2396,6 +2396,7 @@ Writing rules enforced by `fune fmt` and `fune check`.
    on.from.source = "sys_judgement"
    ```
 4. Numerical values of physical quantities are always written as floats (`0.0`, not `0`). Integers are only for IDs, counts (`count`, `active`) and numbers of times.
+   The keys kept as integers are the list `fune_store::profile::INTEGER_KEYS` (`view/` has its own list), which `fune fmt` and `fune check` (`toml.integer`) share with the writer. An integer typed for any other key (`fune set conditions.orbit.eccentricity 0`) is written as a float (`0.0`) by the writer, so a file the tool wrote is always one it accepts: `fune fmt --check` passes immediately after every edit, and a header with only sub-tables (`[attr]` above `[attr.mass]`) is never left behind.
 5. Output stays within TOML 1.0 (§10.3).
 6. Curves, characteristic tables and time series go in CSV, and the units of the columns are declared in the paired TOML.
 7. Computed results are not written (§9).

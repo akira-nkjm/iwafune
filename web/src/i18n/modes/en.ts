@@ -1,3 +1,4 @@
+import { plural } from "../plural";
 import type { modesJa } from "./ja";
 
 export const modesEn: typeof modesJa = {
@@ -5,7 +6,7 @@ export const modesEn: typeof modesJa = {
     eyebrow: "Design",
     title: "Modes",
     subtitle: (parts: number, modes: number, unassigned: number) =>
-      `${parts} parts × ${modes} modes${unassigned > 0 ? ` · ${unassigned} cells unassigned` : ""}`,
+      `${plural(parts, "part")} × ${plural(modes, "mode")}${unassigned > 0 ? ` · ${plural(unassigned, "cell")} unassigned` : ""}`,
     add: "Add mode",
     empty: "No modes yet. Create one with “Add mode”.",
     maxDuration: "Maximum duration",
@@ -35,7 +36,7 @@ export const modesEn: typeof modesJa = {
       anchor: "Start position",
       anchorNone: "Start of the analysis",
       legacy: "Legacy form (unnamed)",
-      segmentCount: (n: number) => `${n} segments`,
+      segmentCount: (n: number) => plural(n, "segment"),
     },
     lighting: "Lighting period",
     sunlit: "Sunlit",
@@ -63,8 +64,8 @@ export const modesEn: typeof modesJa = {
     cellWithShares: (state: string, shares: string) => `${state} (${shares})`,
     part: "Part",
     powerRow: "Total (with growth margin)",
-    saveSummary: (n: number) => `Save the mode table (${n} cells)`,
-    changed: (n: number) => `${n} cells changed`,
+    saveSummary: (n: number) => `Save the mode table (${plural(n, "cell")})`,
+    changed: (n: number) => `${plural(n, "cell")} changed`,
     cell: {
       active: "Active units (empty for all)",
       spareState: "Spare state (optional)",

@@ -240,19 +240,40 @@ fn removing_a_part_or_configuration_that_an_entry_names_is_refused() {
         Op::RemoveConfiguration { id: "SPARE".into() },
     ];
     assert!(plan(&snap, &ok).is_ok());
-    for remove in [
-        Op::RemovePart { id: "SS_MX".into() },
-        Op::RemoveConfiguration { id: "SPARE".into() },
-    ] {
-        let err = plan(&snap, &[create.clone(), add.clone(), remove]).unwrap_err();
-        let OpError::Rejected { diagnostics } = err else {
-            panic!("expected a rejection: {err:?}");
-        };
-        assert!(
-            diagnostics.iter().any(|d| d.code.starts_with("ref.")),
-            "{diagnostics:?}"
-        );
-    }
+    // 部品は適用後の検査が拒む
+    let err = plan(
+        &snap,
+        &[
+            create.clone(),
+            add.clone(),
+            Op::RemovePart { id: "SS_MX".into() },
+        ],
+    )
+    .unwrap_err();
+    let OpError::Rejected { diagnostics } = err else {
+        panic!("expected a rejection: {err:?}");
+    };
+    assert!(
+        diagnostics.iter().any(|d| d.code.starts_with("ref.")),
+        "{diagnostics:?}"
+    );
+    // 形態は、指している場所を挙げて先に拒む
+    let err = plan(
+        &snap,
+        &[
+            create.clone(),
+            add.clone(),
+            Op::RemoveConfiguration { id: "SPARE".into() },
+        ],
+    )
+    .unwrap_err();
+    let OpError::Invalid { message } = err else {
+        panic!("expected a refusal: {err:?}");
+    };
+    assert!(
+        message.contains("`[[acknowledged]]` in analysis/structure.toml"),
+        "{message}"
+    );
 
     // 先に取り消せば消せる
     let ops = [
