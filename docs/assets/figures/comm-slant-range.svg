@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 350" role="img" aria-labelledby="t d">
+  <title id="t">Slant range at an elevation</title>
+  <desc id="d">A spherical body of radius R_b with its centre, a station on the surface with its local horizon, and a spacecraft on a circular orbit of radius a = R_b + h. The slant range d runs from the station to the spacecraft at the elevation e above the horizon. Straight above the station the distance to the orbit is the altitude h.</desc>
+  <rect x="0.5" y="0.5" width="719" height="349" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M151.8 300.9 A180 180 0 0 1 508.2 300.9 Z" fill="#e8f1f9"/>
+    <path d="M151.8 300.9 A180 180 0 0 1 508.2 300.9" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M70.5 251.6 A270 270 0 0 1 589.5 251.6" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M180 146 L620 146" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M330 146 L330 56" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M330 326 L330 146" fill="none" stroke="#062654" stroke-width="1.2"/>
+    <path d="M330 326 L456 87.2" fill="none" stroke="#062654" stroke-width="1.2"/>
+    <path d="M330 146 L456 87.2" fill="none" stroke="#3382c2" stroke-width="2.4"/>
+    <path d="M386 146 A56 56 0 0 0 380.8 122.3" fill="none" stroke="#8a6400" stroke-width="1.8"/>
+    <circle cx="330" cy="326" r="3.5" fill="#062654"/>
+    <circle cx="330" cy="146" r="4.5" fill="#062654"/>
+    <circle cx="456" cy="87.2" r="4.5" fill="#062654"/>
+    <text x="398.3" y="135.8" font-size="14" fill="#8a6400" text-anchor="middle">e</text>
+    <text x="387" y="106.6" font-size="14" fill="#1f63a0" text-anchor="middle">d</text>
+    <text x="320" y="106" font-size="14" fill="#062654" text-anchor="end">h</text>
+    <text x="320" y="241" font-size="14" fill="#062654" text-anchor="end">R<tspan dy="4" font-size="10">b</tspan></text>
+    <text x="397" y="246.6" font-size="14" fill="#062654">a = R<tspan dy="4" font-size="10">b</tspan><tspan dy="-4"> + h</tspan></text>
+    <text x="318" y="166" font-size="14" fill="#062654" text-anchor="end">station</text>
+    <text x="468" y="81.2" font-size="14" fill="#062654">spacecraft</text>
+    <text x="620" y="138" font-size="12" fill="#5b6577" text-anchor="end">local horizon</text>
+    <text x="86.2" y="185" font-size="12" fill="#5b6577" text-anchor="end">orbit</text>
+    <text x="342" y="330" font-size="12" fill="#5b6577">centre of the body</text>
+  </g>
+</svg>

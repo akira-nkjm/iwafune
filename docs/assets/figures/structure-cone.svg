@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 344" role="img" aria-labelledby="t d">
+  <title id="t">Cone apex on the support plane and the finite cone</title>
+  <desc id="d">A carrier box with centre r_0 and the axis a. The apex p_0 lies on the axis at the support distance s from r_0, on the support plane, which is perpendicular to the axis and passes through the farthest box corner. The cone has the half-angle theta about the axis and ends at a spherical cap of radius R_c about the apex. An obstacle box crosses the cone. A white dot marks where the centre ray leaves the carrier box.</desc>
+  <defs>
+    <marker id="a-acc" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#3382c2"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="343" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M284.5 222 L451.8 36.2 A250 250 0 0 1 529 170 Z" fill="#e8f1f9" stroke="#062654" stroke-width="1.8"/>
+    <rect x="434.5" y="158" width="64" height="46" fill="#e7bd41" stroke="#062654" stroke-width="1.8" fill-opacity="0.55"/>
+    <rect x="206" y="190" width="60" height="120" fill="#f5f7fa" stroke="#062654" stroke-width="1.8"/>
+    <path d="M238.5 142.3 L322.5 287.8" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M284.5 222 L534.8 77.5" fill="none" stroke="#3382c2" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#a-acc)"/>
+    <path d="M236 250 L284.5 222" fill="none" stroke="#3382c2" stroke-width="2.4"/>
+    <path d="M357.2 180 A84 84 0 0 0 340.7 159.6" fill="none" stroke="#062654" stroke-width="1.2"/>
+    <circle cx="236" cy="250" r="4" fill="#062654"/>
+    <circle cx="266" cy="232.7" r="3.5" fill="#ffffff" stroke="#062654" stroke-width="1.2"/>
+    <circle cx="284.5" cy="222" r="5" fill="#e7bd41" stroke="#062654" stroke-width="1.8"/>
+    <text x="228" y="268" font-size="14" fill="#062654" text-anchor="end"><tspan font-weight="700">r</tspan><tspan dy="4" font-size="10">0</tspan></text>
+    <text x="308.5" y="248" font-size="14" fill="#062654"><tspan font-weight="700">p</tspan><tspan dy="4" font-size="10">0</tspan></text>
+    <text x="247" y="232.3" font-size="14" fill="#1f63a0" text-anchor="middle">s</text>
+    <text x="362.2" y="164.1" font-size="14" fill="#062654" text-anchor="middle">θ</text>
+    <text x="547.1" y="77" font-size="14" fill="#1f63a0"><tspan font-weight="700">â</tspan></text>
+    <text x="378.2" y="100.8" font-size="14" fill="#062654" text-anchor="end">R<tspan dy="4" font-size="10">c</tspan></text>
+    <text x="236" y="332" font-size="14" fill="#062654" text-anchor="middle">carrier box</text>
+    <text x="466.5" y="224" font-size="14" fill="#062654" text-anchor="middle">obstacle box</text>
+    <text x="228.5" y="144.3" font-size="12" fill="#5b6577" text-anchor="end">support plane</text>
+  </g>
+</svg>

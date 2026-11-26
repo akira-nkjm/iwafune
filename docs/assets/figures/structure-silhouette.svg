@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 306" role="img" aria-labelledby="t d">
+  <title id="t">Union of silhouettes cut into slabs</title>
+  <desc id="d">Two overlapping convex silhouettes. Horizontal cuts at every vertex height and at every crossing of their edges divide the plane into slabs. In the highlighted slab the union is one interval from L to R. The centroid of the union is marked.</desc>
+  <rect x="0.5" y="0.5" width="719" height="305" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="150" y="125.5" width="470" height="62.5" fill="#fbf3d9"/>
+    <path d="M220 50.5 L445 50.5 L445 188 L220 188 Z" fill="#3382c2" stroke="#062654" stroke-width="1.8" fill-opacity="0.14"/>
+    <path d="M382.5 113 L507.5 78 L607.5 125.5 L557.5 231.8 L432.5 250.5 L357.5 188 Z" fill="#3382c2" stroke="#062654" stroke-width="1.8" fill-opacity="0.14"/>
+    <path d="M150 50.5 L620 50.5" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M150 78 L620 78" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M150 95.5 L620 95.5" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M150 113 L620 113" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M150 125.5 L620 125.5" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M150 188 L620 188" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M150 231.8 L620 231.8" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M150 250.5 L620 250.5" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M220 156.8 L592.8 156.8" fill="none" stroke="#3382c2" stroke-width="3.2"/>
+    <path d="M220 148.8 L220 164.8" fill="none" stroke="#3382c2" stroke-width="2.4"/>
+    <path d="M592.8 148.8 L592.8 164.8" fill="none" stroke="#3382c2" stroke-width="2.4"/>
+    <text x="210" y="161.8" font-size="14" fill="#1f63a0" text-anchor="end">L</text>
+    <text x="602.8" y="161.8" font-size="14" fill="#1f63a0">R</text>
+    <text x="630" y="161.8" font-size="14" fill="#8a6400">slab</text>
+    <path d="M398.3 134.6 L410.3 146.6" fill="none" stroke="#062654" stroke-width="2.4"/>
+    <path d="M398.3 146.6 L410.3 134.6" fill="none" stroke="#062654" stroke-width="2.4"/>
+    <text x="232" y="69.5" font-size="14" fill="#062654">silhouette 1</text>
+    <text x="485" y="214.9" font-size="14" fill="#062654" text-anchor="middle">silhouette 2</text>
+    <path d="M152 274 L164 286" fill="none" stroke="#062654" stroke-width="2.4"/>
+    <path d="M152 286 L164 274" fill="none" stroke="#062654" stroke-width="2.4"/>
+    <text x="174" y="285" font-size="14" fill="#062654">centroid of the union</text>
+    <path d="M370 280 L406 280" fill="none" stroke="#3382c2" stroke-width="3.2"/>
+    <path d="M370 272 L370 288" fill="none" stroke="#3382c2" stroke-width="2.4"/>
+    <path d="M406 272 L406 288" fill="none" stroke="#3382c2" stroke-width="2.4"/>
+    <text x="418" y="285" font-size="14" fill="#062654">union interval in the slab</text>
+    <text x="138" y="146.5" font-size="12" fill="#5b6577" text-anchor="end">cuts</text>
+  </g>
+</svg>
