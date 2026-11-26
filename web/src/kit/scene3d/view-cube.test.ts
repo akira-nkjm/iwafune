@@ -173,7 +173,7 @@ it("角を押したときの姿勢: Y 字の 3 つの向きのうち今の姿勢
       // Y 字: 角から出る 3 本の辺のうち 1 本が画面の真下へ伸びる
       const inv = pose.quaternion.clone().invert();
       const down = [0, 1, 2].filter((i) => {
-        const e = new Vector3().setComponent(i, -v.sign[i]).applyQuaternion(inv);
+        const e = new Vector3().setComponent(i, -(v.sign[i] ?? 0)).applyQuaternion(inv);
         return Math.abs(e.x) < 1e-9 && e.y < 0;
       });
       expect(down.length).toBe(1);
@@ -223,7 +223,7 @@ it("視線まわりに回す刻み: 角から見ているときは 120°（3 回
     const inv = turned.quaternion.clone().invert();
     const edges = [0, 1, 2].map((i) => {
       const e = new Vector3();
-      e.setComponent(i, -v.sign[i]);
+      e.setComponent(i, -(v.sign[i] ?? 0));
       return e.applyQuaternion(inv);
     });
     const down = edges.filter((e) => Math.abs(e.x) < 1e-9 && e.y < 0);
