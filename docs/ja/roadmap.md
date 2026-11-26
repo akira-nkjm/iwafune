@@ -22,7 +22,7 @@
 | 2 | 中心天体の一般化と解析的な遷移 ΔV（月、惑星、L 点。ホーマン、面変更、パッチトコニック） | テーマの約 60% | 実装済み: 地球以外の中心天体、ホーマン、バイエリプティック、パッチトコニックの遷移、日付つきの（ランベルト）遷移、`propulsion.transfer_check`、`propulsion.launch_window`、L 点まわりのハロー軌道 |
 | 3 | `orbit.eclipse`: β 角の季節変動と、ミッション期間中の最長の食（電力と熱の最悪ケースを決める） | 31 件 | `orbit.eclipse_season` と `orbit.geometry` として実装済み |
 | 4 | 大気抵抗による高度低下と、軌道維持の ΔV（太陽活動の条件ごと） | 34 件 | 実装済み: `orbit.decay` |
-| 5 | ロケットとディスペンサのカタログ（質量上限、エンベロープ、準静的荷重、剛性要求、分離時の角速度）と適合チェック | 32 件 | カタログ（種類 `launcher` と `dispenser`、`conditions/launch.toml` で選ぶ。`model.md` §5.6）と `structure.launch_fit`（質量、エンベロープ、固有振動数）は実装済み。質量上限は、日付つきの遷移の出発燃焼をロケットが与えるとき、出発 C3 に対する曲線（`payload_mass_by_c3`）にできます（#375）。荷重と最小周波数は `structure.static_load` と `structure.modal_estimate` に入り、`structure.launch_fit` の周波数チェックは `structure.modal_fem` の全体モードを使います（#370）。未実装: 出発漸近線に対する射場の赤緯の制限、ランダム振動（PSD）、インターフェースの詳細、ロケットを選ぶ GUI |
+| 5 | ロケットとディスペンサのカタログ（質量上限、エンベロープ、準静的荷重、剛性要求、分離時の角速度）と適合チェック | 32 件 | カタログ（種類 `launcher` と `dispenser`、`conditions/launch.toml` で選ぶ。`model.md` §5.6）と `structure.launch_fit`（質量、エンベロープ、固有振動数）は実装済み。質量上限は、日付つきの遷移の出発噴射をロケットが与えるとき、出発 C3 に対する曲線（`payload_mass_by_c3`）にできます（#375）。荷重と最小周波数は `structure.static_load` と `structure.modal_estimate` に入り、`structure.launch_fit` の周波数チェックは `structure.modal_fem` の全体モードを使います（#370）。未実装: 出発漸近線に対する射場の赤緯の制限、ランダム振動（PSD）、インターフェースの詳細、ロケットを選ぶ GUI |
 | 6 | モードの拡張（最長の継続時間、日照と食の区別、姿勢則）と、同時稼働数、冗長（コールド、ウォーム） | テンプレートのすべての表に「同時稼働数」の列がある | 実装済み: `fune mode timing`、`fune mode set --active/--spare-state`、`fune mode view`、モードとフェーズごとの姿勢則 |
 | 7 | 電源の逆算サイジング（必要な SAP 面積とバッテリー容量）と、太陽からの距離への対応 | 31 件 | 実装済み: `power.sizing`。日射は太陽距離でスケールします |
 | 8 | リンク計算の拡張（電波法の PFD 適合、ケースから決まる距離、深宇宙局） | テンプレートに標準で含まれる | 実装済み（#8）: `comm.link_budget` の PFD チェックと、軌道の距離の窓 |
@@ -43,7 +43,7 @@
 
 ## P3（後回し）
 
-軌道最適化 / 放射線の単一事象効果（全電離線量は実装済み: `orbit.trapped_flux`、`orbit.trapped_dose`、`orbit.total_dose`。CR3BP のハロー軌道も実装済み）/ 編隊飛行 / 誤差バジェット / FMEA、コスト、スケジュール、法規制、RTG
+軌道最適化 / 放射線のシングルイベント効果（トータルドーズは実装済み: `orbit.trapped_flux`、`orbit.trapped_dose`、`orbit.total_dose`。CR3BP のハロー軌道も実装済み）/ 編隊飛行 / 誤差バジェット / FMEA、コスト、スケジュール、法規制、RTG
 
 ## 文書生成の方針
 

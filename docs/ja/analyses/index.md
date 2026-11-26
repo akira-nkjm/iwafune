@@ -86,8 +86,8 @@ m = C/D-1
 | | `propulsion.orbit_history` | T | 各マヌーバ後の軌道 |
 | | `propulsion.propellant` | S | 推薬とタンクの見積もり |
 | | `propulsion.thruster_usage` | S | スラスタの作動時間と力積 |
-| | `propulsion.transfer_check` | S | 複数の重力源を考慮した遷移の伝搬 |
-| [放射線](radiation.md) | `orbit.total_dose` | S | 部品の総電離線量 |
+| | `propulsion.transfer_check` | S | 複数の重力源を考慮した遷移の伝播 |
+| [放射線](radiation.md) | `orbit.total_dose` | S | 部品のトータルドーズ |
 | | `orbit.trapped_dose` | S | 遮蔽の深さに対する捕捉粒子の線量 |
 | | `orbit.trapped_flux` | S | 捕捉粒子のフラックスとフルエンス |
 | [構造](structure.md) | `structure.cone_clearance` | S | プルームと視野のクリアランス |
