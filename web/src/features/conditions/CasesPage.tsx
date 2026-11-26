@@ -7,12 +7,9 @@ import { Empty } from "@/kit/feedback/Empty";
 import { SkeletonPanel } from "@/kit/feedback/Loading";
 import { QueryState } from "@/kit/feedback/QueryState";
 import { Panel } from "@/kit/panel/Panel";
-import { ChipLink } from "@/kit/selection/Chip";
 import { DataTable } from "@/kit/table/DataTable";
 import { Td } from "@/kit/table/Td";
 import { Th } from "@/kit/table/Th";
-import { systemTitle } from "@/lib/design";
-import { paths } from "@/lib/nav";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 import { Button } from "@/ui/button";
@@ -21,6 +18,7 @@ import { CaseActions } from "./CaseActions";
 import { CaseEpochDialog } from "./CaseEpochDialog";
 import { CasePhaseDialog } from "./CasePhaseDialog";
 import { CasesFromGeometryButton } from "./CasesFromGeometryDialog";
+import { OpenWithMenu } from "./OpenWithMenu";
 
 /** 前提条件 / 解析ケース: cases/ の一覧。各系のページをそのケースで開ける */
 export function CasesPage() {
@@ -48,7 +46,7 @@ export function CasesPage() {
   );
 }
 
-/** ケースの表。最後の列は、そのケースで開く系のページへのリンク */
+/** ケースの表。最後の列は、行の操作と、そのケースで開く系のページへのメニュー */
 function CasesTable({ design: d }: { design: DesignView }) {
   const m = useT().conditions;
   const [editing, setEditing] = useState<CaseView | null>(null);
@@ -64,17 +62,20 @@ function CasesTable({ design: d }: { design: DesignView }) {
             <Th>{m.modes}</Th>
             <Th>{m.phase}</Th>
             <Th>{m.epoch}</Th>
-            <Th>{m.file}</Th>
-            <Th>{m.openWith}</Th>
             <Th>{m.caseActions.actions}</Th>
           </>
         }
       >
         {d.cases.map((c) => (
           <tr key={c.id}>
-            <Td mono>{c.id}</Td>
+            {/* ファイルの場所は ID のツールチップに出す（列にすると表が画面の幅を超える） */}
+            <Td mono>
+              <span title={c.file}>{c.id}</span>
+            </Td>
             <Td>{c.label}</Td>
-            <Td className="text-ink-2">{c.description ?? "—"}</Td>
+            <Td className="min-w-[14rem] max-w-[22rem] whitespace-normal text-ink-2">
+              {c.description ?? "—"}
+            </Td>
             <Td mono>{c.modes.join(" → ")}</Td>
             <Td mono>
               <span className="flex items-center gap-1">
@@ -102,20 +103,11 @@ function CasesTable({ design: d }: { design: DesignView }) {
                 </Button>
               </span>
             </Td>
-            <Td mono className="text-ink-4">
-              {c.file}
-            </Td>
             <Td>
-              <span className="flex flex-wrap gap-1">
-                {d.defs.systems.map((s) => (
-                  <ChipLink key={s} to={paths.system(s, { kase: c.id })} mono={false}>
-                    {systemTitle(s, d.defs)}
-                  </ChipLink>
-                ))}
-              </span>
-            </Td>
-            <Td>
-              <CaseActions kase={c} />
+              <div className="flex items-center gap-1.5">
+                <CaseActions kase={c} />
+                <OpenWithMenu kase={c} defs={d.defs} />
+              </div>
             </Td>
           </tr>
         ))}

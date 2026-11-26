@@ -295,15 +295,30 @@ fn default_analysis_case_setting_round_trips() {
             .as_deref(),
         Some("cold_safe")
     );
-    assert!(
-        plan(
-            &snap,
-            &[Op::RemoveCase {
-                id: "cold_safe".to_owned()
-            }]
-        )
-        .is_err()
-    );
+    // 拒む理由に、既定のケースであることと、指している要求が挙がる
+    match plan(
+        &snap,
+        &[Op::RemoveCase {
+            id: "cold_safe".to_owned(),
+        }],
+    ) {
+        Err(OpError::Invalid { message }) => {
+            assert!(message.contains("default case"), "{message}");
+            assert!(message.contains("`default_case`"), "{message}");
+        }
+        other => panic!("expected Invalid, got {:?}", other.map(|p| p.changes)),
+    }
+    match plan(
+        &snap,
+        &[Op::RemoveCase {
+            id: "hot_imaging".to_owned(),
+        }],
+    ) {
+        Err(OpError::Invalid { message }) => {
+            assert!(message.contains("R_STORAGE"), "{message}");
+        }
+        other => panic!("expected Invalid, got {:?}", other.map(|p| p.changes)),
+    }
     let p = plan(
         &snap,
         &[Op::SetSetting {

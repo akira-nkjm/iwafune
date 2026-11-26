@@ -6,6 +6,7 @@ import type * as React from "react";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { Button } from "@/ui/button";
+import { useRestoreFocus } from "@/ui/restore-focus";
 
 function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
@@ -43,11 +44,14 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
 }) {
   const close = useT().common.close;
+  const restore = useRestoreFocus();
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -57,6 +61,14 @@ function DialogContent({
           "data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-popover-foreground text-sm outline-none ring-1 ring-foreground/10 duration-100 data-closed:animate-out data-open:animate-in sm:max-w-sm",
           className,
         )}
+        onOpenAutoFocus={(event) => {
+          restore.onOpenAutoFocus();
+          onOpenAutoFocus?.(event);
+        }}
+        onCloseAutoFocus={(event) => {
+          restore.onCloseAutoFocus(event);
+          onCloseAutoFocus?.(event);
+        }}
         {...props}
       >
         {children}

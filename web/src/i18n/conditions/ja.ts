@@ -102,6 +102,7 @@ export const conditionsJa = {
       removeConfirm: "消す",
     },
     openWith: "このケースで開く",
+    openWithCase: (id: string) => `ケース ${id} で系のページを開く`,
     caseActions: {
       rename: (id: string) => `ケース ${id} の名前を変える`,
       renameTitle: (id: string) => `ケース ${id} の名前を変える`,

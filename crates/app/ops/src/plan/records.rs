@@ -4,7 +4,7 @@ use super::subdir::{move_file, placed_file};
 use crate::error::OpError;
 use crate::op::Op;
 use fune_model::Design;
-use fune_model::design::{Maneuver, Source};
+use fune_model::design::{Maneuver, RefSite, Referent, Source};
 use fune_model::id::{clash, validate_entity_id};
 use fune_store::Edits;
 use fune_store::layout;
@@ -17,13 +17,16 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
             set_id(design.cases.keys().map(|k| k.as_str()), id, "Analysis case")?;
             Ok(write_record(edits, &layout::case_file(id), case)?)
         }
-        Op::RemoveCase { id } => remove(
-            edits,
-            design.cases.contains_key(id.as_str()),
-            &layout::case_file(id),
-            "Analysis case",
-            id,
-        ),
+        Op::RemoveCase { id } => {
+            refuse_if_case_referenced(design, id)?;
+            remove(
+                edits,
+                design.cases.contains_key(id.as_str()),
+                &layout::case_file(id),
+                "Analysis case",
+                id,
+            )
+        }
         Op::SetSource { source, dir } => set_source(edits, design, source, dir.as_deref()),
         Op::RemoveSource { id } => writable_source(design, id).and_then(|()| {
             remove(
@@ -58,6 +61,38 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
         Op::RemoveManeuver { id } => remove_maneuver(edits, design, id),
         _ => Err(OpError::invalid("This op is not handled here")),
     }
+}
+
+/// 解析ケースを指しているもの（既定のケース・要求の `quantify.cases`）があれば、それを挙げて消すのを拒む。
+/// 参照元の索引は model の `Design::references`。
+fn refuse_if_case_referenced(design: &Design, id: &str) -> Result<(), OpError> {
+    if !design.cases.contains_key(id) {
+        return Ok(());
+    }
+    let mut parts = Vec::new();
+    let mut requirements = Vec::new();
+    for site in design.references(Referent::Case(id)) {
+        match site {
+            RefSite::CommonDefaultCase => parts.push(
+                "it is the default case (`default_case` in analysis/common.toml)".to_string(),
+            ),
+            RefSite::RequirementCase { requirement } => requirements.push(requirement),
+            _ => {}
+        }
+    }
+    if !requirements.is_empty() {
+        parts.push(format!(
+            "`quantify.cases` of requirement(s) {} refers to it",
+            requirements.join(", ")
+        ));
+    }
+    if parts.is_empty() {
+        return Ok(());
+    }
+    Err(OpError::invalid(format!(
+        "Analysis case `{id}` cannot be removed: {}. Change those first",
+        parts.join("; ")
+    )))
 }
 
 /// 共有カタログの出典（`<カタログ名>/<ID>`）は読み取り専用（共有カタログのリポジトリで直す）。

@@ -220,3 +220,23 @@ export function withLayoutConfiguration(
   else next.delete(SEARCH.configuration);
   return next;
 }
+
+/**
+ * URL が名指す解析ケースを、設計のケースと突き合わせる。設計に無い（消した・名前を変えた後に履歴で戻った）ときは
+ * `kase` を null（既定の選択）にし、名指されていた ID を `stale` に返す。設計を読むまで（`cases` が無い）は URL のまま。
+ */
+export function resolveCaseParam(
+  requested: string | null,
+  cases: readonly { id: string }[] | undefined,
+): { kase: string | null; stale: string | null } {
+  if (requested === null || !cases) return { kase: requested, stale: null };
+  if (cases.some(({ id }) => id === requested)) return { kase: requested, stale: null };
+  return { kase: null, stale: requested };
+}
+
+/** 解析ケースの指定だけを外す（ほかの検索部分は残す）。 */
+export function withoutCase(params: URLSearchParams): URLSearchParams {
+  const next = new URLSearchParams(params);
+  next.delete(SEARCH.case);
+  return next;
+}
