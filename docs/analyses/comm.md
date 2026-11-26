@@ -75,14 +75,14 @@ The farthest distance is $d(e)$ at the mask elevation. The nearest is $d(\pi/2)=
 **Link equation in dB.** Let $c=299792458$ m/s and $k=1.380649\times10^{-23}$ J/K. $I$ is the EIRP in dBW, $L_\mathrm{fs}$ and $L_\mathrm{extra}$ are losses in dB, $N=C/N_0$ is in dBHz, and $Q=E_b/N_0$ and the margin $M$ are in dB. Each $10\log_{10}$ takes the numeric value of its argument in the unit listed in the tables ($P_\mathrm{tx}$ in W, $T$ in K, $R$ in bit/s, $k$ in J/K).
 
 ```math
-\begin{aligned}
+\begin{align}
 I &= 10\log_{10}P_\mathrm{tx}+G_\mathrm{tx}-L_\mathrm{tx} &&\tag{2}\\
 L_\mathrm{fs} &= 20\log_{10}\!\left(4\pi d f/c\right) &&\tag{3}\\
 L_\mathrm{extra} &= L_\mathrm{atm}+L_\mathrm{pol}+L_\mathrm{point}+L_\mathrm{impl} &&\tag{4}\\
 \Gamma &= G_\mathrm{rx}-L_\mathrm{rx}-10\log_{10}T \quad \text{(unless G/T is given)} &&\tag{5}\\
 N &= I-L_\mathrm{fs}-L_\mathrm{extra}+\Gamma-10\log_{10}k &&\tag{6}\\
 Q &= N-10\log_{10}R,\qquad M=Q-Q_\mathrm{req} &&\tag{7}
-\end{aligned}
+\end{align}
 ```
 
 Equation (3) is twice the decibel value of an amplitude ratio, because $(4\pi d f/c)^2$ is the power ratio. In (6), $-10\log_{10}k=228.599$ dB. Equation (6) is $C/N_0=\mathrm{EIRP}\cdot(G/T)/(L_\mathrm{fs}L_\mathrm{extra}\,k)$ written in decibels.
@@ -353,13 +353,13 @@ The storage needed is the data generated while the spacecraft cannot downlink, f
 For part $i$ and mode $m$, the state $s'$ has time fraction $f_{ims'}$ (its duty), unit count $n_{ims'}$ and rate $r_{ims'}$, in bit/s. $\bar r_{im}$ is the weighted rate of part $i$ in mode $m$ in bit/s. $G_\mathrm{HK}$ and $G_\mathrm{mission}$ are the daily volumes in bit. $B_\mathrm{req}$ is the required capacity in bit. $m_\mathrm{store}$ is the storage margin and $m_\mathrm{warn}$ its warning boundary. $D=86400$ s.
 
 ```math
-\begin{aligned}
+\begin{align}
 \bar r_{im}&=\sum_{s'}f_{ims'}\,n_{ims'}\,r_{ims'} &&\tag{1}\\
 G_\mathrm{HK}&=D\,(1+o)\sum_{m,i}w_m\,\bar r_{im,\mathrm{HK}},\qquad
 G_\mathrm{mission}=D\,q\sum_{m,i}w_m\,\bar r_{im,\mathrm{mission}} &&\tag{2}\\
 B_\mathrm{req}&=(G_\mathrm{HK}+G_\mathrm{mission})\,T_\mathrm{ret}/D &&\tag{3}\\
 m_\mathrm{store}&=C/B_\mathrm{req}-1,\qquad m_\mathrm{warn}=\frac{s}{1-s} &&\tag{4}
-\end{aligned}
+\end{align}
 ```
 
 $m_\mathrm{warn}$ follows from asking that $B_\mathrm{req}\le(1-s)C$, that is, the storage keeps the fraction $s$ free. With $s=0.2$, $m_\mathrm{warn}=0.25$.

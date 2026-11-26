@@ -75,14 +75,14 @@ d(e)=\sqrt{(R_\mathrm{b}+h)^2-R_\mathrm{b}^2\cos^2 e}-R_\mathrm{b}\sin e
 **dB のリンク方程式。** $c=299792458$ m/s、$k=1.380649\times10^{-23}$ J/K とします。$I$ は EIRP（dBW）、$L_\mathrm{fs}$ と $L_\mathrm{extra}$ は損失（dB）、$N=C/N_0$ は dBHz、$Q=E_b/N_0$ と余裕 $M$ は dB です。各 $10\log_{10}$ は表の単位で測った引数の数値に対して取ります（$P_\mathrm{tx}$ は W、$T$ は K、$R$ は bit/s、$k$ は J/K）。
 
 ```math
-\begin{aligned}
+\begin{align}
 I &= 10\log_{10}P_\mathrm{tx}+G_\mathrm{tx}-L_\mathrm{tx} &&\tag{2}\\
 L_\mathrm{fs} &= 20\log_{10}\!\left(4\pi d f/c\right) &&\tag{3}\\
 L_\mathrm{extra} &= L_\mathrm{atm}+L_\mathrm{pol}+L_\mathrm{point}+L_\mathrm{impl} &&\tag{4}\\
 \Gamma &= G_\mathrm{rx}-L_\mathrm{rx}-10\log_{10}T \quad \text{(unless G/T is given)} &&\tag{5}\\
 N &= I-L_\mathrm{fs}-L_\mathrm{extra}+\Gamma-10\log_{10}k &&\tag{6}\\
 Q &= N-10\log_{10}R,\qquad M=Q-Q_\mathrm{req} &&\tag{7}
-\end{aligned}
+\end{align}
 ```
 
 式 (3) は振幅比の dB 値の 2 倍です。$(4\pi d f/c)^2$ が電力比だからです。式 (6) の $-10\log_{10}k$ は 228.599 dB です。式 (6) は $C/N_0=\mathrm{EIRP}\cdot(G/T)/(L_\mathrm{fs}L_\mathrm{extra}\,k)$ を dB で書いたものです。
@@ -353,13 +353,13 @@ B_\mathrm{next}=B+g\,\delta t-V_\mathrm{sent}
 部品 $i$ とモード $m$ について、状態 $s'$ は時間の割合 $f_{ims'}$（デューティ）、台数 $n_{ims'}$、レート $r_{ims'}$ を持ちます（レートは bit/s）。$\bar r_{im}$ はモード $m$ での部品 $i$ の重み付きレート（bit/s）です。$G_\mathrm{HK}$ と $G_\mathrm{mission}$ は 1 日の量（bit）、$B_\mathrm{req}$ は必要容量（bit）です。$m_\mathrm{store}$ はストレージの余裕、$m_\mathrm{warn}$ はその警告の境目です。$D=86400$ s です。
 
 ```math
-\begin{aligned}
+\begin{align}
 \bar r_{im}&=\sum_{s'}f_{ims'}\,n_{ims'}\,r_{ims'} &&\tag{1}\\
 G_\mathrm{HK}&=D\,(1+o)\sum_{m,i}w_m\,\bar r_{im,\mathrm{HK}},\qquad
 G_\mathrm{mission}=D\,q\sum_{m,i}w_m\,\bar r_{im,\mathrm{mission}} &&\tag{2}\\
 B_\mathrm{req}&=(G_\mathrm{HK}+G_\mathrm{mission})\,T_\mathrm{ret}/D &&\tag{3}\\
 m_\mathrm{store}&=C/B_\mathrm{req}-1,\qquad m_\mathrm{warn}=\frac{s}{1-s} &&\tag{4}
-\end{aligned}
+\end{align}
 ```
 
 $m_\mathrm{warn}$ は $B_\mathrm{req}\le(1-s)C$ を求めると得られます。ストレージが割合 $s$ を空けておくということです。$s=0.2$ なら $m_\mathrm{warn}=0.25$ です。

@@ -375,7 +375,7 @@ The formula (3) says that the trend may rise until the trend plus the oscillatio
 ### Checks and verdicts
 
 - `momentum_capacity` is a `violation` when the interval is 0, that is, when the cyclic amplitude alone fills the usable capacity. Otherwise it is `ok` and states $H_\mathrm c/H_\mathrm{cap}$.
-- `torque_margin` has margin $1/u_\max-1$, where $u_\max$ is the largest ratio of peak wheel torque to `max_torque` over the wheels. It is `ok` at margin 0 or more, `violation` below 0 (the warning band is 0). It is absent when there is no disturbance.
+- `torque_margin` has margin $1/u_{\max}-1$, where $u_{\max}$ is the largest ratio of peak wheel torque to `max_torque` over the wheels. It is `ok` at margin 0 or more, `violation` below 0 (the warning band is 0). It is absent when there is no disturbance.
 - `unload_interval` exists only when the library gives a requirement. It passes if no secular unloading is needed or the interval is at least the requirement, with margin interval/requirement − 1.
 - `environment_models` appears for a central body other than the Earth when an aerodynamic surface or a nonzero dipole is given. It is `ok` for a body that has no atmosphere or field (the Moon), and `warning` for a body that has one but has no model (Mars atmosphere, Jupiter field), where the zero torque may be an underestimate.
 - `rcs_direction` is a `violation` if, with thrusters, no thruster can produce torque against the dumped momentum in the direction chosen as worst.

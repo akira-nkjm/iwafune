@@ -375,7 +375,7 @@ T_\mathrm{dump}=\frac{H_\mathrm{cap}-H_\mathrm c}{\lVert\mathbf H_\mathrm{sec}\r
 ### 検査と判定
 
 - `momentum_capacity` は、間隔が 0 のとき、つまり周期成分だけで使える容量を満たすときに `violation` です。そうでなければ `ok` で、$H_\mathrm c/H_\mathrm{cap}$ を示します。
-- `torque_margin` の余裕は $1/u_\max-1$ です。$u_\max$ は、ホイールのうち、ピークのトルクと `max_torque` の比が最大のものです。余裕が 0 以上なら `ok`、負なら `violation` です（警告の幅は 0）。擾乱がなければ出ません。
+- `torque_margin` の余裕は $1/u_{\max}-1$ です。$u_{\max}$ は、ホイールのうち、ピークのトルクと `max_torque` の比が最大のものです。余裕が 0 以上なら `ok`、負なら `violation` です（警告の幅は 0）。擾乱がなければ出ません。
 - `unload_interval` は、ライブラリが要求を与えたときだけあります。永年成分のアンロードが不要か、間隔が要求以上なら合格で、余裕は間隔/要求 − 1 です。
 - `environment_models` は、地球以外の中心天体で、空力の面か 0 でない双極子が与えられたときに出ます。大気も磁場もない天体（月）では `ok`、あるのにモデルがない天体（火星の大気、木星の磁場）では `warning` で、ゼロのトルクは過小評価かもしれません。
 - `rcs_direction` は、スラスタがあり、最悪として選んだ方向で、捨てる角運動量に逆らうトルクを出せるスラスタがないとき `violation` です。

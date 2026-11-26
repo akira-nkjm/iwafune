@@ -524,7 +524,7 @@ f_a&=\frac{y}{2\pi}\sqrt{\frac{EA}{mL}}.
 
 シェル要素は次のとおりです。各節点の自由度（DOF）は 6 つで、並進 $u,v,w$ と、局所軸まわりの回転 $\theta_u,\theta_v,\theta_n$ です。局所軸 $(u,v,n)$ は機体軸の巡回置換で、$n$ がパネルの法線なので、軸に平行なパネルでは座標の回転が要りません。すべての場に双一次の形状関数 $N_i(\xi,\eta)=(1\pm\xi)(1\pm\eta)/4$ を使います。剛性は 4 つの部分の和で、それぞれ 2 × 2 のガウス点で積分します。
 
-- 膜: 双一次の平面応力で、$\mathbf D_m=\frac{Et}{1-\nu^2}\begin{psmallmatrix}1&\nu&0\\\nu&1&0\\0&0&(1-\nu)/2\end{psmallmatrix}$ です。
+- 膜: 双一次の平面応力で、$\mathbf D_m=\frac{Et}{1-\nu^2}\left(\begin{smallmatrix}1&\nu&0\\\nu&1&0\\0&0&(1-\nu)/2\end{smallmatrix}\right)$ です。
 - 曲げ: ライスナー・ミンドリン板で、曲率は $\kappa_x=\partial\theta_v/\partial x$、$\kappa_y=-\partial\theta_u/\partial y$、$\kappa_{xy}=\partial\theta_v/\partial y-\partial\theta_u/\partial x$、$\mathbf D_b$ は $\mathbf D_m$ の $Et$ を $Et^3/[12(1-\nu^2)]$ に替えたものです。
 - 横せん断: テンソル成分の混合補間（MITC4）で、せん断剛性は $k_sGt$、せん断補正係数は $k_s=5/6$、$G=E/[2(1+\nu)]$ です。共変せん断ひずみ $\gamma_\xi$ は辺 $\eta=\pm1$ の中点で測って $\eta$ 方向に線形補間し、$\gamma_\eta$ は辺 $\xi=\pm1$ の中点で測って $\xi$ 方向に線形補間します。これで薄板のせん断ロッキングを防ぎます。
 - ドリリング: 法線まわりの回転と、面内の回転 $\omega=\tfrac12(\partial v/\partial x-\partial u/\partial y)$ との差への罰金項 $\gamma_dGt(\theta_n-\omega)^2$ で、$\gamma_d=0.1$ です。法線まわりの回転に剛性を与えます。テストでは係数を 10 倍または 1/10 にしても、箱の最低 6 つの振動数は 1 % 未満しか変わりません。
