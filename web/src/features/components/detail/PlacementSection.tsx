@@ -56,7 +56,7 @@ function sameForm(a: PlacementForm, b: PlacementForm): boolean {
 }
 
 /**
- * `fune part place` の引数。角度を変えたら `--rotation "x y z deg"`、変えなければ書かれた四元数をそのまま
+ * `fune part place` の引数。角度を変えたら `--rotation "x y z deg"`、変えなければ書かれたクォータニオンをそのまま
  * `--orientation` で送る（読むのはどちらも service）。
  */
 export function placeText(

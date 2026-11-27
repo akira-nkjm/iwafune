@@ -271,7 +271,7 @@ pub fn sequence_set_op(
     })
 }
 
-/// 基準（`eclipse_exit`・`eclipse_entry`）とオフセットの文字列 → 食の出入りからの指定。基準が無ければ None（オフセットだけは誤り）。
+/// 基準（`eclipse_exit`・`eclipse_entry`）とオフセットの文字列 → 蝕の出入りからの指定。基準が無ければ None（オフセットだけは誤り）。
 fn start_from_text(
     from: Option<&str>,
     offset: Option<&str>,

@@ -1,4 +1,4 @@
-//! 日付つきの惑星間遷移（マヌーバの `[transfer]`）の検査: 両方の日付が要る・目標の天体が要る・数値伝搬は不可。
+//! 日付つきの惑星間遷移（マヌーバの `[transfer]`）の検査: 両方の日付が要る・目標の天体が要る・数値伝播は不可。
 //! 日付の読み方・暦の範囲・順序・天体の組は暦を持つ fune-projection の側（`maneuver_dates` のテスト）。
 use fune_model::design::{
     CentralBodyKind, Maneuver, ManeuverCategory, ManeuverConstraints, ManeuverMethod,

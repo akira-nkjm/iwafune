@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 216" role="img" aria-labelledby="t d">
+  <title id="t">Budget limit split into the total with growth, the margin and the system reserve</title>
+  <desc id="d">A bar to scale for the demo power budget. The limit L of 24.0 W is made of the total with growth B_g of 18.72 W, the margin M of 1.68 W and the system reserve s L of 3.60 W. The usable amount U = L (1 - s) of 20.40 W is the limit less the reserve.</desc>
+  <defs>
+    <marker id="a-sec" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#5b6577"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="215" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="60" y="66" width="468" height="46" fill="#e8f1f9" stroke="#062654" stroke-width="1.8"/>
+    <rect x="528" y="66" width="42" height="46" fill="#e7bd41" stroke="#062654" stroke-width="1.8"/>
+    <rect x="570" y="66" width="90" height="46" fill="#f5f7fa" stroke="#062654" stroke-width="1.8"/>
+    <text x="294" y="94" font-size="14" fill="#062654" text-anchor="middle">B<tspan dy="4" font-size="10">g</tspan><tspan dy="-4"> = 18.72 W</tspan></text>
+    <path d="M549 62 L549 50" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <text x="557" y="42" font-size="14" fill="#8a6400" text-anchor="end">M = 1.68 W</text>
+    <path d="M615 62 L615 50" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <text x="593" y="42" font-size="14" fill="#062654">s L = 3.60 W</text>
+    <g>
+    <path d="M60 141 L60 155" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M570 141 L570 155" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M65 148 L565 148" fill="none" stroke="#5b6577" stroke-width="1.2" marker-end="url(#a-sec)" marker-start="url(#a-sec)"/>
+    <text x="315" y="140" font-size="14" fill="#062654" text-anchor="middle">U = L (1 − s) = 20.40 W</text>
+    <path d="M60 181 L60 195" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M660 181 L660 195" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M65 188 L655 188" fill="none" stroke="#5b6577" stroke-width="1.2" marker-end="url(#a-sec)" marker-start="url(#a-sec)"/>
+    <text x="360" y="180" font-size="14" fill="#062654" text-anchor="middle">L = 24.0 W</text>
+    </g>
+  </g>
+</svg>

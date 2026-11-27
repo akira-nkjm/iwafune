@@ -55,9 +55,9 @@ fn start_at_eclipse_entry_is_evaluated_only_there() {
     });
     assert_eq!(d.timing, DurationTiming::Fixed);
     assert_eq!(d.starts, 1);
-    // 窓は食入りから始まり、600 s がまるごと日陰（食は 600 s より長い）
+    // 窓は蝕入りから始まり、600 s がまるごと日陰（蝕は 600 s より長い）
     assert!((d.eclipse_overlap.value() - 600.0).abs() < 1e-6);
-    // 電池は台形則で積分する。窓の最初の刻み（日照の標本 → 窓の最初の標本）は充電側で満充電に切られ、
+    // 電池は台形則で積分する。窓の最初の刻み（日照のサンプル → 窓の最初のサンプル）は充電側で満充電に切られ、
     // 最後の刻み（窓の最後 → 基本のモード）は半分だけ放電するので、放電は 59 刻み + 半刻み = 595 s 分
     let expect = from_battery(19.0) * 595.0 / 360_000.0;
     assert!((d.max_dod_from_start.value() - expect).abs() < 1e-9);
@@ -68,7 +68,7 @@ fn start_at_eclipse_entry_is_evaluated_only_there() {
 
 #[test]
 fn start_at_eclipse_exit_can_be_better_than_the_worst_start() {
-    // 食明けから始めれば窓は日照中。発電が負荷を上回るので SOC は下がらない（指定なしの最悪の 600 s 日陰より軽い）
+    // 蝕明けから始めれば窓は日照中。発電が負荷を上回るので SOC は下がらない（指定なしの最悪の 600 s 日陰より軽い）
     let (d, _) = duration_of(ModeTiming {
         when: TimeWindow::Any,
         start: after(EclipseEvent::EclipseExit, 0.0),
@@ -161,7 +161,7 @@ fn a_sequence_anchored_at_eclipse_exit_starts_there() {
         (Some("imaging_day"), 0.0)
     );
     assert_eq!(load_at(&plain, 0.0), 9.5);
-    // 食明けから 100 s 後: 最初の食明けの標本 + 100 s が先頭
+    // 蝕明けから 100 s 後: 最初の蝕明けのサンプル + 100 s が先頭
     let anchored = build(after(EclipseEvent::EclipseExit, 100.0));
     let origin = anchored.sequence.as_ref().unwrap().origin.value();
     let exit = anchored.eclipses[0].end.value();

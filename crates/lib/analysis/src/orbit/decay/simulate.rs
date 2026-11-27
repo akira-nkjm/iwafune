@@ -3,7 +3,7 @@
 //! 状態は `[長半径 a, RAAN, 積算 ΔV]`。RAAN は J2 の永年変化率（`orbit::j2_secular_rates`。今の `a` で）で進める
 //! （太陽同期でない軌道では、大気の昼側の膨らみに対する軌道面の向きが変わる）。積分は `sat_astro::ode::rk4_step`。
 //! 刻みは「1 刻みの高度低下が [`MAX_DROP_PER_STEP_M`] 以下」で決め、[`MAX_STEP_S`]〜[`MIN_STEP_S`] に収める。
-//! 日付で引いた宇宙天気の標本の境目では刻みを切る（標本の間は一定）。
+//! 日付で引いた宇宙天気のサンプルの境目では刻みを切る（サンプルの間は一定）。
 
 use super::rates::{MeanDrag, mean_drag};
 use super::weather::Weather;
@@ -13,7 +13,7 @@ use sat_astro::ode::rk4_step;
 use sat_astro::orbit::{OrbitSpec, Propagator, altitude_from_semi_major_axis, j2_secular_rates};
 use std::cell::RefCell;
 
-/// 刻みの上限 [s]（10 日。季節変化・RAAN の歳差・宇宙天気の標本の間隔より短い）。
+/// 刻みの上限 [s]（10 日。季節変化・RAAN の歳差・宇宙天気のサンプルの間隔より短い）。
 pub const MAX_STEP_S: f64 = 10.0 * SECONDS_PER_DAY;
 /// 刻みの下限 [s]（10 分。再突入の直前で刻みが縮みすぎないように）。
 pub const MIN_STEP_S: f64 = 600.0;

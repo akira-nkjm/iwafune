@@ -28,7 +28,7 @@ pub struct Mode {
     /// 最長継続時間の評価でこのモードを使う時間帯（省略は `any`）。`start` が無ければ、窓がこの時間帯に入る範囲で開始をずらす。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub when: Option<ModeWhen>,
-    /// 最長継続時間の評価の開始の指定（食の出入り + オフセット）。あればその開始だけで評価する。
+    /// 最長継続時間の評価の開始の指定（蝕の出入り + オフセット）。あればその開始だけで評価する。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub start: Option<StartRef>,
     /// 蝕の間だけの上書き。

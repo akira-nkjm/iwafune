@@ -1,4 +1,4 @@
-//! 束縛粒子の地図の読み取りと補間のテスト。合成の小さな地図（同じ形式で試験の中に書く）で手計算と比べる。
+//! 束縛粒子のマップの読み取りと補間のテスト。合成の小さなマップ（同じ形式で試験の中に書く）で手計算と比べる。
 //! NASA の例表（`radbelt.log`）・README の例との照合は [`nasa`]（配布ファイルがキャッシュにあるときだけ走る）。
 
 use super::*;
@@ -20,12 +20,12 @@ fn ascii(words: &[i64]) -> String {
         .collect()
 }
 
-/// 合成の地図。倍率はすべて 100、1/4 桁刻み。エネルギー 1 MeV と 2 MeV の副地図:
+/// 合成のマップ。倍率はすべて 100、1/4 桁刻み。エネルギー 1 MeV と 2 MeV のサブマップ:
 ///
 /// - 1 MeV: L = 1.0 は log₁₀F₀ = 3、B/B₀ の増分 0.5・0.5・1.0（位置 1・1.5・2・3）、L = 2.0 は log₁₀F₀ = 2、増分 1・1（位置 1・2・3）
 /// - 2 MeV: L = 1.0 は log₁₀F₀ = 2、増分 0.5・0.5（位置 1・1.5・2）、L = 2.0 はフラックス無し
 ///
-/// どの副地図も `L = 0` と `L = 0.9`（フラックス無し）の見かけの節点で始まり、`L = 327.67` の節点で終わる。
+/// どのサブマップも `L = 0` と `L = 0.9`（フラックス無し）の見かけの節点で始まり、`L = 327.67` の節点で終わる。
 pub(super) fn synthetic_words() -> Vec<i64> {
     let sub = |energy: i64, nodes: &[&[i64]]| -> Vec<i64> {
         let mut body = vec![0, energy];
@@ -72,7 +72,7 @@ fn parser_rejects_malformed_files() {
     let mut w = synthetic_words();
     w[7] += 1;
     assert!(TrappedMap::from_ascii_bytes(ascii(&w).as_bytes()).is_err());
-    // 副地図の語数が全体からはみ出す
+    // サブマップの語数が全体からはみ出す
     let mut w = synthetic_words();
     w[8] = 9999;
     assert!(TrappedMap::from_ascii_bytes(ascii(&w).as_bytes()).is_err());
@@ -106,7 +106,7 @@ fn flux_along_b_over_b0_on_a_node_matches_hand_calculation() {
     assert!(near(f(0.5), 1000.0));
 }
 
-/// B/B₀ = 1 では L の補間は log₁₀F₀ の直線補間。B/B₀ > 1 は 2 つの副副地図の折れ線の間（NASA の手順）。
+/// B/B₀ = 1 では L の補間は log₁₀F₀ の直線補間。B/B₀ > 1 は 2 つのサブサブマップの折れ線の間（NASA の手順）。
 #[test]
 fn flux_between_l_nodes_at_the_equator_is_log_linear() {
     let m = synthetic_map();
@@ -121,7 +121,7 @@ fn flux_between_l_nodes_at_the_equator_is_log_linear() {
     assert!(near(m.integral_flux(1.0, 1.25, 1.0), 10f64.powf(2.875)));
 }
 
-/// フラックス無しの副副地図は対数フラックス 0 として扱われる（TRARA2 の「空」の分岐）。範囲の外と不正な引数は 0。
+/// フラックス無しのサブサブマップは対数フラックス 0 として扱われる（TRARA2 の「空」の分岐）。範囲の外と不正な引数は 0。
 #[test]
 fn empty_sub_sub_maps_and_invalid_arguments() {
     let m = synthetic_map();
@@ -129,8 +129,8 @@ fn empty_sub_sub_maps_and_invalid_arguments() {
     assert!(near(m.integral_flux(0.95, 1.0, 1.0), 10f64.powf(1.5)));
     // L = 0.5 は両方空で 0
     assert_eq!(m.integral_flux(0.5, 1.0, 1.0), 0.0);
-    // この合成の地図は、フラックスのある最後の節点 L = 2 のすぐ後ろが見かけの節点（L = 327.67）なので、その間は log₁₀F が直線に下がる
-    // （実際の地図は最後の節点の後ろにフラックス無しの節点がある）。L = 1.5 より外の L の方が小さい値になる
+    // この合成のマップは、フラックスのある最後の節点 L = 2 のすぐ後ろが見かけの節点（L = 327.67）なので、その間は log₁₀F が直線に下がる
+    // （実際のマップは最後の節点の後ろにフラックス無しの節点がある）。L = 1.5 より外の L の方が小さい値になる
     assert!(m.integral_flux(50.0, 1.0, 1.0) < m.integral_flux(2.0, 1.0, 1.0));
     // B/B₀ が増分の尽きた先（位置 3 を越える）は 0
     assert_eq!(m.integral_flux(1.0, 3.5, 1.0), 0.0);
@@ -139,7 +139,7 @@ fn empty_sub_sub_maps_and_invalid_arguments() {
     assert_eq!(m.integral_flux(1.0, 1.0, 0.0), 0.0);
 }
 
-/// エネルギーの補間は log₁₀F の E についての直線補間。範囲の外は隣り合う 2 つの副地図からの直線の外挿。
+/// エネルギーの補間は log₁₀F の E についての直線補間。範囲の外は隣り合う 2 つのサブマップからの直線の外挿。
 #[test]
 fn flux_between_energies_is_log_linear_in_energy() {
     let m = synthetic_map();
@@ -147,7 +147,7 @@ fn flux_between_energies_is_log_linear_in_energy() {
     assert!(near(m.integral_flux(1.0, 1.0, 1.5), 10f64.powf(2.5)));
     assert!(near(m.integral_flux(1.0, 1.0, 1.25), 10f64.powf(2.75)));
     assert!(near(m.integral_flux(1.0, 1.0, 2.0), 100.0));
-    // 最後の副地図より上、最初より下は外挿（log₁₀F = 3 − (E − 1)）
+    // 最後のサブマップより上、最初より下は外挿（log₁₀F = 3 − (E − 1)）
     assert!(near(m.integral_flux(1.0, 1.0, 2.5), 10f64.powf(1.5)));
     assert!(near(m.integral_flux(1.0, 1.0, 0.5), 10f64.powf(3.5)));
     // 外挿で log₁₀F ≤ 0 になればフラックス 0

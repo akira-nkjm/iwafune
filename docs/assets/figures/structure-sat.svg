@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 352" role="img" aria-labelledby="t d">
+  <title id="t">Gap between two boxes on a candidate axis</title>
+  <desc id="d">Boxes A and B with centres r_A and r_B are projected onto a candidate axis n. Their projections are intervals of half-length s_A and s_B about the projected centres. The gap g is the distance of the projected centres less s_A and s_B.</desc>
+  <defs>
+    <marker id="a-acc" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#3382c2"/></marker>
+    <marker id="a-ink" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#062654"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="351" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="154" y="88" width="140" height="104" fill="#e8f1f9" stroke="#062654" stroke-width="1.8"/>
+    <path d="M435 67 L525 119 L473 209 L383 157 Z" fill="#fbf3d9" stroke="#062654" stroke-width="1.8"/>
+    <path d="M154 192 L154 262" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M294 192 L294 262" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M224 140 L224 262" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M383 157 L383 262" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M525 119 L525 262" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M454 138 L454 262" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M100 262 L635 262" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <text x="638" y="250" font-size="14" fill="#062654" text-anchor="end"><tspan font-weight="700">n̂</tspan></text>
+    <path d="M154 262 L294 262" fill="none" stroke="#3382c2" stroke-width="5"/>
+    <path d="M383 262 L525 262" fill="none" stroke="#e7bd41" stroke-width="5"/>
+    <circle cx="224" cy="140" r="4" fill="#062654"/>
+    <circle cx="454" cy="138" r="4" fill="#062654"/>
+    <text x="214" y="132" font-size="14" fill="#062654" text-anchor="end"><tspan font-weight="700">r</tspan><tspan dy="4" font-size="10">A</tspan></text>
+    <text x="444" y="130" font-size="14" fill="#062654" text-anchor="end"><tspan font-weight="700">r</tspan><tspan dy="4" font-size="10">B</tspan></text>
+    <text x="164" y="110" font-size="14" fill="#062654" font-weight="700">A</text>
+    <text x="457" y="73" font-size="14" fill="#062654" font-weight="700">B</text>
+    <path d="M224 291 L224 305" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M294 291 L294 305" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M229 298 L289 298" fill="none" stroke="#062654" stroke-width="1.2" marker-end="url(#a-ink)" marker-start="url(#a-ink)"/>
+    <text x="259" y="290" font-size="14" fill="#062654" text-anchor="middle">s<tspan dy="4" font-size="10">A</tspan></text>
+    <path d="M294 291 L294 305" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M383 291 L383 305" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M299 298 L378 298" fill="none" stroke="#3382c2" stroke-width="1.8" marker-end="url(#a-acc)" marker-start="url(#a-acc)"/>
+    <text x="338.5" y="290" font-size="14" fill="#1f63a0" text-anchor="middle">g</text>
+    <path d="M383 291 L383 305" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M454 291 L454 305" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M388 298 L449 298" fill="none" stroke="#062654" stroke-width="1.2" marker-end="url(#a-ink)" marker-start="url(#a-ink)"/>
+    <text x="418.5" y="290" font-size="14" fill="#062654" text-anchor="middle">s<tspan dy="4" font-size="10">B</tspan></text>
+    <path d="M224 327 L224 341" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M454 327 L454 341" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M229 334 L449 334" fill="none" stroke="#062654" stroke-width="1.2" marker-end="url(#a-ink)" marker-start="url(#a-ink)"/>
+    <text x="339" y="326" font-size="14" fill="#062654" text-anchor="middle">|<tspan font-weight="700">n̂</tspan> · (<tspan font-weight="700">r</tspan><tspan dy="4" font-size="10">B</tspan><tspan dy="-4"> − </tspan><tspan font-weight="700">r</tspan><tspan dy="4" font-size="10">A</tspan><tspan dy="-4">)|</tspan></text>
+  </g>
+</svg>

@@ -2,6 +2,6 @@
 import type { EclipseEvent } from "./EclipseEvent";
 
 /**
- * 食の出入りからの開始の指定（基準の時刻 + `offset`。負なら前）。
+ * 蝕の出入りからの開始の指定（基準の時刻 + `offset`。負なら前）。
  */
 export type EventStart = { from: EclipseEvent, offset: number, };

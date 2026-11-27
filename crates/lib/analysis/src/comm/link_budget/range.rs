@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 /// 惑星以遠はミッション期間（`input = "mission_duration"` の要求）を書く。
 pub const DEFAULT_RANGE_SPAN: Qty<Time> = Qty::from_raw(365.25 * SECONDS_PER_DAY);
 
-/// 距離の標本数の上限（長い期間の刻みが細かくなりすぎないようにする）。
+/// 距離のサンプル数の上限（長い期間の刻みが細かくなりすぎないようにする）。
 const MAX_RANGE_SAMPLES: f64 = 50_000.0;
 
 /// 距離の求め方。

@@ -52,7 +52,7 @@ pub struct DatedTransfer {
 }
 
 impl DatedTransfer {
-    /// スイングバイの ΔV の合計 [m/s]（近点の噴射 + 足りない回頭の分。通過がなければ 0）。
+    /// スイングバイの ΔV の合計 [m/s]（近点の噴射 + 足りない偏向の分。通過がなければ 0）。
     pub fn flyby_dv_m_s(&self) -> f64 {
         self.flybys.iter().map(FlybyPass::total_dv_m_s).sum()
     }
@@ -142,7 +142,7 @@ pub fn lambert_arc(
 }
 
 /// 日付つきの遷移の巡航の軌道: 出発の日の遷移の状態（[`LambertArc`]）を親のまわりの接触要素にした二体（Kepler）の軌道。
-/// 元期は出発の日、中心は共通の親、伝搬は二体なので Lambert の弧そのもの（両端の天体の位置を通る）。
+/// 元期は出発の日、中心は共通の親、伝播は二体なので Lambert の弧そのもの（両端の天体の位置を通る）。
 /// 遷移の軌道が楕円でない（双曲線・放物線）ときはエラー（長半径が定まらない。状態ベクトルの source が受け持つ）。
 pub fn cruise_orbit(
     from: CentralBody,

@@ -1,12 +1,12 @@
-//! 時系列の標本の取り方の既定（周回数・刻み・1 日）と、設計が書かなかったときにそれを当てる構築。
+//! 時系列のサンプルの取り方の既定（周回数・刻み・1 日）と、設計が書かなかったときにそれを当てる構築。
 //! **時系列の期間と刻みの既定はここだけ**。
 //! - 期間: 周回数が書かれていなければ [`DEFAULT_ORBITS`]。1 周で数える量（周回平均・割合）は [`SamplingSpan::OrbitAverage`]（1 周）。
 //! - 太陽を回る軌道（惑星間の巡航。周期が数か月〜数年）では、周回数が書かれていなければ 1 周にする（[`DEFAULT_HELIOCENTRIC_ORBITS`]。
 //!   3 周では数年の時系列になり、積分の費用も 3 倍になる。書かれた周回数はそのまま使う）。
-//! - 刻み: [`orbit_step_s`]。周期の一定の割合（1 周あたり最大 [`MAX_STEPS_PER_ORBIT`] 標本）を超えない刻み（下限 `sat_astro::timeline::DEFAULT_STEP_S`）。
-//!   周期が 100 分までの周回軌道では従来どおり 30 s のまま、静止軌道や月周回のような長い周期でも 1 周の標本数が増えすぎない。
+//! - 刻み: [`orbit_step_s`]。周期の一定の割合（1 周あたり最大 [`MAX_STEPS_PER_ORBIT`] サンプル）を超えない刻み（下限 `sat_astro::timeline::DEFAULT_STEP_S`）。
+//!   周期が 100 分までの周回軌道では従来どおり 30 s のまま、静止軌道や月周回のような長い周期でも 1 周のサンプル数が増えすぎない。
 //! - 1 回限りの軌道（[`Cycle::OneOff`]。日付つきの遷移の巡航など）: 周回数は使わず（書かれていても無視）、期間そのものを解く。
-//!   刻みは周期と同じ規則で期間から決める（`max(30 s, 期間 / 200)`。300 日の巡航で 1.5 日、標本は 200 点）。
+//!   刻みは周期と同じ規則で期間から決める（`max(30 s, 期間 / 200)`。300 日の巡航で 1.5 日、サンプルは 200 点）。
 //!   周回の集計（`orbit_ranges`）は期間全体を 1 周回として数える。設計が刻みを書いたとき（熱の `time_step`）は、周期的な軌道ではそのまま、
 //!   1 回限りの軌道では既定の刻みより細かくしない（[`requested_step_s`]）。
 //!
@@ -30,7 +30,7 @@ pub const DEFAULT_HELIOCENTRIC_ORBITS: u32 = 1;
 /// 周期的な量なので 1 周で足りる（複数周は同じ値の繰り返し）。
 pub const ORBIT_AVERAGE_ORBITS: u32 = 1;
 
-/// 1 周あたりの標本数の上限（[`orbit_step_s`]）。100 分（6000 s）の周回軌道が下限の刻み 30 s と一致する 200 標本。
+/// 1 周あたりのサンプル数の上限（[`orbit_step_s`]）。100 分（6000 s）の周回軌道が下限の刻み 30 s と一致する 200 サンプル。
 pub const MAX_STEPS_PER_ORBIT: f64 = 200.0;
 
 /// 時系列の期間の取り方。解析が自分の量に合う期間を選び、設計は周回数だけを書く。
@@ -57,8 +57,8 @@ pub fn orbit_count(orbits: Option<u32>) -> u32 {
     orbits.unwrap_or(DEFAULT_ORBITS).max(1)
 }
 
-/// 周期 `period_s` の軌道の時系列の既定の刻み [s]: 下限 `floor_s`、ただし 1 周あたり `max_steps_per_orbit` 標本を超えない
-/// （`max(floor_s, period / max_steps_per_orbit)`）。**刻みを周期の割合で決める規則はここだけ**（影の標本 `SHADOW_STEP_S` も同じ規則）。
+/// 周期 `period_s` の軌道の時系列の既定の刻み [s]: 下限 `floor_s`、ただし 1 周あたり `max_steps_per_orbit` サンプルを超えない
+/// （`max(floor_s, period / max_steps_per_orbit)`）。**刻みを周期の割合で決める規則はここだけ**（影のサンプル `SHADOW_STEP_S` も同じ規則）。
 pub fn step_for_period(period_s: f64, floor_s: f64, max_steps_per_orbit: f64) -> f64 {
     floor_s.max(period_s / max_steps_per_orbit)
 }
@@ -72,7 +72,7 @@ pub fn orbit_step_s(cycle: Cycle) -> f64 {
 
 /// 設計が決めた刻み `requested` を、軌道の繰り返しに合わせて使う刻み [s] にする。周期的な軌道はそのまま（周回の分解能の指定）。
 /// 1 回限りの軌道（[`Cycle::OneOff`]）は、期間から決めた既定の刻み（[`orbit_step_s`]）より細かくしない
-/// （数か月の巡航を周回の刻み 30 s で刻むと標本が数十万点になるため。粗くする指定はそのまま）。
+/// （数か月の巡航を周回の刻み 30 s で刻むとサンプルが数十万点になるため。粗くする指定はそのまま）。
 pub fn requested_step_s(cycle: Cycle, requested: f64) -> f64 {
     match cycle {
         Cycle::Periodic { .. } => requested,
@@ -80,7 +80,7 @@ pub fn requested_step_s(cycle: Cycle, requested: f64) -> f64 {
     }
 }
 
-/// 期間の取り方 `span` の標本の取り方（刻みは繰り返しの長さから、β の指定なし）。
+/// 期間の取り方 `span` のサンプルの取り方（刻みは繰り返しの長さから、β の指定なし）。
 /// 1 回限りの軌道（[`Cycle::OneOff`]）は周回数を使わず、その期間そのものを解く（周回数の指定は無視）。
 pub fn sampling(orbit: impl Into<Trajectory>, span: SamplingSpan) -> OrbitSampling {
     let orbit = orbit.into();
@@ -99,17 +99,17 @@ pub fn sampling(orbit: impl Into<Trajectory>, span: SamplingSpan) -> OrbitSampli
     )
 }
 
-/// 軌道 [`orbit_count`] 周分の標本の取り方（刻みは周期から、β の指定なし）。
+/// 軌道 [`orbit_count`] 周分のサンプルの取り方（刻みは周期から、β の指定なし）。
 pub fn orbits_sampling(orbit: impl Into<Trajectory>, orbits: Option<u32>) -> OrbitSampling {
     sampling(orbit, SamplingSpan::Series(orbits))
 }
 
-/// 1 日分の標本（地上局の可視・送信量）の刻みの上限 [s]。パスの出入りは地球の自転（15°/h）で決まるので、
+/// 1 日分のサンプル（地上局の可視・送信量）の刻みの上限 [s]。パスの出入りは地球の自転（15°/h）で決まるので、
 /// 周期の長い軌道（日心軌道など。周期の割合の刻みが 1 日を超える）でも 10 分より粗くしない。
 /// 静止軌道までの周期（刻み 430 s 以下）では周期から決めた刻みのまま。
 pub const MAX_DAILY_STEP_S: f64 = 600.0;
 
-/// 1 日分の標本の取り方（地上局の可視・送信量。刻みは周期から、ただし [`MAX_DAILY_STEP_S`] まで。β の指定なし）。
+/// 1 日分のサンプルの取り方（地上局の可視・送信量。刻みは周期から、ただし [`MAX_DAILY_STEP_S`] まで。β の指定なし）。
 /// 1 日より短い 1 回限りの軌道（[`Cycle::OneOff`]）は、その期間まで（軌道の外は解かない）。
 pub fn daily_sampling(orbit: impl Into<Trajectory>) -> OrbitSampling {
     let orbit = orbit.into();
@@ -163,19 +163,19 @@ mod tests {
         assert!((s.span.value() - 5.0 * period).abs() < 1e-9);
     }
 
-    /// 刻みは周期の割合で決まる: 100 分（6000 s）までは従来の 30 s のまま（1 周 200 標本以下）、
-    /// それより長い周期は周期 / 200（静止軌道 86 164 s なら 430.82 s、1 周は 200 標本）。
+    /// 刻みは周期の割合で決まる: 100 分（6000 s）までは従来の 30 s のまま（1 周 200 サンプル以下）、
+    /// それより長い周期は周期 / 200（静止軌道 86 164 s なら 430.82 s、1 周は 200 サンプル）。
     #[test]
     fn step_is_a_fraction_of_the_period_with_a_floor() {
         assert_eq!(orbit_step_s(periodic(5400.0)), 30.0);
         assert_eq!(orbit_step_s(periodic(6000.0)), 30.0);
         assert!((orbit_step_s(periodic(86_164.0)) - 86_164.0 / 200.0).abs() < 1e-12);
-        // 1 周の標本数は、周期が 6000 s 以下なら周期 / 30 s（従来どおり）、それ以上は 200 で頭打ち
+        // 1 周のサンプル数は、周期が 6000 s 以下なら周期 / 30 s（従来どおり）、それ以上は 200 で頭打ち
         let steps = |period: f64| period / orbit_step_s(periodic(period));
         assert_eq!(steps(5400.0), 180.0);
         assert!((steps(86_164.0) - 200.0).abs() < 1e-9);
         assert!((steps(6.0e5) - 200.0).abs() < 1e-9);
-        // 影の標本も同じ規則（下限 5 s・1 周 1200 標本）
+        // 影のサンプルも同じ規則（下限 5 s・1 周 1200 サンプル）
         assert_eq!(step_for_period(5700.0, 5.0, 1200.0), 5.0);
         assert!((step_for_period(86_164.0, 5.0, 1200.0) - 86_164.0 / 1200.0).abs() < 1e-12);
     }
@@ -206,14 +206,14 @@ mod tests {
         assert!((s.span.value() - period).abs() < 1e-6);
     }
 
-    /// 1 日の標本は 86 400 s。
+    /// 1 日のサンプルは 86 400 s。
     #[test]
     fn daily_sampling_spans_one_day() {
         let s = daily_sampling(orbit());
         assert_eq!(s.span.value(), 86_400.0);
     }
 
-    /// 1 日の標本の刻みは 10 分まで: 周期が 1 年の日心軌道（周期 / 200 = 1.6 日）でも 600 s、
+    /// 1 日のサンプルの刻みは 10 分まで: 周期が 1 年の日心軌道（周期 / 200 = 1.6 日）でも 600 s、
     /// 静止軌道（430.82 s）や周回軌道（30 s）は周期から決めた刻みのまま。
     #[test]
     fn daily_step_is_capped_for_long_periods() {
@@ -269,7 +269,7 @@ mod tests {
             SamplingSpan::Series(None),
         );
         assert_eq!((s.span.value(), s.step.value()), (3000.0, DEFAULT_STEP_S));
-        // 1 日の標本は、1 日より短い期間までで、刻みは 10 分まで
+        // 1 日のサンプルは、1 日より短い期間までで、刻みは 10 分まで
         let d = daily_sampling(Trajectory::from(orbit()).with_span(3000.0));
         assert_eq!(d.span.value(), 3000.0);
         let d = daily_sampling(cruise);

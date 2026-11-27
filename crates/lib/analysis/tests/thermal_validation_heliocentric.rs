@@ -1,4 +1,4 @@
-//! 熱解析の検証（5）: 太陽を中心天体にした軌道（惑星間の巡航）。太陽光だけの入熱（アルベド・天体の赤外は 0、食なし）で、
+//! 熱解析の検証（5）: 太陽を中心天体にした軌道（惑星間の巡航）。太陽光だけの入熱（アルベド・天体の赤外は 0、蝕なし）で、
 //! 太陽距離 d [m] の太陽光は `S₁ (AU/d)²`（S₁ = 1 AU の太陽光）。期待値はすべて閉じた式。
 //! - 太陽光だけを受ける 1 節点の平衡温度 `T⁴ = α S A_abs / (ε σ A_rad)` は d^(-1/2) に比例する（平板・立方体）。
 //! - 楕円軌道の周回平均（定常）は、時間平均 ⟨(a/r)²⟩ = 1/√(1−e²)（ケプラーの面積速度一定から）を使う。
@@ -142,7 +142,7 @@ fn written_albedo_and_planet_ir_are_not_used_about_the_sun() {
 }
 
 /// 楕円軌道（近日点 0.7 AU・遠日点 1.5 AU）の周回平均（定常）: 入熱の平均 ∝ ⟨(AU/r)²⟩ = (AU/a)²/√(1−e²)（時間平均）。
-/// 平板の T⁴ = α S₁ (AU/a)² / (√(1−e²) ε σ)。標本は周期の関数の台形則（周期関数なのでごく小さい誤差）。
+/// 平板の T⁴ = α S₁ (AU/a)² / (√(1−e²) ε σ)。サンプルは周期の関数の台形則（周期関数なのでごく小さい誤差）。
 #[test]
 fn steady_orbit_average_of_an_ellipse_uses_the_time_mean_of_inverse_square() {
     let (rp, ra) = (0.7 * AU, 1.5 * AU);
@@ -192,7 +192,7 @@ fn transient_plate_converges_to_the_distance_equilibrium() {
 }
 
 /// 非定常（楕円軌道を半年）: 時定数が軌道の変化よりずっと短いので、温度は各時刻の太陽距離の平衡温度に準静的に追従する
-/// （遅れ ≈ τ·dT/dt は 1e-2 K 未満）。距離はケプラー伝搬の位置の大きさ（`OrbitSpec::state_at`）から。
+/// （遅れ ≈ τ·dT/dt は 1e-2 K 未満）。距離はケプラー伝播の位置の大きさ（`OrbitSpec::state_at`）から。
 #[test]
 fn transient_follows_the_equilibrium_along_an_ellipse() {
     let (rp, ra) = (0.7 * AU, 1.5 * AU);

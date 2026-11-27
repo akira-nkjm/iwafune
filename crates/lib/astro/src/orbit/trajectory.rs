@@ -4,7 +4,7 @@
 //! その入口が [`Trajectory`]（どこから来る軌道か）と [`Cycle`]（周期か、1 回限りの期間か）。
 //! [`Trajectory::Elements`]（[`OrbitSpec`]）の関数は [`OrbitSpec`] の関数にそのまま渡す（数値は変わらない）。
 //! どの軌道にも、1 回限りの期間を持たせられる（[`Trajectory::with_span`]。[`Trajectory::Spanned`]）。期間を持つと
-//! [`Cycle`] は [`Cycle::OneOff`] になり、中身の軌道の伝搬は変えない（日付つきの遷移の巡航のように、周期的でない弧を
+//! [`Cycle`] は [`Cycle::OneOff`] になり、中身の軌道の伝播は変えない（日付つきの遷移の巡航のように、周期的でない弧を
 //! 二体の軌道で表すときに使う）。状態ベクトルの軌道（[`Trajectory::State`]）は期間が必須で、同じ [`Cycle::OneOff`]・
 //! [`Trajectory::with_span`]・`span_s` の書き方を使う（期間は [`StateSpec`] の欄で、`Spanned` で包まない）。
 //! 回転座標系の軌跡（[`Trajectory::Synodic`]。ラグランジュ点・ハロー軌道。円制限三体問題の軌道を暦の 2 天体の位置に載せたもの）は周期的で、
@@ -81,12 +81,12 @@ impl Cycle {
 pub enum Trajectory {
     /// ケプラー要素（今の軌道）。
     Elements(OrbitSpec),
-    /// 状態ベクトル（元期・原点の天体・位置・速度・力の設定・期間）を既存の数値伝搬で伝搬する軌道。繰り返しは常に 1 回限り。
+    /// 状態ベクトル（元期・原点の天体・位置・速度・力の設定・期間）を既存の数値伝播で伝播する軌道。繰り返しは常に 1 回限り。
     State(StateSpec),
     /// 2 天体の回転座標系での軌跡（ラグランジュ点そのもの、またはハロー軌道。円制限三体問題の軌道を暦の 2 天体の位置に載せたもの）。
     /// 繰り返しは周期的（ハローの周期、固定点は 2 天体の公転周期）。
     Synodic(SynodicSpec),
-    /// 1 回限りの期間 `span_s` [s] を持つ軌道（[`Cycle::OneOff`]）。伝搬・中心天体・元期は `orbit` のまま。
+    /// 1 回限りの期間 `span_s` [s] を持つ軌道（[`Cycle::OneOff`]）。伝播・中心天体・元期は `orbit` のまま。
     Spanned { orbit: Box<Trajectory>, span_s: f64 },
     /// 時間の順に並べた 2 本以上の弧（それぞれ期間を持つ軌道）。隣り合う弧の境（折れ目）で位置は連続、速度は跳ぶ。
     /// 繰り返しは全体で 1 回限り。作るのは [`Trajectory::chain`]（弧が 1 本ならその弧を返す）。
@@ -211,7 +211,7 @@ impl Trajectory {
 
     /// 元期から `span_s` 秒までの任意の時刻の状態を求める道具（[`OrbitSpec::track`]）。
     /// 状態ベクトルの軌道は、1 回の積分で格子（刻み `max_grid_s` と [`StateSpec::table_step_s`] の小さい方）の表を作り、
-    /// 格子の間をエルミート補間する（数値伝搬の要素の軌道と同じ表）。
+    /// 格子の間をエルミート補間する（数値伝播の要素の軌道と同じ表）。
     pub fn track(&self, span_s: f64, max_grid_s: f64) -> Result<OrbitTrack, AstroError> {
         match self {
             Self::Elements(o) => o.track(span_s, max_grid_s),

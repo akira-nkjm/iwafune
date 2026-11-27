@@ -1,4 +1,4 @@
-//! 標本の最小・最大と、その前後の区間で詰めた極値（[`extremes_by`]）。量の中身（距離・角度）は知らない。
+//! サンプルの最小・最大と、その前後の区間で詰めた極値（[`extremes_by`]）。量の中身（距離・角度）は知らない。
 
 use crate::AstroError;
 use crate::math::golden_section_min;
@@ -24,7 +24,7 @@ impl ExtremumKind {
     }
 }
 
-/// 極値 1 つ（時刻は標本の始めからの経過 [s]）。
+/// 極値 1 つ（時刻はサンプルの始めからの経過 [s]）。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Extremum {
     pub t_s: f64,
@@ -38,16 +38,16 @@ pub struct Extremes {
     pub max: Extremum,
 }
 
-/// 値の列の最小と最大の添字（同値は最初の標本）。空なら `None`。NaN は全順序（`total_cmp`）で扱う。
+/// 値の列の最小と最大の添字（同値は最初のサンプル）。空なら `None`。NaN は全順序（`total_cmp`）で扱う。
 pub fn extreme_indices(values: &[f64]) -> Option<(usize, usize)> {
     let min = (0..values.len()).min_by(|&a, &b| values[a].total_cmp(&values[b]))?;
     let max = (0..values.len()).min_by(|&a, &b| values[b].total_cmp(&values[a]))?;
     Some((min, max))
 }
 
-/// 標本 `(times, values)` の最小・最大を、標本の前後の区間（`[t[i-1], t[i+1]]`、端は端）で黄金分割して詰める
-/// （`f` は時刻 → 値。標本の値と同じ量）。端の標本が極値なら端のまま（黄金分割は内側に寄るので、標本の値が良ければ標本を採る）。
-/// 区間の中で単峰とみなす。詰めた時刻の値は `f` で評価し直す。`f` が失敗したらそのエラーを返す。標本が空なら `None`。
+/// サンプル `(times, values)` の最小・最大を、サンプルの前後の区間（`[t[i-1], t[i+1]]`、端は端）で黄金分割して詰める
+/// （`f` は時刻 → 値。サンプルの値と同じ量）。端のサンプルが極値なら端のまま（黄金分割は内側に寄るので、サンプルの値が良ければサンプルを採る）。
+/// 区間の中で単峰とみなす。詰めた時刻の値は `f` で評価し直す。`f` が失敗したらそのエラーを返す。サンプルが空なら `None`。
 /// 軌道に折れ目があるときは [`extremes_by_split`]。
 pub fn extremes_by(
     times: &[f64],
@@ -101,7 +101,7 @@ pub fn extremes_by_split(
         if let Some(e) = failure.into_inner() {
             return Err(e);
         }
-        // 詰めた時刻・折れ目・標本の時刻のうち良い方（同値は先に挙げた方）
+        // 詰めた時刻・折れ目・サンプルの時刻のうち良い方（同値は先に挙げた方）
         let (t, value) = refined
             .into_iter()
             .chain(inner)

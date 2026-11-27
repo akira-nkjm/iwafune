@@ -3,7 +3,7 @@ import type { QuantityView } from "./QuantityView";
 import type { StartFrom } from "./StartFrom";
 
 /**
- * 食の出入りからの位置の指定（開始の基準・並びの先頭の位置）。
+ * 蝕の出入りからの位置の指定（開始の基準・並びの先頭の位置）。
  */
 export type ModeStartView = { from: StartFrom, 
 /**

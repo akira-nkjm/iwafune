@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 320" role="img" aria-labelledby="t d">
+  <title id="t">Conical shadow and beta angle</title>
+  <desc id="d">Left: the Sun and a body with the tangent rays that bound the shadow. The converging outer tangents bound the umbra, where the Sun is hidden; the diverging inner tangents bound the penumbra, where it is partly hidden. Right: the orbit plane seen edge-on with its normal h, the Sun direction s and the beta angle between s and the plane.</desc>
+  <defs>
+    <marker id="a-gold" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#8a6400"/></marker>
+    <marker id="a-ink" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#062654"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="319" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M240.9 128.9 L452 37.7 L452 262.3 L240.9 171.1 Z" stroke="none" fill="#062654" fill-opacity="0.07"/>
+    <path d="M253 127.2 L424 150 L253 172.8 Z" stroke="none" fill="#062654" fill-opacity="0.22"/>
+    <path d="M82.1 104.4 L253 127.2" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M253 127.2 L424 150" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M94.2 192.2 L240.9 128.9" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M240.9 128.9 L452 37.7" fill="none" stroke="#3382c2" stroke-width="1.8"/>
+    <path d="M82.1 195.6 L253 172.8" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M253 172.8 L424 150" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M94.2 107.8 L240.9 171.1" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M240.9 171.1 L452 262.3" fill="none" stroke="#3382c2" stroke-width="1.8"/>
+    <circle cx="76" cy="150" r="46" fill="#e7bd41" stroke="#8a6400" stroke-width="1.8"/>
+    <circle cx="250" cy="150" r="23" fill="#e8f1f9" stroke="#062654" stroke-width="1.8"/>
+    <text x="76" y="155" font-size="14" fill="#062654" text-anchor="middle">Sun</text>
+    <text x="250" y="197" font-size="14" fill="#062654" text-anchor="middle" paint-order="stroke" stroke="#ffffff" stroke-width="4" stroke-linejoin="round">body</text>
+    <text x="303" y="155" font-size="14" fill="#062654">umbra</text>
+    <text x="444" y="88" font-size="14" fill="#1f63a0" text-anchor="end">penumbra</text>
+    <text x="444" y="222" font-size="14" fill="#1f63a0" text-anchor="end">penumbra</text>
+    <text x="250" y="296" font-size="12" fill="#5b6577" text-anchor="middle">conical shadow (not to scale)</text>
+    <path d="M476 30 L476 290" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-opacity="0.35"/>
+    <path d="M500 196 L700 196" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M600 196 L600 91" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <path d="M600 196 L506.3 132.8" fill="none" stroke="#8a6400" stroke-width="2.4" marker-end="url(#a-gold)"/>
+    <path d="M548 196 A52 52 0 0 1 556.9 166.9" fill="none" stroke="#3382c2" stroke-width="1.8"/>
+    <circle cx="600" cy="196" r="13" fill="#e8f1f9" stroke="#062654" stroke-width="1.8"/>
+    <text x="535" y="181.1" font-size="14" fill="#1f63a0" text-anchor="middle">β</text>
+    <text x="610" y="96" font-size="14" fill="#062654"><tspan font-weight="700">ĥ</tspan></text>
+    <text x="506.2" y="120" font-size="14" fill="#8a6400" text-anchor="middle"><tspan font-weight="700">ŝ</tspan></text>
+    <text x="520.2" y="120" font-size="12" fill="#8a6400">to the Sun</text>
+    <text x="700" y="226" font-size="12" fill="#5b6577" text-anchor="end">orbit plane, edge-on</text>
+    <text x="600" y="296" font-size="12" fill="#5b6577" text-anchor="middle">beta angle</text>
+  </g>
+</svg>

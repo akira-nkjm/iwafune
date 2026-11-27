@@ -440,7 +440,7 @@ fn settings_override_defaults_and_are_validated() {
     bad(&|t| (t.departure_steps, t.arrival_steps) = (Some(1000), Some(1000)));
 }
 
-/// 軌道面: 出発の赤緯が駐機軌道の傾斜角を超える最小の点には注記が付く（`dated_transfer_plane` と同じ見方）。
+/// 軌道面: 出発の赤緯がパーキング軌道の傾斜角を超える最小の点には注記が付く（`dated_transfer_plane` と同じ見方）。
 /// 傾斜角 0° では赤緯の絶対値が 0 でない限り付き、傾斜角 97°（赤緯は ±90° 以内）では付かない。
 #[test]
 fn declination_above_the_parking_inclination_is_noted() {

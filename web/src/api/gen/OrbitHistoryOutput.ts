@@ -11,7 +11,7 @@ export type OrbitHistoryOutput = { history: OrbitHistory,
  */
 maneuvers_end: number, 
 /**
- * 数値伝搬したマヌーバ（実行の順）
+ * 数値伝播したマヌーバ（実行の順）
  */
 propagated: Array<string>, 
 /**

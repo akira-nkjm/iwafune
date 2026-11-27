@@ -48,7 +48,7 @@ pub(super) fn thrust_balance_note(n: ThrustBalanceNote) -> AnalysisLabel {
 pub(super) fn transfer_check_note(n: TransferCheckNote) -> AnalysisLabel {
     match n {
         TransferCheckNote::PointMassCruise => label(
-            "出発天体の中心から Lambert の速度で始め、出発・到着の天体の重力は入れず、ほかの惑星を点質量の第三体として伝搬した",
+            "出発天体の中心から Lambert の速度で始め、出発・到着の天体の重力は入れず、ほかの惑星を点質量の第三体として伝播した",
             "Propagated from the departure body's centre with the Lambert velocity, without the gravity of the departure and arrival bodies, and with the other planets as point-mass third bodies",
         ),
         TransferCheckNote::AnalyticEphemerisNotJudged => label(
@@ -56,7 +56,7 @@ pub(super) fn transfer_check_note(n: TransferCheckNote) -> AnalysisLabel {
             "Body positions are analytic (not DE440), so the miss is of the order of the ephemeris error and is not judged",
         ),
         TransferCheckNote::LegsNotChained => label(
-            "スイングバイのある遷移なので、脚ごとに伝搬した（各脚は自分の Lambert の速度から始まる。通過の天体の近くの双曲線の弧と、通過の前後をつなげた伝搬は検証しない）",
+            "スイングバイのある遷移なので、脚ごとに伝播した（各脚は自分の Lambert の速度から始まる。通過の天体の近くの双曲線の弧と、通過の前後をつなげた伝播は検証しない）",
             "The transfer has swing-bys, so each leg was propagated separately from its own Lambert velocity (the hyperbolic arc near the flyby body and a propagation chained through the flyby are not verified)",
         ),
         TransferCheckNote::ClosestApproachAtEnd => label(
@@ -73,7 +73,7 @@ pub(super) fn launch_window_note(n: LaunchWindowNote) -> AnalysisLabel {
             "Body positions are analytic (not DE440): errors of the order of 10^5 km for Mars, so the best dates may shift by days",
         ),
         LaunchWindowNote::DeclinationAboveInclination => label(
-            "ΔV が最小の点の出発の漸近線の赤緯が駐機軌道の傾斜角より大きい（軌道面の変更は数えない）",
+            "ΔV が最小の点の出発の漸近線の赤緯がパーキング軌道の傾斜角より大きい（軌道面の変更は数えない）",
             "The departure asymptote declination of the minimum delta-V point is above the parking orbit inclination (the plane change is not counted)",
         ),
         LaunchWindowNote::MinimumAtGridEdge => label(
@@ -85,7 +85,7 @@ pub(super) fn launch_window_note(n: LaunchWindowNote) -> AnalysisLabel {
             "The transfer cannot be solved for the dates written in the maneuver",
         ),
         LaunchWindowNote::WrittenFlybyInfeasible => label(
-            "マヌーバに書かれた日付では、通過のどれかが下限の高度で曲がりきれない（`propulsion.maneuvers` は足りない回頭の分を噴射に足して警告する）",
+            "マヌーバに書かれた日付では、通過のどれかが下限の高度で曲がりきれない（`propulsion.maneuvers` は足りない偏向の分を噴射に足して警告する）",
             "At the dates written in the maneuver a flyby cannot turn enough at its minimum altitude (propulsion.maneuvers adds the missing turn to the burn and warns)",
         ),
         LaunchWindowNote::UnpoweredFlybyNotBallistic => label(
@@ -152,7 +152,7 @@ pub(super) fn note(n: ManeuverNote) -> AnalysisLabel {
             "The delta-V is the value written in the design (an allowance); the orbit does not change",
         ),
         ManeuverNote::PropagationNotReached => label(
-            "数値伝搬が上限の時間までに目標に届かなかった（届いたところまでの値）",
+            "数値伝播が上限の時間までに目標に届かなかった（届いたところまでの値）",
             "The propagation did not reach the target within the time limit (values up to where it got)",
         ),
         ManeuverNote::FiniteBurnTooLong => label(

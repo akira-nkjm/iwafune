@@ -41,7 +41,7 @@ pub(super) fn range_of(species: Species) -> (f64, f64) {
     }
 }
 
-/// 1 つの地図の軌道平均の積分フラックス `F(>E)` [cm⁻² s⁻¹]（`energies` ごと。L が求まらない標本は 0）。
+/// 1 つのマップの軌道平均の積分フラックス `F(>E)` [cm⁻² s⁻¹]（`energies` ごと。L が求まらないサンプルは 0）。
 pub(super) fn mean_integral_flux(
     map: &TrappedMap,
     positions: &[Result<BeltPosition, NoL>],

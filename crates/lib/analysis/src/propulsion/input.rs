@@ -26,11 +26,11 @@ pub const TANK_MARGIN_WARNING: f64 = 0.10;
 /// 定格（総インパルス・累積噴射時間・噴射回数）に対する余裕がこれ未満なら警告。
 pub const RATING_MARGIN_WARNING: f64 = 0.25;
 
-/// 推力を入れた数値伝搬（`propagated`）の制御の刻みの既定値 [s]。噴射の有無と面外の向きをこの刻みで決める
+/// 推力を入れた数値伝播（`propagated`）の制御の刻みの既定値 [s]。噴射の有無と面外の向きをこの刻みで決める
 /// （LEO の 1 周 ~95 分の 1/100 程度。日照の境目の誤差は 1 回あたりこの刻み以内）。
 pub const DEFAULT_CONTROL_STEP_S: f64 = 60.0;
 
-/// 数値伝搬の上限の時間を、Edelbaum の見積もり（噴き続けた時間）の何倍にするか（日照だけ・デューティの分を割ったうえで）。
+/// 数値伝播の上限の時間を、Edelbaum の見積もり（噴き続けた時間）の何倍にするか（日照だけ・デューティの分を割ったうえで）。
 pub const PROPAGATION_TIME_FACTOR: f64 = 3.0;
 
 /// 日照中だけ噴くときに上限の時間に掛ける倍率（LEO で日照は 1 周の 6 割前後なので、その逆数より大きい 2）。
@@ -71,11 +71,11 @@ impl DvCategory {
 pub enum TransferMethod {
     /// インパルスの噴射（ホーマン・平面変更・バイエリプティック・天体間のパッチドコニック）
     Impulsive,
-    /// 化学推進の有限燃焼（インパルスの ΔV に重力・向きの損失の近似を足す）
+    /// 化学推進の有限噴射（インパルスの ΔV に重力・向きの損失の近似を足す）
     FiniteBurn,
     /// 電気推進の連続噴射（Edelbaum の式）
     LowThrust,
-    /// 推力を入れた数値伝搬（日照だけ・デューティ・推力の向きが効く）
+    /// 推力を入れた数値伝播（日照だけ・デューティ・推力の向きが効く）
     Propagated,
 }
 
@@ -160,7 +160,7 @@ pub struct ManeuverInput {
     pub thruster: Option<String>,
     #[serde(default)]
     pub target: OrbitTarget,
-    /// バイエリプティック遷移の中間の遠地点の高度（インパルス・有限燃焼のときだけ使う）
+    /// バイエリプティック遷移の中間の遠地点の高度（インパルス・有限噴射のときだけ使う）
     #[serde(default)]
     pub via_altitude: Option<Qty<Length>>,
     /// 直接書いた ΔV（軌道修正・軌道維持・マージンなどの余裕。軌道は変えず、`target` などから ΔV を計算しない。
@@ -171,7 +171,7 @@ pub struct ManeuverInput {
     /// 書かれているが粗い段階では効かない制約のキー（`sunlit_only`・`mode` など。結果に無視したことを書く）
     #[serde(default)]
     pub ignored_constraints: Vec<String>,
-    /// 数値伝搬（`propagated`）で効く制約
+    /// 数値伝播（`propagated`）で効く制約
     #[serde(default, skip_serializing_if = "ThrustConstraints::is_default")]
     pub thrust: ThrustConstraints,
     /// 日付つきの惑星間遷移（`target.body` が兄弟の天体のときだけ）
@@ -180,7 +180,7 @@ pub struct ManeuverInput {
     pub transfer: Option<DatedTransferInput>,
 }
 
-/// 数値伝搬（`propagated`）で効く制約。
+/// 数値伝播（`propagated`）で効く制約。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ThrustConstraints {

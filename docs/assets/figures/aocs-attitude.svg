@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 340" role="img" aria-labelledby="t d">
+  <title id="t">Nadir-pointing law along a circular orbit</title>
+  <desc id="d">A circular orbit seen along its normal, with the spacecraft at four positions moving counter-clockwise. At each position the primary body axis points at the centre of the central body, the secondary axis points along the velocity, and the third axis points along the orbit normal, out of the page.</desc>
+  <defs>
+    <marker id="a-acc" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#3382c2"/></marker>
+    <marker id="a-sec" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#5b6577"/></marker>
+    <marker id="a-teal" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#0097a7"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="339" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="200" cy="170" r="118" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <circle cx="200" cy="170" r="34" fill="#e8f1f9" stroke="#062654" stroke-width="1.8"/>
+    <text x="200" y="175" font-size="12" fill="#5b6577" text-anchor="middle">body</text>
+    <path d="M311.1 95.1 A134 134 0 0 0 267.3 54.1" fill="none" stroke="#5b6577" stroke-width="1.8" marker-end="url(#a-sec)"/>
+    <path d="M189 41 L189 63 L211 63 L211 41 Z" fill="#f5f7fa" stroke="#062654" stroke-width="1.8"/>
+    <path d="M200 63 L200 105" fill="none" stroke="#3382c2" stroke-width="2.4" marker-end="url(#a-acc)"/>
+    <path d="M189 52 L147 52" fill="none" stroke="#0097a7" stroke-width="2.4" marker-end="url(#a-teal)"/>
+    <circle cx="200" cy="52" r="5.5" fill="#ffffff" stroke="#062654" stroke-width="1.2"/>
+    <circle cx="200" cy="52" r="1.8" fill="#062654"/>
+    <path d="M71 181 L93 181 L93 159 L71 159 Z" fill="#f5f7fa" stroke="#062654" stroke-width="1.8"/>
+    <path d="M93 170 L135 170" fill="none" stroke="#3382c2" stroke-width="2.4" marker-end="url(#a-acc)"/>
+    <path d="M82 181 L82 223" fill="none" stroke="#0097a7" stroke-width="2.4" marker-end="url(#a-teal)"/>
+    <circle cx="82" cy="170" r="5.5" fill="#ffffff" stroke="#062654" stroke-width="1.2"/>
+    <circle cx="82" cy="170" r="1.8" fill="#062654"/>
+    <path d="M211 299 L211 277 L189 277 L189 299 Z" fill="#f5f7fa" stroke="#062654" stroke-width="1.8"/>
+    <path d="M200 277 L200 235" fill="none" stroke="#3382c2" stroke-width="2.4" marker-end="url(#a-acc)"/>
+    <path d="M211 288 L253 288" fill="none" stroke="#0097a7" stroke-width="2.4" marker-end="url(#a-teal)"/>
+    <circle cx="200" cy="288" r="5.5" fill="#ffffff" stroke="#062654" stroke-width="1.2"/>
+    <circle cx="200" cy="288" r="1.8" fill="#062654"/>
+    <path d="M329 159 L307 159 L307 181 L329 181 Z" fill="#f5f7fa" stroke="#062654" stroke-width="1.8"/>
+    <path d="M307 170 L265 170" fill="none" stroke="#3382c2" stroke-width="2.4" marker-end="url(#a-acc)"/>
+    <path d="M318 159 L318 117" fill="none" stroke="#0097a7" stroke-width="2.4" marker-end="url(#a-teal)"/>
+    <circle cx="318" cy="170" r="5.5" fill="#ffffff" stroke="#062654" stroke-width="1.2"/>
+    <circle cx="318" cy="170" r="1.8" fill="#062654"/>
+    <path d="M420 96 L459 96" fill="none" stroke="#3382c2" stroke-width="2.4" marker-end="url(#a-acc)"/>
+    <text x="478" y="101" font-size="14" fill="#062654">primary axis: to the body centre</text>
+    <path d="M420 140 L459 140" fill="none" stroke="#0097a7" stroke-width="2.4" marker-end="url(#a-teal)"/>
+    <text x="478" y="145" font-size="14" fill="#062654">secondary axis: along the velocity</text>
+    <circle cx="442" cy="184" r="5.5" fill="#ffffff" stroke="#062654" stroke-width="1.2"/>
+    <circle cx="442" cy="184" r="1.8" fill="#062654"/>
+    <text x="478" y="189" font-size="14" fill="#062654">third axis: orbit normal,</text>
+    <text x="478" y="208" font-size="14" fill="#062654">out of the page</text>
+    <path d="M420 246 L464 246" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <text x="478" y="251" font-size="12" fill="#5b6577">orbit, seen along its normal</text>
+  </g>
+</svg>

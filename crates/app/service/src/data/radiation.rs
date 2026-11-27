@@ -1,4 +1,4 @@
-//! 放射線帯の束縛粒子の地図（AP-8・AE-8）と、地図が前提にする古い地磁気モデルの係数、IGRF、遮蔽線量の表（SHIELDOSE-2）の配布ファイルの行と、
+//! 放射線帯の束縛粒子のマップ（AP-8・AE-8）と、マップが前提にする古い地磁気モデルの係数、IGRF、遮蔽線量の表（SHIELDOSE-2）の配布ファイルの行と、
 //! sat-astro（`sat_astro::radiation::registry`）への登録。**ファイルの意味・形式は sat-astro が持ち、ここはバイト列を渡すだけ。**
 //!
 //! 配布の元: NASA の NSSDC データセット PT-11B（NASA CCMC の ModelWeb のアーカイブにあるものを無変更で再配布する）と IAGA の IGRF。
@@ -27,10 +27,10 @@ pub(super) const GROUP_IDS: [&str; 8] = [
 
 const REPO: &str = "akira-nkjm/iwafune";
 const TAG: &str = "data-radiation-v1";
-/// 遮蔽線量の表のリリースのタグ（地図とは別のリリース。表の行ごとにタグを持つので、群でまとめて取得しても特別な扱いは要らない）。
+/// 遮蔽線量の表のリリースのタグ（マップとは別のリリース。表の行ごとにタグを持つので、群でまとめて取得しても特別な扱いは要らない）。
 const SHIELDING_TAG: &str = "data-shielding-v1";
 
-/// NSSDC PT-11B の出所と参考文献（地図と古い磁場の係数に共通）。
+/// NSSDC PT-11B の出所と参考文献（マップと古い磁場の係数に共通）。
 macro_rules! nssdc {
     ($what:literal) => {
         concat!(
@@ -66,7 +66,7 @@ fn install_jensen_cain(bytes: Vec<u8>) -> std::result::Result<(), String> {
     install_field(BeltField::JensenCain1960, model).map_err(|e| e.to_string())
 }
 
-/// GSFC 12/66 は 1970 年に外挿した固定の場にして登録する（AP-8 の太陽活動極大の地図が前提にする場）。
+/// GSFC 12/66 は 1970 年に外挿した固定の場にして登録する（AP-8 の太陽活動極大のマップが前提にする場）。
 fn install_gsfc(bytes: Vec<u8>) -> std::result::Result<(), String> {
     let model = GaussModel::from_gsfc1266_bytes(&bytes, 1970.0).map_err(|e| e.to_string())?;
     install_field(BeltField::Gsfc1266To1970, model).map_err(|e| e.to_string())

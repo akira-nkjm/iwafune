@@ -1,7 +1,7 @@
 //! 時系列の逆算: 電力収支（`power.energy_balance`）と同じ運用で、1 周の収支 ≥ 0 になる最小の面積を二分法で求め、
 //! その面積での最深の放電から最小の容量を閉じた形で求める。
 //!
-//! - 時系列は最長蝕の標本の日付と β（`orbit.eclipse_season` の `longest`）で回す。
+//! - 時系列は最長蝕のサンプルの日付と β（`orbit.eclipse_season` の `longest`）で回す。
 //! - 姿勢則ごとの発電は [`ScaledBalance`] で 1 回だけ作り、面積の比（× 経年・固有の劣化）を倍率にかける。
 //! - 運用はモードごとのケース（最長継続時間があれば基本のモードの上で 1 回）と、全モードを逆算するときはモードの並び。
 //! - 容量は全体の必要面積（運用のうち最大）で、[`battery::required_capacity`] から求める。
@@ -51,9 +51,9 @@ pub struct SizingSeriesTarget {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct SizingTimeSeries {
-    /// 時系列を回した日付（最長蝕の標本）
+    /// 時系列を回した日付（最長蝕のサンプル）
     pub epoch: Epoch,
-    /// 時系列を回した β（最長蝕の標本）
+    /// 時系列を回した β（最長蝕のサンプル）
     pub beta: Qty<Angle>,
     /// 発電にかけた劣化（`used.life_factor × used.inherent_degradation`）
     pub degradation: Fraction,
@@ -297,7 +297,7 @@ fn balance_input(
     })
 }
 
-/// 時系列の日付と β を最長蝕の標本に替える（姿勢則・期間・刻みはそのまま）。
+/// 時系列の日付と β を最長蝕のサンプルに替える（姿勢則・期間・刻みはそのまま）。
 pub fn worst_season(timeline: &TimelineSpec, longest: &EclipseSeasonPoint) -> TimelineSpec {
     let mut t = timeline.clone();
     // 季節変化（β と日付）は要素で書かれた軌道だけの機能（`power.sizing` の入力は `OrbitSpec` から作る）。

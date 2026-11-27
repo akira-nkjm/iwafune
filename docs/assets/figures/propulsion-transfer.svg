@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 380" role="img" aria-labelledby="t d">
+  <title id="t">Two-burn transfer between circular orbits</title>
+  <desc id="d">Two circular orbits around the same centre and a transfer half-ellipse with its focus at that centre. The ellipse is tangent to the inner orbit at its periapsis and to the outer orbit at its apoapsis, on opposite sides of the centre. The burns are tangential at the two tangent points.</desc>
+  <defs>
+    <marker id="a-acc" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#3382c2"/></marker>
+    <marker id="a-gold" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#8a6400"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="379" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="360" cy="190" r="148" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <circle cx="360" cy="190" r="62" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M422 190 A105 95.8 0 0 1 212 190" fill="none" stroke="#3382c2" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M422 190 L421.9 187 L421.8 184 L421.5 181 L421.2 178 L420.7 175 L420.1 172.1 L419.5 169.1 L418.7 166.2 L417.8 163.3 L416.9 160.4 L415.8 157.6 L414.6 154.7 L413.4 152 L412 149.2 L410.6 146.5 L409 143.9 L407.4 141.2 L405.7 138.7 L403.8 136.2 L401.9 133.7 L400 131.3 L397.9 128.9 L395.8 126.7 L393.5 124.4 L391.2 122.3 L388.9 120.2 L386.4 118.1 L383.9 116.2 L381.4 114.3 L378.7 112.5 L376 110.8 L373.3 109.1 L370.4 107.5 L367.6 106.1 L364.7 104.6 L361.7 103.3 L358.7 102.1 L355.7 100.9 L352.6 99.9 L349.4 98.9 L346.3 98 L343.1 97.2 L339.9 96.5 L336.7 95.9 L333.4 95.4 L330.2 95 L326.9 94.6 L323.6 94.4 L320.3 94.3 L317 94.2 L313.7 94.3 L310.4 94.4 L307.1 94.6 L303.8 95 L300.6 95.4 L297.3 95.9 L294.1 96.5 L290.9 97.2 L287.7 98 L284.6 98.9 L281.4 99.9 L278.3 100.9 L275.3 102.1 L272.3 103.3 L269.3 104.6 L266.4 106.1 L263.6 107.5 L260.7 109.1 L258 110.8 L255.3 112.5 L252.6 114.3 L250.1 116.2 L247.6 118.1 L245.1 120.2 L242.8 122.3 L240.5 124.4 L238.2 126.7 L236.1 128.9 L234 131.3 L232.1 133.7 L230.2 136.2 L228.3 138.7 L226.6 141.2 L225 143.9 L223.4 146.5 L222 149.2 L220.6 152 L219.4 154.7 L218.2 157.6 L217.1 160.4 L216.2 163.3 L215.3 166.2 L214.5 169.1 L213.9 172.1 L213.3 175 L212.8 178 L212.5 181 L212.2 184 L212.1 187 L212 190" fill="none" stroke="#3382c2" stroke-width="2.4"/>
+    <path d="M326.9 94.6 L319 94.4" fill="none" stroke="#3382c2" stroke-width="2.4" marker-end="url(#a-acc)"/>
+    <path d="M360 190 L422 190" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M360 190 L212 190" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <circle cx="360" cy="190" r="4" fill="#062654"/>
+    <path d="M422 190 L422 145" fill="none" stroke="#8a6400" stroke-width="2.4" marker-end="url(#a-gold)"/>
+    <path d="M212 190 L212 235" fill="none" stroke="#8a6400" stroke-width="2.4" marker-end="url(#a-gold)"/>
+    <circle cx="422" cy="190" r="4" fill="#e7bd41" stroke="#062654" stroke-width="1.2"/>
+    <circle cx="212" cy="190" r="4" fill="#e7bd41" stroke="#062654" stroke-width="1.2"/>
+    <text x="391" y="208" font-size="14" fill="#062654" text-anchor="middle">r<tspan dy="3.5" font-size="10">s</tspan></text>
+    <text x="266" y="208" font-size="14" fill="#062654" text-anchor="middle">r<tspan dy="3.5" font-size="10">e</tspan></text>
+    <text x="432" y="156" font-size="14" fill="#8a6400" paint-order="stroke" stroke="#ffffff" stroke-width="4" stroke-linejoin="round">Δv<tspan dy="3.5" font-size="10">1</tspan></text>
+    <text x="202" y="230" font-size="14" fill="#8a6400" text-anchor="end">Δv<tspan dy="3.5" font-size="10">2</tspan></text>
+    <text x="360" y="238" font-size="12" fill="#5b6577" text-anchor="middle">initial orbit</text>
+    <text x="486.6" y="293.1" font-size="12" fill="#5b6577">target orbit</text>
+    <path d="M377.3 105.1 L542 72" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <text x="548" y="76" font-size="14" fill="#1f63a0">transfer ellipse</text>
+    <text x="548" y="94" font-size="12" fill="#5b6577">(half a revolution)</text>
+  </g>
+</svg>

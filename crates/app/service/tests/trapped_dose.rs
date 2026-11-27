@@ -10,7 +10,7 @@ fn demo() -> Workspace {
         .unwrap()
 }
 
-/// 地図・場・SHIELDOSE-2 の表がそろったら `true`。
+/// マップ・場・SHIELDOSE-2 の表がそろったら `true`。
 fn data_installed() -> bool {
     data::install_cached_datasets();
     let missing = fune_projection::orbit::dose_data_missing();

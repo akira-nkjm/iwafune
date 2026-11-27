@@ -37,7 +37,7 @@ describe("insetLayout", () => {
   it("y は画面に合わせて反転し、点の順に折れ線にする", () => {
     expect(layout.path).toBe("M180 100L100 20L20 100L100 180");
   });
-  it("標本・半径が無ければ null", () => {
+  it("サンプル・半径が無ければ null", () => {
     expect(insetLayout({ ...plane, x: [], y: [] })).toBeNull();
     expect(insetLayout({ ...plane, body_radius: 0 })).toBeNull();
   });
@@ -49,7 +49,7 @@ describe("insetLayout", () => {
 
 describe("satelliteAt", () => {
   const layout = insetLayout(plane, 200)!;
-  it("添字の標本の位置と日陰を返す（添字は範囲に収める）", () => {
+  it("添字のサンプルの位置と日陰を返す（添字は範囲に収める）", () => {
     expect(satelliteAt(layout, plane, 0)).toEqual({ x: 180, y: 100, eclipse: false });
     expect(satelliteAt(layout, plane, 2)).toEqual({ x: 20, y: 100, eclipse: true });
     expect(satelliteAt(layout, plane, 99).y).toBe(180);

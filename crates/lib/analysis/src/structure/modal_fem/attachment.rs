@@ -2,7 +2,7 @@
 
 use super::input::ModalFemFace;
 
-/// フットプリントの 1 辺あたりの標本点の数。
+/// フットプリントの 1 辺あたりのサンプル点の数。
 pub const FOOTPRINT_SAMPLES: usize = 5;
 
 /// 集中質量の取り付け先。

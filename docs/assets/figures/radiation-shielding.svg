@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 310" role="img" aria-labelledby="t d">
+  <title id="t">Slab and solid-sphere shielding geometries</title>
+  <desc id="d">Left: a slab. Radiation arrives through one face from all directions of one side, and the dose is taken at a point at depth z behind that face. Right: a solid sphere of radius d. Radiation arrives from all directions and the dose is taken at the centre.</desc>
+  <defs>
+    <marker id="a-gold" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#8a6400"/></marker>
+    <marker id="a-ink" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#062654"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="309" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="196" y="54" width="150" height="176" fill="#e8f1f9"/>
+    <path d="M196 54 L346 54" fill="none" stroke="#062654" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M196 230 L346 230" fill="none" stroke="#062654" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M346 54 L346 230" fill="none" stroke="#062654" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M196 54 L196 230" fill="none" stroke="#062654" stroke-width="2.4"/>
+    <path d="M129.8 252.9 L184.2 207.3" fill="none" stroke="#8a6400" stroke-width="1.8" marker-end="url(#a-gold)"/>
+    <path d="M198 195.7 L262 142" fill="none" stroke="#8a6400" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M116.6 194.9 L183.3 170.6" fill="none" stroke="#8a6400" stroke-width="1.8" marker-end="url(#a-gold)"/>
+    <path d="M198 165.3 L262 142" fill="none" stroke="#8a6400" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M112 142 L183 142" fill="none" stroke="#8a6400" stroke-width="1.8" marker-end="url(#a-gold)"/>
+    <path d="M198 142 L262 142" fill="none" stroke="#8a6400" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M116.6 89.1 L183.3 113.4" fill="none" stroke="#8a6400" stroke-width="1.8" marker-end="url(#a-gold)"/>
+    <path d="M198 118.7 L262 142" fill="none" stroke="#8a6400" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M129.8 31.1 L184.2 76.7" fill="none" stroke="#8a6400" stroke-width="1.8" marker-end="url(#a-gold)"/>
+    <path d="M198 88.3 L262 142" fill="none" stroke="#8a6400" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <circle cx="262" cy="142" r="5" fill="#e7bd41" stroke="#062654" stroke-width="1.2"/>
+    <path d="M196 230 L196 254" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M262 150 L262 254" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M202 246 L256 246" fill="none" stroke="#062654" stroke-width="1.2" marker-end="url(#a-ink)" marker-start="url(#a-ink)"/>
+    <text x="229" y="266" font-size="14" fill="#062654" text-anchor="middle">z</text>
+    <text x="276" y="147" font-size="12" fill="#5b6577">dose point</text>
+    <text x="334" y="78" font-size="14" fill="#062654" text-anchor="end">slab</text>
+    <circle cx="560" cy="142" r="60" fill="#e8f1f9" stroke="#062654" stroke-width="1.8"/>
+    <path d="M663.5 99.1 L627.4 114.1" fill="none" stroke="#8a6400" stroke-width="1.8" marker-end="url(#a-gold)"/>
+    <path d="M602.9 38.5 L587.9 74.6" fill="none" stroke="#8a6400" stroke-width="1.8" marker-end="url(#a-gold)"/>
+    <path d="M517.1 38.5 L532.1 74.6" fill="none" stroke="#8a6400" stroke-width="1.8" marker-end="url(#a-gold)"/>
+    <path d="M456.5 99.1 L492.6 114.1" fill="none" stroke="#8a6400" stroke-width="1.8" marker-end="url(#a-gold)"/>
+    <path d="M456.5 184.9 L492.6 169.9" fill="none" stroke="#8a6400" stroke-width="1.8" marker-end="url(#a-gold)"/>
+    <path d="M517.1 245.5 L532.1 209.4" fill="none" stroke="#8a6400" stroke-width="1.8" marker-end="url(#a-gold)"/>
+    <path d="M602.9 245.5 L587.9 209.4" fill="none" stroke="#8a6400" stroke-width="1.8" marker-end="url(#a-gold)"/>
+    <path d="M663.5 184.9 L627.4 169.9" fill="none" stroke="#8a6400" stroke-width="1.8" marker-end="url(#a-gold)"/>
+    <path d="M560 142 L620 142" fill="none" stroke="#062654" stroke-width="1.2"/>
+    <circle cx="560" cy="142" r="5" fill="#e7bd41" stroke="#062654" stroke-width="1.2"/>
+    <text x="594" y="134" font-size="14" fill="#062654" text-anchor="middle">d</text>
+    <text x="560" y="166" font-size="12" fill="#5b6577" text-anchor="middle">dose point</text>
+    <text x="251" y="296" font-size="12" fill="#5b6577" text-anchor="middle">slab: one-sided incidence, depth z</text>
+    <text x="560" y="296" font-size="12" fill="#5b6577" text-anchor="middle">solid sphere: all directions, radius d</text>
+    <text x="404" y="146" font-size="14" fill="#1f63a0" text-anchor="middle">z = ρ<tspan dy="3.5" font-size="10">Al</tspan><tspan dy="-3.5"> d</tspan></text>
+  </g>
+</svg>

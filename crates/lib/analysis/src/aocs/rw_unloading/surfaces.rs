@@ -4,7 +4,7 @@ use super::RwUnloadingSurface;
 use crate::aocs::disturbance::{DisturbanceKind, DisturbanceSpacecraft, DisturbanceTorques};
 use sat_units::typed::Qty;
 
-/// 面を持つ種類（空力・太陽輻射圧）の報告。時系列で 1 度も評価しなかった面（食の中だけ・大気のモデルが無い天体）は出さない。
+/// 面を持つ種類（空力・太陽輻射圧）の報告。時系列で 1 度も評価しなかった面（蝕の中だけ・大気のモデルが無い天体）は出さない。
 pub(super) fn summary(
     sc: &DisturbanceSpacecraft,
     torques: &[DisturbanceTorques],

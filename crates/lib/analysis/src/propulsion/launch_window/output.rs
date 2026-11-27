@@ -13,13 +13,13 @@ use serde::{Deserialize, Serialize};
 pub enum LaunchWindowNote {
     /// 天体の位置が解析式（DE440 でない）。火星で 10⁵ km 級の誤差があり、最小の日付も数日ずれうる
     AnalyticEphemeris,
-    /// ΔV が最小の点の出発の赤緯が駐機軌道の傾斜角より大きい（面の変更は数えない。`dated_transfer_plane` と同じ見方）
+    /// ΔV が最小の点の出発の赤緯がパーキング軌道の傾斜角より大きい（面の変更は数えない。`dated_transfer_plane` と同じ見方）
     DeclinationAboveInclination,
     /// ΔV が最小の点が格子の端（軸の端・飛行時間の範囲の端・解けない点の隣）にある。窓を広げると下がるかもしれない
     MinimumAtGridEdge,
     /// マヌーバに書かれた日付では解けない
     WrittenDatesUnsolved,
-    /// 書かれた日付では、通過のどれかが下限の高度で曲がりきれない（`propulsion.maneuvers` が足りない回頭の分を噴射に足して警告するのと同じ点）
+    /// 書かれた日付では、通過のどれかが下限の高度で曲がりきれない（`propulsion.maneuvers` が足りない偏向の分を噴射に足して警告するのと同じ点）
     WrittenFlybyInfeasible,
     /// 動力なしと書かれた通過の入りと出の超過速度が、探索の最良の点でも揃っていない（近点の噴射が `BALLISTIC_DV_M_S` を超える。その噴射は ΔV に数えていないので、最小の ΔV はその分だけ小さい。`propulsion.maneuvers` は同じ点で `swing_by_unpowered` を警告する）
     UnpoweredFlybyNotBallistic,
