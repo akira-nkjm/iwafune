@@ -89,9 +89,10 @@ $ fune catalog add local/bat_2s --kind battery --label "Li-ion 2S pack" --maturi
 $ fune catalog set local/bat_2s mass "250 g" --source ds_vendor --at "p.3 table 1"
 $ fune catalog set local/bat_2s capacity "40 Wh" --source ds_vendor
 $ fune catalog set local/bat_2s voltage "7.4 V" --source ds_vendor
+$ fune catalog set local/bat_2s size "70 40 20 mm" --source ds_vendor
 ```
 
-Each command prints `created` or `modified` with the file name and `✔ Wrote 1 files`; we leave that out below. Note the parts of a value: a number, a unit (`g`, `Wh`, `V`), a source (`--source`), and optionally a place in the document (`--at`). Units are checked: `fune` rejects a unit with the wrong dimension. `fune catalog set local/bat_2s capacity "40 kg"` stops with the error "Unit kg is Mass, but attribute capacity is Energy" and writes nothing.
+Each command prints `created` or `modified` with the file name and `✔ Wrote 1 files`; we leave that out below. The `size` is the outer box of the part (x, y, z). It is not required for the budgets, but the Layout page draws a part that has none only as a small marker (a diamond), and the thermal and structure analyses use the size later. Note the parts of a value: a number, a unit (`g`, `Wh`, `V`), a source (`--source`), and optionally a place in the document (`--at`). Units are checked: `fune` rejects a unit with the wrong dimension. `fune catalog set local/bat_2s capacity "40 kg"` stops with the error "Unit kg is Mass, but attribute capacity is Energy" and writes nothing.
 
 How do you know which attributes a kind needs? Ask for the kinds:
 
@@ -114,10 +115,12 @@ $ fune catalog set local/sp_body mass "180 g" --source ds_vendor
 $ fune catalog set local/sp_body area "0.06 m^2" --source ds_vendor
 $ fune catalog set local/sp_body cell_efficiency 0.28 --source ds_vendor
 $ fune catalog set local/sp_body normal "0 0 1" --source ds_vendor
+$ fune catalog set local/sp_body size "300 200 2 mm" --source ds_vendor
 $ fune catalog add local/obc_a --kind obc --label "On-board computer" --maturity off_the_shelf
 $ fune catalog set local/obc_a mass "90 g" --source ds_vendor
 $ fune catalog set local/obc_a power.off "0 W" --source ds_vendor
 $ fune catalog set local/obc_a power.on "0.65 W" --source ds_vendor
+$ fune catalog set local/obc_a size "90 90 15 mm" --source ds_vendor
 $ fune catalog ls
  ID              Subsystem   Kind          Name                       Model   Attributes
 ─────────────────────────────────────────────────────────────────────────────────────────
@@ -126,9 +129,9 @@ $ fune catalog ls
  local/sp_body   power       solar_panel   Body-mounted solar panel                    4
 ```
 
-What you should see: three items in `fune catalog ls`, with 3, 2 and 4 attributes. Three things to notice:
+What you should see: three items in `fune catalog ls`, with 4, 3 and 5 attributes. Three things to notice:
 
-- A quantity with no unit, like `cell_efficiency`, is written as a plain number. A vector, like `normal`, is three numbers: `"0 0 1"`.
+- A quantity with no unit, like `cell_efficiency`, is written as a plain number. A vector, like `normal`, is three numbers: `"0 0 1"`. A vector with a unit, like `size`, is three numbers and one unit: `"70 40 20 mm"`.
 - `power.on` is a value *by state*. The power of a computer depends on whether it is off or on. The path is `<attribute>.<state>`.
 - `--maturity` says how new the design is. The budget adds a growth margin by maturity: 5 % for `off_the_shelf`, 10 % for `modified`, 20 % for `new` (in `budget/policy.toml`).
 
@@ -139,7 +142,7 @@ A mode is how the satellite operates, for example nominal or safe. Add a nominal
 ```console
 $ fune mode add NOMINAL --label "Nominal"
   created modes/NOMINAL.toml
-✔ Wrote 1 files  rev b3:4c6979c3a743
+✔ Wrote 1 files  rev b3:da5f2ba93a10
 ```
 
 ## 6. Place the parts
@@ -149,20 +152,23 @@ A part is one use of a catalog item (or of a bare kind) in your satellite. Start
 ```console
 $ fune part add BUS --kind structure --group structure --label "Bus structure"
   created parts/structure/BUS.toml
-✔ Wrote 1 files  rev b3:fb7bb40a8ec3
+✔ Wrote 1 files  rev b3:088ddcb71554
 attr.missing
 
   ⚠ Required attribute `mass` is not set (kind `component`)
   help: parameter: BUS.mass  parts/structure/BUS.toml
 $ fune set BUS.mass "600 g" --source sys_judgement --note "Placeholder until CAD"
   modified parts/structure/BUS.toml
-✔ Wrote 1 files  rev b3:b29db88132ab
+✔ Wrote 1 files  rev b3:9bc6cb26bc87
+$ fune set BUS.size "300 200 100 mm" --source sys_judgement --note "Placeholder until CAD"
+  modified parts/structure/BUS.toml
+✔ Wrote 1 files  rev b3:61714257f9ee
 $ fune part point BUS FACE_PZ --position "0 0 50 mm"
   modified parts/structure/BUS.toml
-✔ Wrote 1 files  rev b3:6d08861fb0cc
+✔ Wrote 1 files  rev b3:f195a1e1d040
 ```
 
-`--group` puts the part in a directory under `parts/`. The top-level directory is the subsystem (`power`, `cdh`, `structure`). `fune part point` adds a *mount point* to the bus: a named place where other parts attach. Now the three catalog parts, and where they sit:
+`--group` puts the part in a directory under `parts/`. The top-level directory is the subsystem (`power`, `cdh`, `structure`). `fune part point` adds a *mount point* to the bus: a named place where other parts attach. The bus is a box of 300 × 200 × 100 mm, so the point `FACE_PZ` (z = 50 mm) is the middle of its +Z face. Now the three catalog parts, and where they sit:
 
 ```console
 $ fune part add BAT --catalog local/bat_2s --group power
@@ -171,8 +177,8 @@ $ fune part add OBC --catalog local/obc_a --group cdh
   modified modes/NOMINAL.toml
   modified modes/SAFE.toml
   created parts/cdh/OBC.toml
-✔ Wrote 3 files  rev b3:c310d1dba050
-$ fune part place SP_PZ --on BUS --point FACE_PZ
+✔ Wrote 3 files  rev b3:d13e03841ee2
+$ fune part place SP_PZ --on BUS --point FACE_PZ --position "0 0 1 mm"
 $ fune part place BAT --on BUS --position "0 0 -20 mm"
 $ fune part place OBC --on BUS --position "0 0 10 mm"
 $ fune part ls
@@ -185,7 +191,7 @@ $ fune part ls
 4 parts
 ```
 
-What you should see: four parts in `fune part ls`, and no warnings from `fune check`. Adding `OBC` modified two mode files: a part gets an `off` row in every mode (you can pick another state with `--mode-state`). The part's mass comes from its catalog item. Positions are relative to the mount, in the part's own frame; open the Layout page of the GUI to see the boxes.
+What you should see: four parts in `fune part ls`, and no warnings from `fune check`. Adding `OBC` modified two mode files: a part gets an `off` row in every mode (you can pick another state with `--mode-state`). The part's mass comes from its catalog item. Positions are relative to the mount, in the part's own frame. The panel sits 1 mm above the +Z face (half of its 2 mm thickness), and the battery and the computer sit inside the bus. Open the Layout page of the GUI to see the boxes.
 
 <!-- screenshot: /design/layout as first-satellite — the 3D view of the bus with the three parts placed and the Parts tree open -->
 *The Layout page with the bus and the three parts.*
@@ -197,7 +203,7 @@ A catalog value is the default. A part can override it, and the override can car
 ```console
 $ fune set OBC.mass "95 g" --source sys_judgement --note "Margin for the connector" --min "90 g" --max "110 g"
   modified parts/cdh/OBC.toml
-✔ Wrote 1 files  rev b3:b1f70c6a7c72
+✔ Wrote 1 files  rev b3:e90fa3977ce0
 $ fune get OBC.mass
 95.0 g (90.0 g … 110 g)  Override, sys_judgement, Judgement
 ```
@@ -246,10 +252,10 @@ The power budget counts one mode at a time. Without a case, `fune budget power` 
 ```console
 $ fune case set nominal_day --mode NOMINAL --label "Nominal day"
   created cases/nominal_day.toml
-✔ Wrote 1 files  rev b3:2ede95432446
+✔ Wrote 1 files  rev b3:ef541c02ed21
 $ fune setting set analysis.common.default_case nominal_day
   created analysis/common.toml
-✔ Wrote 1 files  rev b3:c493ce2fbd46
+✔ Wrote 1 files  rev b3:40eea74ed8fa
 $ fune budget power --case nominal_day
 Power budget
 power.mode_load  case nominal_day  mode NOMINAL
@@ -449,6 +455,13 @@ off.from.source = "ds_vendor"
 on.value        = 0.65
 on.unit         = "W"
 on.from.source  = "ds_vendor"
+
+[attr.size]
+x           = 90.0
+y           = 90.0
+z           = 15.0
+unit        = "mm"
+from.source = "ds_vendor"
 ```
 
 And one requirement, which carries the criterion of an analysis:

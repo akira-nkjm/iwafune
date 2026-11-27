@@ -388,7 +388,7 @@ $ fune mode set DOWNLINK CAM standby --dry-run
 +CAM     = { state = "standby" }
 ```
 
-`fune mode view power` は各モードでの各部品の消費電力を表示します。GUI の Power ページが表示する表です。
+`fune mode view power` は各モードでの各部品の消費電力を表示します。GUI の「電源」ページが表示する表です。
 
 ```console
 $ fune mode view power
@@ -642,7 +642,7 @@ $ fune kind add cold_plate --extends component --states "off,on" --required "mas
 +required = ["mass"]
 ```
 
-熱テーブルです。`fune thermal tables` は節点間の熱結合（使っている値とその出どころ）、外面のコーティング、節点の温度を表示します。GUI の「Couplings and surfaces」タブが表示するものと同じです。読むだけです。編集は `fune set analysis.thermal.conductive.<A>.<B>`（および `radiative`、`coating`、`surface`）で行います。
+熱テーブルです。`fune thermal tables` は節点間の熱結合（使っている値とその出どころ）、外面のコーティング、節点の温度を表示します。GUI の「結合と表面」タブが表示するものと同じです。読むだけです。編集は `fune set analysis.thermal.conductive.<A>.<B>`（および `radiative`、`coating`、`surface`）で行います。
 
 ```console
 $ fune thermal tables
@@ -671,7 +671,7 @@ $ fune acknowledged add interference SAP_PY SP_PY --reason "Hinge edge of the bo
 
 （デモではこの組はすでに確認済みなので、ドライランでは理由が置き換わります。）
 
-図の配置です。GUI のシステム図は節点を自動で配置します。`fune view set <DIAGRAM> <NODE> --pos X,Y` は節点を固定し、`fune view edge-set` は線の経路を固定し、`fune view ls <DIAGRAM>` は固定したものを一覧にし、`fune view reset <DIAGRAM>` は自動配置に戻します。配置は `view/` に保存されます。GUI で節点をドラッグしたときも、同じものが書かれます。
+図の配置です。GUI の「システム図」ページは節点を自動で配置します。`fune view set <DIAGRAM> <NODE> --pos X,Y` は節点を固定し、`fune view edge-set` は線の経路を固定し、`fune view ls <DIAGRAM>` は固定したものを一覧にし、`fune view reset <DIAGRAM>` は自動配置に戻します。配置は `view/` に保存されます。GUI で節点をドラッグしたときも、同じものが書かれます。
 
 ```console
 $ fune view set electrical RW_X --pos 420,120 --dry-run
@@ -789,7 +789,7 @@ $ fune undo
 ✔ Undid: fune set CAM.mass "1.2 kg" --source em_test_2026_10 --note "Heavier lens barrel"  rev b3:5e54b14f210a
 ```
 
-`fune history` は編集を古い順に一覧にします。`fune undo` は直前の編集が変えたファイルを元に戻します。`fune redo` は取り消した編集をもう一度適用します。新しい編集をすると、やり直しの側は消えます。そのあとでエディタ、git、`fune fmt`、カタログの取得でファイルが変わっていると、取り消しは拒否されます（終了コード 3）。履歴は GUI と共有されます。GUI では変更履歴のポップオーバーに Undo と Redo のボタンがあります。
+`fune history` は編集を古い順に一覧にします。`fune undo` は直前の編集が変えたファイルを元に戻します。`fune redo` は取り消した編集をもう一度適用します。新しい編集をすると、やり直しの側は消えます。そのあとでエディタ、git、`fune fmt`、カタログの取得でファイルが変わっていると、取り消しは拒否されます（終了コード 3）。履歴は GUI と共有されます。GUI では「変更履歴」のポップオーバーに「元に戻す」と「やり直す」のボタンがあります。
 
 ## 設計文書を書き出す
 

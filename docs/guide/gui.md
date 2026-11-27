@@ -9,7 +9,7 @@ fune gui            # http://127.0.0.1:3000, or the next free port; opens the br
 fune gui --no-open  # do not open the browser
 ```
 
-The GUI has English and Japanese dictionaries. This guide uses the English labels; the Japanese edition adds the Japanese label in brackets.
+The GUI has English and Japanese dictionaries. This guide uses the English labels; the Japanese edition uses the Japanese labels, and gives the English label in brackets for the sidebar items.
 
 Contents:
 
