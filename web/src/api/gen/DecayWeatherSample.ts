@@ -2,7 +2,7 @@
 import type { DatedSpaceWeather } from "./DatedSpaceWeather";
 
 /**
- * 日付で引いた宇宙天気の 1 標本。
+ * 日付で引いた宇宙天気の 1 サンプル。
  */
 export type DecayWeatherSample = { 
 /**

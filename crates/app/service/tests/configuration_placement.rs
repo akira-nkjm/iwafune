@@ -5,7 +5,7 @@
 //! - B は A の P に取付。基準の姿勢は位置 (0, 0, 0) m（取付点に重なる）。
 //!
 //! Rz(θ) は (x, y) → (x cosθ − y sinθ, x sinθ + y cosθ)。+90° は (x, y) → (−y, x)、−90° は (y, −x)、±180° は (−x, −y)。
-//! 四元数は 1/√2 を倍精度で書く（0.707107 に丸めると読み戻しが 1e-7 ずれるので、手計算と厳密に比べるため）。
+//! クォータニオンは 1/√2 を倍精度で書く（0.707107 に丸めると読み戻しが 1e-7 ずれるので、手計算と厳密に比べるため）。
 
 use fune_model::value::{Quaternion, Vector3};
 use fune_service::dto::{ApplyRequest, PartRow, PartViewRequest, PartsQuery};

@@ -4,7 +4,7 @@ This document describes how the code is put together today.
 The shape of the design data and the file format are in [model.md](model.md), where each feature lives is in [architecture/registry.md](architecture/registry.md) (the registry),
 the development rules are in [CONTRIBUTING.md](../CONTRIBUTING.md), and upcoming features are in [roadmap.md](roadmap.md) and GitHub Issues.
 
-Conditions (orbit, ground stations, launch conditions) are in `conditions/`. `mission/` is a directory reserved for the future #9 (mission and success criteria) and is not read at present; phases are in `phases/` ([model.md §7.10](model.md#710-phases-one-file-per-mission-phase)) and named overlays of part poses in `configurations/` ([model.md §7.11](model.md#711-configurations-named-overlays-of-part-poses)).
+Conditions (orbit, ground stations, launch conditions) are in `conditions/`. `mission/` and `tables/` are directories reserved for the future #9 (mission and success criteria) and are not read at present; phases are in `phases/` ([model.md §7.10](model.md#710-phases-one-file-per-mission-phase)) and named overlays of part poses in `configurations/` ([model.md §7.11](model.md#711-configurations-named-overlays-of-part-poses)).
 An analysis belongs to `sat_analysis::spec::AnalysisArea` (either a subsystem, `System`, or a condition topic, `Condition`).
 The settings of a topic are placed inside the condition's file, and the concrete types will be added in #3 ([model.md §1.1](model.md#11-conditions-and-analysis-categories)).
 The CLI, API and web use the same classification, and KPIs are shown per subsystem or topic. The web hides the KPIs of conditions when they are empty.
@@ -37,9 +37,11 @@ One entity is one file, and the file name is the ID.
 | `requirements/` | Requirements (statement, constraint, quantification, source, the analysis check or budget that verifies it) |
 | `budget/` | Allocation and margin policy |
 | `conditions/`, `analysis/`, `cases/` | Orbit and ground stations, per-subsystem analysis settings, analysis cases |
+| `phases/`, `configurations/` | Mission phases, and named overlays of part poses |
 | `sources/` | The ledger of sources |
 | `view/` | Information that is only appearance, such as the layout of the system diagram |
-| `.fune/` | Working files such as the write lock and the edit history (`history.json`, §2.4). `fune init` adds it to `.gitignore` |
+| `catalog.lock` | The commit of each shared catalog in use. It is derived (written by `fune catalog fetch` and `update`) and is tracked by git |
+| `.fune/` | Working files such as the write lock, the edit history (`history.json`, §2.4) and the cache of shared catalogs. `fune init` adds it to `.gitignore` |
 
 How to write files, how values and units are expressed, and the relationships between entities are in [model.md](model.md).
 The demo design data is [fixtures/demo-6u](../fixtures/demo-6u).
@@ -104,12 +106,13 @@ The "May depend on" column is the same as `ALLOWED` in `crates/xtask`, and devia
 | crate | May depend on | Responsibility | Must not |
 |---|---|---|---|
 | `sat-units` | none | The single source of truth for units, dimensions and quantities. Typed quantities (`Qty`), display kinds (`Fraction`, `Decibel*`), display strings for quantities and units (`format`) | — |
-| `sat-astro` | units | Mathematics, integrators, time, orbits, celestial bodies, eclipses, the Earth, gravity, geomagnetism, atmosphere, ground stations, attitude laws, time series. Conventional defaults (`with_defaults` and the like) | Analysis-specific decisions, file I/O (large data is received as bytes) |
-| `sat-analysis` | units, astro | Analyses and verdicts for each subsystem. Inputs and outputs are typed SI quantities. Modeling defaults belong to the analysis (inputs are `Option`) | Depend on `fune-*`, do I/O |
-| `fune-model` | units | Design data types, built-in attributes, kinds and display names of vocabularies, resolution (Resolved), checking (check) | File I/O |
-| `fune-store` | model | Reading and writing directory ⇄ Design (toml_edit, canonical form), revision, locks | Checking, physics computation |
-| `fune-ops` | model, store | Op (the only entry point for edits), plan / apply, Op → CLI command (`to_cli`) | HTTP, display |
-| `fune-projection` | model, units, astro, analysis | Mapping Resolved to the input types of the analyses, and listing missing inputs | Physics computation, modeling defaults |
+| `sat-astro` | units | Mathematics, integrators, time, orbits, celestial bodies, eclipses, the Earth, gravity, geomagnetism, trapped-radiation belt maps, atmosphere, ground stations, attitude laws, time series, the rocket equation. Conventional defaults (`with_defaults` and the like) | Analysis-specific decisions, file I/O (large data is received as bytes) |
+| `sat-checkkey` | none | The key format of analysis checks (the strings a requirement's `verify.check` points at). A leaf, so that `sat-analysis` (which builds keys) and `fune-model` (which reads names out of them) share one definition | — |
+| `sat-analysis` | units, astro, checkkey | Analyses and verdicts for each subsystem. Inputs and outputs are typed SI quantities. Modeling defaults belong to the analysis (inputs are `Option`) | Depend on `fune-*`, do I/O |
+| `fune-model` | units, checkkey | Design data types, built-in attributes, kinds and display names of vocabularies, resolution (Resolved), checking (check) | File I/O |
+| `fune-store` | model | Reading and writing directory ⇄ Design (toml_edit, canonical form), revision, locks, the edit journal | Checking, physics computation |
+| `fune-ops` | model, store | Op (the only entry point for edits), plan / apply, undo and redo (`history`), Op → CLI command (`to_cli`) | HTTP, display |
+| `fune-projection` | model, units, astro, analysis, checkkey | Mapping Resolved to the input types of the analyses, and listing missing inputs | Physics computation, modeling defaults |
 | `fune-report` | units | Report export: the table, figure and value data model, the SVG chart writer, the Typst module and the file layout (see [report.md](report.md)) | Knowledge of the design or the analyses, file I/O |
 | `fune-service` | all of the above | All the functions that the CLI and HTTP call, and their input and output types (TS generated with ts-rs). Display strings are built with `sat_units::format` | Knowledge of HTTP, owning formatting rules itself |
 | `fune-server` | service | axum routing and JSON conversion, serving the SPA, the Host allowlist | Logic |
@@ -117,7 +120,7 @@ The "May depend on" column is the same as `ALLOWED` in `crates/xtask`, and devia
 | `web/` | the HTTP API only | Display and interaction of the GUI | Physics computation, dimensional computation, unit conversion, interpreting IDs or paths by splitting strings |
 
 - `crates/lib/*` are physics and analysis libraries and do not know the design model. They do not depend on `crates/app/*`.
-- server and cli look only at service. They use the model and ops types that service re-exports.
+- server and cli look only at service (cli also uses server, to start `fune gui`). They use the model and ops types that service re-exports.
 - projection does not read files (it depends on neither store nor ops).
 - Modules inside a crate must not form cycles either.
 
@@ -139,7 +142,9 @@ An Op can be turned into JSON (`{ "op": "set_value", "part": "RW_X", ... }`). TS
 | Maneuvers | `CreateManeuver`, `SetManeuver`, `RemoveManeuver` (deleting reconnects the following maneuver to the preceding one) |
 | Requirements | `CreateRequirement`, `SetRequirement`, `RemoveRequirement` |
 | Diagrams | `SetViewLayout`, `SetViewEdge`, `UnsetViewEdge`, `ResetView` |
-| Settings | `SetSetting` (values in `conditions/`, `analysis/`, `budget/`) |
+| Phases and configurations | `CreatePhase`, `SetPhase`, `RemovePhase`, `CreateConfiguration`, `SetConfiguration`, `RemoveConfiguration`, and their renames |
+| Comm links | `CreateCommLink`, `RenameCommLink`, `RemoveCommLink` |
+| Settings | `SetSetting` (values in `conditions/`, `analysis/`, `budget/`), `SetRecordField` (one field of a case, maneuver, requirement and so on) |
 
 All Ops and their meanings are in `crates/app/ops/src/op.rs`.
 
@@ -160,7 +165,7 @@ The CLI and HTTP call the same functions of `fune-service`.
 | Apply Ops | each edit command, `fune apply ops.json` | `POST /ops` | `edit::apply` |
 | Typed value string → Op | `fune set`, `fune setting set`, `fune catalog set` | `POST /ops/from_text` | `edit::set_op` |
 | Path to remove → Op | `fune unset`, `fune setting unset`, `fune catalog unset` | `POST /ops/unset_from_text` | `edit::unset_op` |
-| Arguments typed into a noun command → Op | `fune net set|unset`, `fune part place`, `fune mode set|unset`, `fune attr add|replace`, `fune kind add|replace`, `fune maneuver add|set`, `fune requirement add|set`, `fune ground add`, `fune catalog source add` | `POST /ops/from_command` | `edit::command_ops` |
+| Arguments typed into a noun command → Op | `fune net set\|unset`, `fune part place`, `fune mode set\|unset`, `fune attr add\|replace`, `fune kind add\|replace`, `fune maneuver add\|set`, `fune requirement add\|set`, `fune ground add`, `fune catalog source add` | `POST /ops/from_command` | `edit::command_ops` |
 | Formatting | `fune fmt [--check]` | `POST /fmt` | `format::format_design` |
 | Undo / redo the last edit | `fune undo`, `fune redo` | `POST /undo`, `POST /redo` | `history::{undo, redo}` |
 | Edit history | `fune history` | `GET /history` | `history::view` |
@@ -179,7 +184,7 @@ The CLI and HTTP call the same functions of `fune-service`.
 - `fune apply` accepts the same Op JSON that the GUI sends. It can also be used for bulk edits from scripts.
 - You can also try an edit without writing it (`fune_service::preview`). The `ops` of `POST /analyses/{id}`, `POST /budgets/{kind}` and `POST /parts/{id}`,
   and `fune analyze --ops`, `fune budget --ops` and `fune part show --ops`, produce the analysis, budget or part view from the unsaved draft (such as an edit of the mode table).
-- The only exceptions are `fune init` (the server only runs inside a project, so it is not available over HTTP), `fune gui` (the command that starts the server), `fune self-update` (it replaces the CLI binary itself; implemented in `fune_service::self_update` and available outside a project) and `fune skill` (it writes the agent skill file into the caller's directory, not design data; implemented in `fune_service::skill` and available outside a project).
+- The only exceptions are the `--from <DIR>` option of `fune data fetch` (§6.5; HTTP deliberately takes no path on the server's machine), `fune init` (the server only runs inside a project, so it is not available over HTTP), `fune gui` (the command that starts the server), `fune self-update` (it replaces the CLI binary itself; implemented in `fune_service::self_update` and available outside a project) and `fune skill` (it writes the agent skill file into the caller's directory, not design data; implemented in `fune_service::skill` and available outside a project).
 
 The correspondence between HTTP routes and the CLI and service (`crates/app/cli/tests/route_table.rs` checks it against `routes.rs`. When you add a route, fix this and the constant of that table).
 
@@ -188,6 +193,8 @@ The correspondence between HTTP routes and the CLI and service (`crates/app/cli/
 | `GET /project` | `fune status` | `query::project_info` |
 | `GET /design` | `fune {net,mode,case,source,harness,setting,catalog} ls`, `fune view ls` | `query::design_view` (one diagram: `query::view_layout`) |
 | `GET /maneuvers` | `fune maneuver ls` | `query::maneuvers` |
+| `GET /phases` | `fune phase ls` | `query::phases` |
+| `GET /configurations` | `fune configuration ls` | `query::configurations` |
 | `GET /requirements` | `fune requirement ls` | `query::requirements` |
 | `GET /requirements/compliance` | `fune requirement compliance` | `requirements::compliance` |
 | `GET /parts`, `GET` and `POST /parts/{id}` | `fune part ls`, `fune part show [--ops]` | `query::list_parts`, `query::part_view` |
@@ -213,7 +220,7 @@ The correspondence between HTTP routes and the CLI and service (`crates/app/cli/
 | `POST /system_modes/{system}` | `fune mode view <system> [--ops] [--case] [--analyzed] [--totals-only]` | `system_modes::system_modes` (exit-code verdict: `system_modes::fails`) |
 | `POST /thermal/tables` | `fune thermal tables [--ops] [--case]` | `thermal_tables::thermal_tables` |
 
-Tests verify the following two things.
+Tests verify the following.
 
 - When the same edit is made with the `fune` executable and with HTTP, the files are byte-for-byte identical (`crates/app/cli/tests/parity.rs`, `parity_text.rs`, `parity_command.rs`).
 - `--json` of `fune mode view` equals the HTTP JSON of the same route (`crates/app/cli/tests/parity_pages.rs`).
@@ -257,8 +264,8 @@ Warnings never fail. The determination of "the result fails" is a service functi
 
 | Path | Contents |
 |---|---|
-| `GET /project`, `/design`, `/parts`, `/parts/{id}`, `/values/{path}`, `/defs`, `/diagnostics`, `/maneuvers`, `/requirements`, `/requirements/compliance`, `/catalog/{id}` | Reads (overview and revision, the whole design, parts, one value, definitions, diagnostics, one catalog item, the list of maneuvers (in execution order; the same as `fune maneuver ls`), the list of requirements and the requirement compliance table (the same as `fune requirement ls|compliance`)) |
-| `POST /ops`, `/ops/from_text`, `/ops/unset_from_text`, `/ops/from_command`, `/ops/case_from_eclipse`, `/ops/case_from_sun_distance`, `/ops/cases_from_geometry`, `/fmt` | Edits (§4.3) |
+| `GET /project`, `/design`, `/parts`, `/parts/{id}`, `/values/{path}`, `/defs`, `/diagnostics`, `/maneuvers`, `/phases`, `/configurations`, `/requirements`, `/requirements/compliance`, `/catalog/{id}` | Reads (overview and revision, the whole design, parts, one value, definitions, diagnostics, one catalog item, the list of maneuvers (in execution order; the same as `fune maneuver ls`), phases, configurations, the list of requirements and the requirement compliance table (the same as `fune requirement ls\|compliance`)) |
+| `POST /ops`, `/ops/from_text`, `/ops/unset_from_text`, `/ops/from_command`, `/ops/case_from_eclipse`, `/ops/maneuver_window`, `/ops/case_from_sun_distance`, `/ops/cases_from_geometry`, `/fmt` | Edits (§4.3) |
 | `POST /undo`, `POST /redo`, `GET /history` | Undo and redo the last edit, and the edit history (§2.4) |
 | `POST /parts/{id}` | A part with unsaved edits (`ops`) applied without writing (the same shape as `GET`. `fune part show --ops`) |
 | `POST /parts/{id}/place_body` | Converts a placement in body coordinates into a `Place` relative to the mount target and applies it |
@@ -276,36 +283,19 @@ Warnings never fail. The determination of "the result fails" is a service functi
 UI components use Tailwind CSS 4 and Radix, the system diagram uses @xyflow/react (placement and wiring use our own automatic layout in `features/diagram/`),
 the 3D placement uses three, @react-three/fiber and @react-three/drei, and graphs use Recharts. Lint and formatting use Biome, and tests use Vitest.
 
-The screens are: overview (budgets and diagnostics), parts, catalog, system diagrams (power and signal), mode table, requirements (the compliance table, and a list with add, edit and delete using the same arguments as `fune requirement add|set|rm`), placement (the part tree on the left, 3D in the center, the placement fields on the right. Selecting, mounting and positioning parts are checked and edited in full-screen 3D, and the center of mass is shown if mass properties exist), definitions (attributes, kinds, units),
-per-subsystem pages (AOCS, C&DH, Communications, Payload, Power, Propulsion, Structure, Thermal. Propulsion uses the generic display (KPIs, verdicts, analysis tables) plus a Maneuvers tab (a list in execution order, and add, edit and delete with the same arguments as `fune maneuver add|set|rm`; `/design/maneuvers` redirects there). Analyses for payload are not registered yet. The structure overview links to the placement page. The 3D colored by temperature remains on the thermal page), orbit and ground stations, analysis cases, diagnostics, and settings.
-A subsystem page lists the parts related to that subsystem using only that subsystem's attribute columns, lets you edit them in cells, and shows the analysis results on the same page.
-The subsystem tabs are "Overview (KPIs and verdicts), Modes, Parts, Time series, Settings" (in Japanese: 概要, モード, 部品, 時系列, 設定).
-The Power overview (#89 stage 1) is centered on chips with verdicts per mode, and a common sunlit/eclipse toggle.
-Sunlit generation and charge/discharge are averages based on the attitude of the selected mode, and shunt and discharge during sunlit are also shown. The SOC ring is not used.
-Maximum DoD, orbit energy margin, solar cell area and battery capacity are shown as bullet bars with the allowed band, the design value and the limit.
-Detailed analysis tables and diagnostics are put away under each analysis's "View data", and you move to a section with the narrow table of contents on the right.
-The Parts tab shows loads (per-state standalone power), solar cells (area, efficiency, normal) and batteries (capacity, voltage) by role, and uses the common attribute editing.
-The time series selects a mode and shows generation and load, charge/discharge and shunt, and SOC. It uses the common time domain, the bands of eclipse and mode, and synchronized hover, and draws the allowed DoD line on the SOC.
-Generation and sunlit in the upper section of the power balance are not shown again as orbit generation. The table of contents of the graphs is on the right.
-The Results tab is the generic analysis table fed by `POST /analyses/power.*` (bar charts and hidden tables come with each result). The per-mode display definition is `SystemModeView.power` of `POST /api/v1/system_modes/power` with `analyzed: true` (and the selected `case`, and a draft `ops`), built by `fune_service::system_modes::power`, which runs the four Power analyses typed. Power-specific fields are not placed in the generic analysis result. The Modes and Series tabs use the same query. Rust returns quantities, verdicts, ratios, marker positions and the channel selection, and the Web only draws and handles interaction.
-Other subsystems use the conventional generic display.
-A Modes tab is on AOCS, C&DH, Power and Thermal.
-Power shows the matrix of power consumption with the total including growth margin, available power, margin and verdict;
-C&DH shows the data generation rate before compression and packetization; Thermal shows the internal heat dissipation of the parts belonging to each node; AOCS shows, in a card per mode, a diagram of the primary and secondary axes with the attitude law, equipment by role with the number operating and state, and the longest duration.
-The momentum accumulation, unloading frequency, MTQ unloading time and sensor field-of-view verdict of the AOCS card are evaluated in Rust.
-The mode is passed explicitly to `fune_projection::aocs::{rw_unloading_for_mode,sensor_fov_for_mode}`,
-which keeps the orbit condition (β) of the default case and selects only the attitude law. The case selection, inputs and numbers of normal analyses are not changed.
-Equipment can be switched between sunlit and eclipse, aggregation shares `counted_states`, and editing the attitude law and axes goes through the same SetText entry point as settings.
-The sunlit/eclipse values, totals and verdicts are returned by `system_modes::system_modes` (`POST /system_modes/{system}`) from the existing projections and analyses.
-The available power of Power is the design value obtained by subtracting the system margin from the budget's limit (the limit is held by a requirement), and the same limit is used for both sunlit and eclipse (separate from on-orbit generation and the instantaneous capability of the battery).
-The design's "Modes" is the only place where definitions are edited (adding, name, duration, part states, number operating, spare, and eclipse overrides).
-A column of standalone power levels is kept as a reference for choosing states, but values, totals and balances in cells are placed in each subsystem's tab. The definition page adds one footer row, the total power consumption per mode (follows the sunlit/eclipse switch and the unsaved cell edits; the service returns only that row for `summary: "totals"` of `POST /system_modes/power`).
-Changing the state of a cell in each subsystem also uses the same `draft.ts`, `useModeDraftLoad`, and the arguments of `fune mode set|unset` → Op → save.
-The system diagram switches its display for each subsystem of the API's `DefsView.systems`, and hides structure by default.
-The selection is stored in the URL as `hidden-system` through `lib/nav.ts` (it can be repeated; empty means show all).
-Lines touching a hidden card and empty frames are not drawn, and remaining lines are not reconnected. Lines from hidden supply sources and masters are also hidden.
-Visible children of a hidden assembly are placed under the visible ancestor. Changing the display does not change the design data.
-URLs are in `src/routes.ts` and the sidebar order is in `src/lib/nav.ts`.
+The pages are registered in `web/src/routes.ts` and the order of the sidebar is in `web/src/lib/nav.ts`. What each page shows and how to use it is in the [GUI guide](guide/gui.md); this section keeps what decides the structure.
+
+- **One route for every subsystem page.** `systems/:system/:tab?` serves all subsystems. The list of subsystems is not written in the Web: it comes from `DefsView.systems`, and the subsystems that have a Modes tab come from `DefsView.mode_systems`.
+  The tabs are chosen from `SYSTEM_TAB_ORDER`, and everything particular to one subsystem (extra tabs, a dedicated Modes or Time series view, page actions, preloaded chunks) is one entry of `SYSTEM_REGISTRY` in `features/systems/dedicated.tsx` (`cargo xtask check` refuses a comparison with a subsystem name anywhere else).
+  A subsystem page lists the parts related to that subsystem with only that subsystem's attribute columns, lets you edit them in cells, and shows the analysis results on the same page.
+- **Per-subsystem mode views are computed in Rust.** `POST /system_modes/{system}` (`fune_service::system_modes`, `fune mode view <system>`) returns the values, totals and verdicts of the Modes tab, built from the existing projections and analyses. The request selects a draft (`ops`), an analysis case (`case`),
+  whether the analyses run (`analyzed`; for Power it adds `SystemModeView.power`, built by running the Power analyses typed) and how many footer rows to return (`summary`).
+  The values of the AOCS card (momentum accumulation, unloading frequency, MTQ unloading time, sensor field-of-view verdict) are evaluated by `fune_projection::aocs::{rw_unloading_for_mode, sensor_fov_for_mode}`.
+  They take the mode explicitly, keep the orbit condition of the default case and select only the attitude law, so the case selection, inputs and numbers of the normal analyses do not change. The Web only draws what Rust returns.
+- **Mode cells are edited as a draft.** The cell edits of the mode tables are kept as a draft (`features/modes/draft/draft.ts`) and sent as the arguments of `fune mode set|unset` → Op. The same draft is passed as `ops` to the views above, so totals and verdicts follow unsaved edits. Saving applies the Ops like any other edit.
+- **The system diagram** can hide a subsystem: the choices are the API's `DefsView.systems`, and `DefsView.diagram_hidden_systems` says which are hidden when nothing is chosen (structure). The choice is kept in the URL as `hidden-system` (`SEARCH` in `lib/nav.ts`; it can be repeated, and empty means show all). Hiding only changes the display, never the design data.
+- **Placement** is a full-screen 3D view with the product tree (`PartsTree`, the same tree as the parts page) on the left and the placement fields on the right. Selecting, mounting and positioning parts are checked and edited there. The visibility toggles and camera moves are state inside the page and are written neither to the design data nor to the URL.
+  `/design/maneuvers` redirects to the Maneuvers tab of the Propulsion page.
 
 The Web does not do the following.
 
@@ -334,11 +324,13 @@ During development, `pnpm -C web dev` (port 5173) proxies `/api` to `127.0.0.1:3
 | AOCS | `aocs.unload_time` (time needed to unload with MTQ and RCS), `aocs.slew_time` (time needed to change attitude with RW) | `aocs.rw_unloading` (disturbance torque (including thrust error; aerodynamic and solar-pressure torque from the projected area and centroid of the part boxes) and RW unloading frequency, daily propellant dumped by RCS and its ΔV equivalent), `aocs.sensor_fov` (sensor FoV and exclusion angles) |
 | C&DH | `cdh.data_budget` (data volume and storage) | — |
 | Communications | `comm.link_budget` (link budget) | `comm.visibility` (ground station visibility), `comm.data_throughput` (data transmitted and stored) |
-| Orbit conditions | `orbit.total_dose` (total ionising dose per part from an environment table, the user's or else the computed trapped-particle table, with the margin to its tolerance; no radiation transport of its own) | `orbit.eclipse_season` (beta angle and eclipse seasons), `orbit.decay` (drag decay and station keeping), `orbit.geometry` (Sun and Earth distance and angles per phase), `orbit.trapped_flux` (orbit-averaged and peak trapped proton/electron flux and the mission fluence from AP-8/AE-8; needs the data of `fune data fetch radiation`, see [trapped-radiation.md](trapped-radiation.md)), `orbit.trapped_dose` (dose versus aluminium shielding depth from those spectra with SHIELDOSE-2; its table also serves as the environment of `orbit.total_dose` for a leg without a user table) |
-| Power | `power.mode_load` (power consumption per mode), `power.solar_sunlit` (generation while sunlit) | `power.orbit_generation` (on-orbit generation), `power.energy_balance` (power balance and DoD), `power.thrust_balance` (power balance during firing of numerically propagated maneuvers) |
-| Propulsion | `propulsion.maneuvers` (ΔV, burn time, propellant and orbits before and after for each maneuver), `propulsion.dv_budget` (the breakdown, total and margin of ΔV by category, and the ΔV of RCS unloading), `propulsion.propellant` (wet and dry propellant and the volume margin of the tanks), `propulsion.thruster_usage` (total impulse, cumulative burn time, number of burns and the ratings), `propulsion.mass_properties` (mass and center of mass with propellant loaded and after use) | `propulsion.launch_window` (departure × arrival date grid for interplanetary maneuvers, with the flyby dates optimised per cell for a transfer with swing-bys: C3, excess speeds, declination and ΔV per grid point, the minimum points and the gap of the written dates), `propulsion.transfer_check` (re-propagates each dated interplanetary transfer under the gravity of the Sun and planets: miss distance on the arrival date, closest approach, arrival excess-speed difference and the trajectory; judged only with DE440), `propulsion.orbit_history` (the orbit history in maneuver order. For numerically propagated maneuvers, the altitude, inclination and mass of the propagation with thrust) |
-| Structure | `structure.mass_properties` (mass properties), `structure.static_load` (quasi-static load), `structure.modal_estimate` (simple natural frequency. No FEM), `structure.modal_fem` (coarse finite-element modes of the whole body from axis-aligned panels, lumped masses and a support type; built from design data in the launch configuration; the support comes from the launcher or dispenser attribute `launch_constraint`) | `structure.launch_fit` (mass, stowed envelope and natural frequencies against the launcher and dispenser; the whole-body frequencies come from `structure.modal_fem` first and `structure.modal_estimate` as the fallback, and the finite-element model is an optional input), `structure.interference` (overlaps between the boxes of parts; warnings only), `structure.cone_clearance` (parts inside a thruster plume cone or a sensor field-of-view cone; warnings only), `structure.external_geometry` (projected and exposed areas of the part boxes; report only) |
+| Orbit conditions | `orbit.total_dose` (total ionising dose per part from an environment table, the user's or else the computed trapped-particle table, with the margin to its tolerance; no radiation transport of its own), `orbit.trapped_flux` (orbit-averaged and peak trapped proton/electron flux and the mission fluence from AP-8/AE-8; needs the data of `fune data fetch radiation`, see [trapped-radiation.md](trapped-radiation.md)), `orbit.trapped_dose` (dose versus aluminium shielding depth from those spectra with SHIELDOSE-2; its table also serves as the environment of `orbit.total_dose` for a leg without a user table) | `orbit.eclipse_season` (beta angle and eclipse seasons), `orbit.decay` (drag decay and station keeping), `orbit.geometry` (Sun and Earth distance and angles per phase) |
+| Power | `power.mode_load` (power consumption per mode), `power.solar_sunlit` (generation while sunlit), `power.sizing` (the solar array area and battery capacity needed, against the longest eclipse) | `power.orbit_generation` (on-orbit generation), `power.energy_balance` (power balance and DoD), `power.thrust_balance` (power balance during firing of numerically propagated maneuvers) |
+| Propulsion | `propulsion.maneuvers` (ΔV, burn time, propellant and orbits before and after for each maneuver), `propulsion.dv_budget` (the breakdown, total and margin of ΔV by category, and the ΔV of RCS unloading), `propulsion.propellant` (wet and dry propellant and the volume margin of the tanks), `propulsion.thruster_usage` (total impulse, cumulative burn time, number of burns and the ratings), `propulsion.mass_properties` (mass and center of mass with propellant loaded and after use), `propulsion.launch_window` (departure × arrival date grid for interplanetary maneuvers, with the flyby dates optimised per cell for a transfer with swing-bys: C3, excess speeds, declination and ΔV per grid point, the minimum points and the gap of the written dates), `propulsion.transfer_check` (re-propagates each dated interplanetary transfer under the gravity of the Sun and planets: miss distance on the arrival date, closest approach, arrival excess-speed difference and the trajectory; judged only with DE440) | `propulsion.orbit_history` (the orbit history in maneuver order. For numerically propagated maneuvers, the altitude, inclination and mass of the propagation with thrust) |
+| Structure | `structure.mass_properties` (mass properties), `structure.static_load` (quasi-static load), `structure.modal_estimate` (simple natural frequency. No FEM), `structure.modal_fem` (coarse finite-element modes of the whole body from axis-aligned panels, lumped masses and a support type; built from design data in the launch configuration; the support comes from the launcher or dispenser attribute `launch_constraint`), `structure.launch_fit` (mass, stowed envelope and natural frequencies against the launcher and dispenser; the whole-body frequencies come from `structure.modal_fem` first and `structure.modal_estimate` as the fallback, and the finite-element model is an optional input), `structure.interference` (overlaps between the boxes of parts; warnings only), `structure.cone_clearance` (parts inside a thruster plume cone or a sensor field-of-view cone; warnings only), `structure.external_geometry` (projected and exposed areas of the part boxes; report only) | — |
 | Thermal | `thermal.steady` (multi-node steady-state temperature) | `thermal.transient` (multi-node transient temperature) |
+
+The classification (steady-state or time series) is the `KIND` of each analysis in `sat_analysis`. The per-analysis pages, with inputs, equations and checks, are in the [analysis reference](analyses/index.md).
 
 `fune analyze ls` and `GET /analyses` return the same list.
 
@@ -398,27 +390,39 @@ The physics and mathematics building blocks that analyses use are in sat-astro, 
 | `force` | Gravity field (EGM96, up to degree 70; coefficients embedded), third bodies, solar radiation pressure, atmospheric drag, solid tides, relativistic corrections |
 | `shadow` | Shadows (cylindrical and conical). Eclipse determination is only here |
 | `earth`, `time` | ECI ⇄ ECEF, geodetic coordinates, precession, epoch and sidereal time |
-| `geomag`, `atmosphere` | Geomagnetism (tilted dipole), atmospheric density (exponential atmosphere, NRLMSISE-00), daily tables of space weather (F10.7, Ap) |
+| `geomag`, `atmosphere` | Geomagnetism (tilted dipole, spherical-harmonic Gauss models, McIlwain's L and B/B₀), atmospheric density (exponential atmosphere, NRLMSISE-00), daily tables of space weather (F10.7, Ap) |
+| `radiation` | The AP-8 and AE-8 trapped-particle maps, the field each map is paired with, the position as (L, B/B₀), and the SHIELDOSE-2 shielding tables; the data are received as bytes and registered once per process |
 | `ground` | Ground station elevation angle, pass detection, ground track |
 | `attitude`, `illumination`, `timeline` | Attitude laws (sun pointing, nadir pointing, inertial fixed), solar incidence on faces, time series on orbit |
+| `view_factor` | View factors between rectangles (closed forms and a numerical integration with occlusion). The only home of view factors |
+| `math`, `constants`, `body`, `kepler`, `state` | Vectors, matrices, quaternions and the eigen and linear solvers; physical and celestial constants; the shared state and body types |
 | `rocket`, `transfer` | The rocket equation (propellant ⇄ ΔV and burn time), ΔV of orbit transfers (two-burn at perigee and apogee, and Hohmann; plane change; bi-elliptic; Edelbaum's low thrust; Robbins' approximation of finite-burn loss) |
 
 The input specifications (`OrbitSpec`, `GroundStation`, etc.) take typed quantities, and internal functions pass f64 SI values.
-The orbit propagation that the design data passes to analyses is either two-body plus the secular term of J2 (the default) or two-body only.
+The orbit propagation that the design data passes to analyses is chosen by the `propagator` setting of the orbit condition: `kepler` (two-body only), `j2` (two-body plus the secular term of J2, the default) or `numerical` ([model.md](model.md)).
 
-### 6.5 External data (release datasets: DE440)
+### 6.5 External data (release datasets)
 
-Data that is too large or too restricted for git or the binary is placed in this repository's releases and fetched on demand. **A dataset is one row of a single typed table** (`RELEASE_DATASETS` in `fune_service::data`; the row type is `release::Dataset`): id, cache file name (= release asset name), repository and tag, expected SHA-256 and size, what uses it, the source/licence text shown to the user, and the installer (a function that receives the bytes and registers them with the consumer, for example sat-astro). Status, fetch, and the registration at CLI/server startup (`install_cached_datasets`) are all driven by that table, so adding a dataset is one row plus its installer. The space-weather table (§6.6) is fetched differently (daily updates, no fixed hash) and is listed after the table's rows in `fune data status`. DE440 is the first row:
+Data that is too large or too restricted for git or the binary is placed in this repository's releases and fetched on demand. **A dataset is one row of a single typed table** (`RELEASE_DATASETS` in `fune_service::data`; the row type is `release::Dataset`): id, cache file name (= release asset name), repository and tag, expected SHA-256 and size, what uses it, the source/licence text shown to the user, and the installer (a function that receives the bytes and registers them with the consumer, for example sat-astro). Status, fetch, and the registration at CLI/server startup (`install_cached_datasets`) are all driven by that table, so adding a dataset is one row plus its installer. The space-weather table (§6.6) is fetched differently (daily updates, no fixed hash) and is listed after the table's rows in `fune data status`.
 
-The DE440 ephemeris (`de440.bin`, about 20.7 MB. JPL DE440 converted into a format that sat-astro reads) is not put in git and is placed in this repository's release (tag `data-de440-v1`).
+| ID | What it is | Release tag | Used by |
+|---|---|---|---|
+| `de440` | JPL DE440 planetary ephemeris, converted into a format that sat-astro reads (`de440.bin`) | `data-de440-v1` | Positions of the Sun, Moon and planets |
+| `ap8min`, `ap8max`, `ae8min`, `ae8max` | AP-8 proton and AE-8 electron belt maps for solar minimum and maximum | `data-radiation-v1` | `orbit.trapped_flux` |
+| `jensen_cain_1960`, `gsfc_1966` | The older geomagnetic field models that the belt maps are paired with | `data-radiation-v1` | `orbit.trapped_flux` |
+| `igrf14` | IGRF-14 geomagnetic coefficients | `data-radiation-v1` | Present-day field (no analysis uses it yet) |
+| `shieldose2` | SHIELDOSE-2 shielding-dose tables | `data-shielding-v1` | `orbit.trapped_dose`, `orbit.total_dose` |
 
-- Fetch it with `fune data fetch de440` (on the settings page in the GUI, `POST /data/de440/fetch` over HTTP). Internally it calls `gh release download`, so the GitHub CLI is required.
-  It downloads into a temporary directory, verifies the SHA-256, and then replaces the file, so a failure leaves the existing file as it is.
+The rows are in `data.rs` (`RELEASE_DATASETS`), `data/de440.rs` and `data/radiation.rs`. The radiation rows are described in [trapped-radiation.md](trapped-radiation.md).
+
+- Fetch one with `fune data fetch <id>` (on the settings page in the GUI, `POST /data/<id>/fetch` over HTTP). Internally it calls `gh release download`, so the GitHub CLI is required.
+  It downloads into a temporary directory, verifies the size and SHA-256 against the row, and then replaces the file, so a failure leaves the existing file as it is.
 - The location is a per-user cache: `$IWAFUNE_DATA_DIR`, otherwise `$XDG_CACHE_HOME/iwafune/data`, otherwise `~/.cache/iwafune/data`.
 - Any row of the table can also be installed from a directory that holds the file (named as in the release) with `fune data fetch <id> --from <DIR>` (a CLI-only option: HTTP does not take a path on the server, see the parity exceptions in CONTRIBUTING.md);
-  the size and SHA-256 are checked as for a download. The seven trapped-radiation rows (`ap8min`, `ap8max`, `ae8min`, `ae8max`, `jensen_cain_1960`, `gsfc_1966`, `igrf14`; [trapped-radiation.md](trapped-radiation.md)) are also fetched together by the id `radiation`.
-- The CLI and the server read the cache once at startup and register it with sat-astro. The file is read by `fune_service::data`, and sat-astro only receives bytes.
+  the size and SHA-256 are checked as for a download. The radiation rows (`ap8min` to `shieldose2`) are also fetched together by the group id `radiation` (`GROUP_IDS` in `data/radiation.rs`).
+- The CLI and the server read the cache once at startup (`install_cached_datasets`) and register it with sat-astro. The file is read by `fune_service::data`, and sat-astro only receives bytes.
 - Once registered, DE440 is used for the years 1849 to 2150, and otherwise the analytical expressions are used. Which one is in use now can be seen with `fune data status` and `GET /data/status`.
+- Without the radiation files, `orbit.trapped_flux` and `orbit.trapped_dose` report a missing input whose reason names `fune data fetch radiation`, and `orbit.total_dose` behaves as it did before the data existed.
 
 ### 6.6 External data (space weather)
 
@@ -437,7 +441,7 @@ and monthly predictions beyond that). Because it is updated every day, it is put
 ### 6.7 Geomagnetic field coefficients (format of the distribution file)
 
 `sat_astro::geomag::GaussModel` holds an internal-origin field as Gauss coefficients (Schmidt quasi-normalised, nT) at an epoch, with a secular variation. It is read from bytes by
-`GaussModel::from_text_bytes` (and written back by `to_text`), so sat-astro does no file I/O; the coefficient sets will arrive later as fetched data. The text format is our own, one file per model:
+`GaussModel::from_text_bytes` (and written back by `to_text`), so sat-astro does no file I/O. The coefficient sets of the old fields and of IGRF arrive as fetched data (§6.5). The text format of `GaussModel` is our own, one file per model:
 
 ```text
 # comment (everything after # on a line is ignored; blank lines are ignored)
@@ -467,25 +471,32 @@ the conversions are in [trapped-radiation.md](trapped-radiation.md). The trapped
 
 | Check | Contents |
 |---|---|
-| Dependency direction | Whether the workspace's crates depend only on the crates allowed in the table of §3 |
-| Module cycles | Whether modules inside a crate form cycles |
-| Registry | Whether every crate is listed in [registry.md](architecture/registry.md) |
-| Single home | Whether definitions whose home is fixed in the registry (integrators, constants such as μ and the Earth's radius, shadows, coordinate transforms, unit parsing, analysis registration, etc.) appear in no other file (`crates/xtask/src/single_home.rs`) |
-| Write entry point | Whether only store and ops call `write::commit`, which writes design files (undo and redo are in `fune-ops`, replaying recorded Op results; the exceptions that do not go through an Op are `fmt` and the import of `catalog.lock`, with reasons written in an allowlist. `crates/xtask/src/store_writes.rs`) |
-| Web rules | Whether `fetch(`, number formatting, query invalidation, hard-coded colors and negative letter-spacing (`tracking-tight`) are absent outside the designated places |
-| Language | Whether there are no Python files (the only languages are Rust and TypeScript) |
-| File length | Warns about files over 400 lines (data such as coefficient tables excepted) |
+| Dependency direction | Whether the workspace's crates depend only on the crates allowed in the table of §3 (`ALLOWED` in `deps.rs`; dev-dependencies are not looked at) |
+| Module cycles | Whether modules inside a crate form cycles (`module_cycles.rs`) |
+| Registry | Whether every crate is listed in the crate table of [registry.md](architecture/registry.md) (`registry.rs`) |
+| Single home | Whether definitions whose home is fixed in the registry (integrators, constants such as μ and the Earth's radius, shadows, coordinate transforms, unit parsing, analysis registration, the propellant mass flow only in `sat_astro::rocket`, the fallback from a display name to the ID only in `fune_model::display_name`, etc.) appear in no other file, and some web rules of the same kind (`fetch(` only in the API client, number formatting, `queryKey: [`, `animate-pulse`, `tracking-tight`, the feedback components, budget kinds written as literals). A rule that matches nothing under its allowed paths is itself an error (`single_home.rs`, the rules in `single_home/rules.rs`) |
+| Write entry point | Whether only store and ops call `write::commit`, which writes design files (undo and redo are in `fune-ops`, replaying recorded Op results; the exceptions that do not go through an Op are `fmt` and the import of `catalog.lock`, with reasons written in an allowlist. `store_writes.rs`) |
+| Projection defaults | Whether `fune-projection` writes no modelling default (`const DEFAULT_…`, or a literal number in `unwrap_or(` and `map_or(`; `projection_defaults.rs`) |
+| Report JSON | Whether the report export in `fune-service` reads typed analysis outputs, not JSON by field name (`serde_json`, `.get("…")`, `.pointer("…")`, `x["…"]`; a rule that finds no report file is itself an error; `report_json.rs`) |
+| Web: strings | Whether the Web splits IDs or paths on `/` or `.`, or turns typed strings into numbers with `Number(` or `parseFloat(` (`web_strings.rs`) |
+| Web: colours | Whether hard-coded colours (hex values, colour names) and `color-mix(` appear outside `lib/tone.ts` (`web_colors.rs`) |
+| Web: roles and subsystems | Whether the Web compares a part role or a subsystem identifier with a string (`web_roles.rs`, `web_systems.rs`) |
+| Web: pages | Whether page URLs are built outside `paths` in `lib/nav.ts`, and whether `features/` is imported only by `features/` and `routes/`, with imports between features limited to the allowlist `FEATURE_EDGES` (`web_pages.rs`) |
+| User text language | Whether Rust string literals hold no Japanese, outside the allowlisted files that hold bilingual name pairs (`english_text.rs`) |
+| Languages and file names | Whether there are no Python files (the only languages are Rust and TypeScript), and no two file names in one directory that differ only by case (`main.rs`, `file_names.rs`) |
+| Size | A warning, not an error, for files over 400 lines and Rust functions over 60 lines (data such as coefficient tables excepted; `sizes.rs`) |
 
 When you add a rule, add it to xtask too.
 
-CI (`.github/workflows/ci.yml`) runs on pushes to main and develop and on PRs.
+CI (`.github/workflows/ci.yml`) runs on pushes to main and develop and on PRs. On a PR only the jobs for the changed parts run; pushes run everything.
 
 | Job | Contents |
 |---|---|
+| changes | Decides which of the following jobs the change needs |
 | architecture | `cargo xtask check` |
-| rust | `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --workspace` (including the parity tests), whether the generated TS types match Rust |
+| rust | `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace` (including the parity tests), whether the generated TS types match Rust |
 | web | Biome, type check, Vitest, build |
-| bundle | Builds a release build with the SPA bundled and tries the CLI and HTTP with the demo design data |
+| bundle | On pushes only: builds a release build with the SPA bundled and tries the CLI and HTTP with the demo design data |
 
 ## 8. Branches and releases
 

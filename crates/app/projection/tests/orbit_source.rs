@@ -517,8 +517,8 @@ fn a_case_epoch_starts_in_the_arc_that_contains_it() {
     assert_eq!(m.into_vec()[0].path, "cases.cruise.epoch");
 }
 
-/// 時系列（電源が使う）は連鎖の全体を 1 回限りの軌道として解く: 日照率は 1、太陽距離は境でも連続（境の前後の標本の差は、
-/// 標本の間隔の間の距離の変化の範囲）で、境の日の太陽距離は金星の日心距離（暦）に等しい。
+/// 時系列（電源が使う）は連鎖の全体を 1 回限りの軌道として解く: 日照率は 1、太陽距離は境でも連続（境の前後のサンプルの差は、
+/// サンプルの間隔の間の距離の変化の範囲）で、境の日の太陽距離は金星の日心距離（暦）に等しい。
 #[test]
 fn the_timeline_and_power_run_across_the_flyby() {
     let d = with_swing_by();
@@ -529,7 +529,7 @@ fn the_timeline_and_power_run_across_the_flyby() {
     assert!(m.is_empty());
     let samples = build(&spec).expect("samples");
     assert!(samples.iter().all(|s| s.sunlit == 1.0));
-    // 標本の太陽距離は、軌道の位置の大きさそのもの（太陽中心）
+    // サンプルの太陽距離は、軌道の位置の大きさそのもの（太陽中心）
     assert!(
         samples
             .iter()
@@ -556,7 +556,7 @@ fn the_timeline_and_power_run_across_the_flyby() {
 }
 
 /// 設計の軌道が通過のある遷移でも、`orbit.geometry` が連鎖の全体で走る: 区間は 1 つ（中心は太陽、期間は連鎖の全体の `OneOff`）。
-/// 通過の日の太陽距離は金星の日心距離（暦）で、境をまたぐ標本の地球距離は連続（光の伝搬時間は地球距離 / c）。
+/// 通過の日の太陽距離は金星の日心距離（暦）で、境をまたぐサンプルの地球距離は連続（光の伝搬時間は地球距離 / c）。
 #[test]
 fn orbit_geometry_runs_across_the_flyby() {
     let mut d = with_swing_by();
@@ -572,7 +572,7 @@ fn orbit_geometry_runs_across_the_flyby() {
     assert_eq!(g.central, CentralBody::Sun);
     assert_eq!(g.span_basis, sat_analysis::orbit::GeometrySpanBasis::OneOff);
     assert_eq!(g.span.value(), leg.orbit.cycle().length_s());
-    // 太陽距離の最小は、金星の通過の日の距離（金星の日心距離）以下、最大は両端の距離以上（極値は標本・詰めた値で、端と境を含む）
+    // 太陽距離の最小は、金星の通過の日の距離（金星の日心距離）以下、最大は両端の距離以上（極値はサンプル・詰めた値で、端と境を含む）
     let (lo, hi) = (
         g.sun_distance.min.value.value(),
         g.sun_distance.max.value.value(),

@@ -169,7 +169,7 @@ fn sampled_orbit_closes_and_gives_a_table() {
     assert!(cr.sample_orbit(&h.orbit, 1, &cfg.integrator).is_err());
 }
 
-/// z 振幅は軌道の z の最大値: 標本（半周期の点を含む）の最大の |z| が指定の値に合う。z の最大は 2 つの横切り（位相 0 と半周期）の
+/// z 振幅は軌道の z の最大値: サンプル（半周期の点を含む）の最大の |z| が指定の値に合う。z の最大は 2 つの横切り（位相 0 と半周期）の
 /// どちらかで、L2 では反対側の方が大きい。
 #[test]
 fn the_z_amplitude_is_the_maximum_z_of_the_orbit() {

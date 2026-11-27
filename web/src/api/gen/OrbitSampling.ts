@@ -2,7 +2,7 @@
 import type { Trajectory } from "./Trajectory";
 
 /**
- * 軌道の標本の取り方（軌道・期間・刻み・β 角）。時系列（[`TimelineSpec`]）と地上局のパスの探索で共有する。
+ * 軌道のサンプルの取り方（軌道・期間・刻み・β 角）。時系列（[`TimelineSpec`]）と地上局のパスの探索で共有する。
  * **軌道・期間・刻み・β をまとめて受けるのはこれだけ**（解析ごとに別々の欄で受けない）。
  */
 export type OrbitSampling = { orbit: Trajectory, 

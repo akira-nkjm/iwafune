@@ -94,7 +94,7 @@ fn sun_pointing_sensor_sees_sun_only_when_lit() {
 
 #[test]
 fn nadir_pointing_sensor_sees_earth() {
-    // +Z を地心指向: +Z の視線は地球の円盤の中（縁までの角 = −asin(R/r)）、−Z は天頂（π − asin(R/r)）
+    // +Z をナディア指向: +Z の視線は地球の円盤の中（縁までの角 = −asin(R/r)）、−Z は天頂（π − asin(R/r)）
     let input = SensorFovInput {
         timeline: leo_timeline(nadir_pointing_z(), 0.5, 30.0),
         sensors: vec![sensor("DOWN", Vec3::Z), sensor("UP", -Vec3::Z)],

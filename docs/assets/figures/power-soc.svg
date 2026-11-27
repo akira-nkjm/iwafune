@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" role="img" aria-labelledby="t d">
+  <title id="t">State of charge over one orbit</title>
+  <desc id="d">Schematic of the state of charge against time. It starts at s_0, charges to the full level 1 and stays there in sunlight, falls at a constant rate through the eclipse to its lowest value, and recharges afterwards. The maximum depth of discharge D_max is measured from the full level to the lowest value, above the line 1 minus D_lim of the allowed depth of discharge.</desc>
+  <defs>
+    <marker id="a-ink" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#062654"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="299" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="280" y="56" width="172" height="180" fill="#062654" fill-opacity="0.07"/>
+    <text x="366" y="74" font-size="12" fill="#5b6577" text-anchor="middle">eclipse</text>
+    <text x="192" y="74" font-size="12" fill="#5b6577" text-anchor="middle">sunlight</text>
+    <text x="564" y="74" font-size="12" fill="#5b6577" text-anchor="middle">sunlight</text>
+    <path d="M104 84 L676 84" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M104 204 L676 204" fill="none" stroke="#b92626" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M104 236 L104 45" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <path d="M104 236 L687 236" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <path d="M104 128 L160 84 L280 84 L452 170 L530 84 L668 84" fill="none" stroke="#3382c2" stroke-width="2.4"/>
+    <circle cx="104" cy="128" r="4" fill="#3382c2"/>
+    <text x="116" y="142" font-size="14" fill="#062654">s<tspan dy="4" font-size="10">0</tspan></text>
+    <text x="94" y="89" font-size="14" fill="#062654" text-anchor="end">1</text>
+    <text x="94" y="209" font-size="14" fill="#b92626" text-anchor="end">1 − D<tspan dy="4" font-size="10">lim</tspan></text>
+    <text x="94" y="46" font-size="14" fill="#062654" text-anchor="end">SOC</text>
+    <text x="692" y="256" font-size="14" fill="#062654" text-anchor="end">time</text>
+    <path d="M452 170 L584 170" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M574 91 L574 163" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)" marker-start="url(#a-ink)"/>
+    <text x="584" y="132" font-size="14" fill="#062654">D<tspan dy="4" font-size="10">max</tspan></text>
+    <text x="104" y="280" font-size="12" fill="#5b6577">vertical axis cut: only the upper part of the range is shown</text>
+  </g>
+</svg>

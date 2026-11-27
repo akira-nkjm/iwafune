@@ -25,6 +25,6 @@ heaters: Array<ThermalHeaterSteady>, iterations: number,
  */
 residual: number, 
 /**
- * 外面の日照割合（ほかの部品の影を引いた割合。直達日射にだけ掛ける）の、日照中の標本での最小と平均。影を数えたときだけ付く
+ * 外面の日照割合（ほかの部品の影を引いた割合。直達日射にだけ掛ける）の、日照中のサンプルでの最小と平均。影を数えたときだけ付く
  */
 shadowing?: ShadowingReport | null, };

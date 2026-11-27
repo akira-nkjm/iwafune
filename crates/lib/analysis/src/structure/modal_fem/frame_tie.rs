@@ -96,7 +96,7 @@ fn tie_point(edges: &[MemberEdge], p: [f64; 3], m: f64, out: &mut [f64], share: 
     }
 }
 
-/// 標本点（外形の箱を軸ごとに `FOOTPRINT_SAMPLES` 等分した各区間の中央。長さ 0 の軸は 1 点）。
+/// サンプル点（外形の箱を軸ごとに `FOOTPRINT_SAMPLES` 等分した各区間の中央。長さ 0 の軸は 1 点）。
 fn samples(l: &ModalFemLumped, pos: [f64; 3]) -> Vec<[f64; 3]> {
     let size = l.footprint.map_or([0.0; 3], |f| f.map(|x| x.value()));
     let axis = |k: usize| -> Vec<f64> {

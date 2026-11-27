@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" role="img" aria-labelledby="t d">
+  <title id="t">Thermostat heater with hysteresis</title>
+  <desc id="d">Node temperature against time. With the heater on the temperature rises to the upper set point T_off, where the heater switches off. It then falls to the lower set point T_on, where the heater switches on again. Between the two set points the heater keeps its state. A strip below shows the on and off intervals.</desc>
+  <defs>
+    <marker id="a-ink" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#062654"/></marker>
+    <marker id="a-sec" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#5b6577"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="299" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M112 196 L112 33" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <path d="M112 196 L679 196" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <rect x="112" y="76" width="528" height="76" fill="#f5f7fa"/>
+    <path d="M112 76 L640 76" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M112 152 L640 152" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <text x="102" y="81" font-size="14" fill="#062654" text-anchor="end">T<tspan dy="4" font-size="10">off</tspan></text>
+    <text x="102" y="157" font-size="14" fill="#062654" text-anchor="end">T<tspan dy="4" font-size="10">on</tspan></text>
+    <text x="122" y="30" font-size="14" fill="#062654">node temperature T</text>
+    <text x="684" y="216" font-size="14" fill="#062654" text-anchor="end">time</text>
+    <path d="M112 184 L114 179.4 L116 174.9 L118 170.5 L120 166.3 L122 162.2 L124 158.2 L126 154.3 L128 150.5 L130 146.8 L132 143.2 L134 139.8 L136 136.4 L138 133.1 L140 129.9 L142 126.8 L144 123.8 L146 120.9 L148 118.1 L150 115.3 L152 112.6 L154 110 L156 107.5 L158 105 L160 102.6 L162 100.3 L164 98 L166 95.8 L168 93.7 L170 91.6 L172 89.6 L174 87.6 L176 85.7 L178 83.9 L180 82.1 L182 80.3 L184 78.6 L186 77 L188 76 L190 79.2 L192 82.3 L194 85.4 L196 88.4 L198 91.3 L200 94.2 L202 97 L204 99.7 L206 102.3 L208 104.9 L210 107.5 L212 109.9 L214 112.4 L216 114.7 L218 117 L220 119.3 L222 121.5 L224 123.6 L226 125.7 L228 127.8 L230 129.8 L232 131.8 L234 133.7 L236 135.5 L238 137.4 L240 139.1 L242 140.9 L244 142.6 L246 144.3 L248 145.9 L250 147.5 L252 149 L254 150.5 L256 152 L258 152 L260 148.3 L262 144.7 L264 141.2 L266 137.7 L268 134.4 L270 131.2 L272 128.1 L274 125 L276 122.1 L278 119.2 L280 116.4 L282 113.7 L284 111 L286 108.5 L288 106 L290 103.6 L292 101.2 L294 98.9 L296 96.7 L298 94.5 L300 92.4 L302 90.4 L304 88.4 L306 86.5 L308 84.6 L310 82.8 L312 81 L314 79.3 L316 77.6 L318 76 L320 76 L322 79.2 L324 82.3 L326 85.4 L328 88.4 L330 91.3 L332 94.2 L334 97 L336 99.7 L338 102.3 L340 104.9 L342 107.5 L344 109.9 L346 112.4 L348 114.7 L350 117 L352 119.3 L354 121.5 L356 123.6 L358 125.7 L360 127.8 L362 129.8 L364 131.8 L366 133.7 L368 135.5 L370 137.4 L372 139.1 L374 140.9 L376 142.6 L378 144.3 L380 145.9 L382 147.5 L384 149 L386 150.5 L388 152 L390 152 L392 148.3 L394 144.7 L396 141.2 L398 137.7 L400 134.4 L402 131.2 L404 128.1 L406 125 L408 122.1 L410 119.2 L412 116.4 L414 113.7 L416 111 L418 108.5 L420 106 L422 103.6 L424 101.2 L426 98.9 L428 96.7 L430 94.5 L432 92.4 L434 90.4 L436 88.4 L438 86.5 L440 84.6 L442 82.8 L444 81 L446 79.3 L448 77.6 L450 76 L452 76 L454 79.2 L456 82.3 L458 85.4 L460 88.4 L462 91.3 L464 94.2 L466 97 L468 99.7 L470 102.3 L472 104.9 L474 107.5 L476 109.9 L478 112.4 L480 114.7 L482 117 L484 119.3 L486 121.5 L488 123.6 L490 125.7 L492 127.8 L494 129.8 L496 131.8 L498 133.7 L500 135.5 L502 137.4 L504 139.1 L506 140.9 L508 142.6 L510 144.3 L512 145.9 L514 147.5 L516 149 L518 150.5 L520 152 L522 152 L524 148.3 L526 144.7 L528 141.2 L530 137.7 L532 134.4 L534 131.2 L536 128.1 L538 125 L540 122.1 L542 119.2 L544 116.4 L546 113.7 L548 111 L550 108.5 L552 106 L554 103.6 L556 101.2 L558 98.9 L560 96.7 L562 94.5 L564 92.4 L566 90.4 L568 88.4 L570 86.5 L572 84.6 L574 82.8 L576 81 L578 79.3 L580 77.6 L582 76 L584 76 L586 79.2 L588 82.3 L590 85.4 L592 88.4 L594 91.3 L596 94.2 L598 97 L600 99.7 L602 102.3 L604 104.9 L606 107.5 L608 109.9 L610 112.4 L612 114.7 L614 117 L616 119.3 L618 121.5 L620 123.6 L622 125.7 L624 127.8 L626 129.8 L628 131.8 L630 133.7 L632 135.5 L634 137.4 L636 139.1 L638 140.9" fill="none" stroke="#3382c2" stroke-width="2.4"/>
+    <rect x="112" y="232" width="76" height="26" fill="#e8f1f9" stroke="#3382c2" stroke-width="1.2"/>
+    <text x="150" y="250" font-size="12" fill="#1f63a0" text-anchor="middle">on</text>
+    <rect x="188" y="232" width="70" height="26" fill="#ffffff" stroke="#5b6577" stroke-width="1.2"/>
+    <text x="223" y="250" font-size="12" fill="#5b6577" text-anchor="middle">off</text>
+    <rect x="258" y="232" width="62" height="26" fill="#e8f1f9" stroke="#3382c2" stroke-width="1.2"/>
+    <text x="289" y="250" font-size="12" fill="#1f63a0" text-anchor="middle">on</text>
+    <rect x="320" y="232" width="70" height="26" fill="#ffffff" stroke="#5b6577" stroke-width="1.2"/>
+    <text x="355" y="250" font-size="12" fill="#5b6577" text-anchor="middle">off</text>
+    <rect x="390" y="232" width="62" height="26" fill="#e8f1f9" stroke="#3382c2" stroke-width="1.2"/>
+    <text x="421" y="250" font-size="12" fill="#1f63a0" text-anchor="middle">on</text>
+    <rect x="452" y="232" width="70" height="26" fill="#ffffff" stroke="#5b6577" stroke-width="1.2"/>
+    <text x="487" y="250" font-size="12" fill="#5b6577" text-anchor="middle">off</text>
+    <rect x="522" y="232" width="62" height="26" fill="#e8f1f9" stroke="#3382c2" stroke-width="1.2"/>
+    <text x="553" y="250" font-size="12" fill="#1f63a0" text-anchor="middle">on</text>
+    <rect x="584" y="232" width="54" height="26" fill="#ffffff" stroke="#5b6577" stroke-width="1.2"/>
+    <text x="611" y="250" font-size="12" fill="#5b6577" text-anchor="middle">off</text>
+    <path d="M188 76 L188 232" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <circle cx="188" cy="76" r="4.5" fill="#e7bd41" stroke="#062654" stroke-width="1.8"/>
+    <path d="M258 152 L258 232" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <circle cx="258" cy="152" r="4.5" fill="#e7bd41" stroke="#062654" stroke-width="1.8"/>
+    <path d="M320 76 L320 232" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <circle cx="320" cy="76" r="4.5" fill="#e7bd41" stroke="#062654" stroke-width="1.8"/>
+    <path d="M390 152 L390 232" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <circle cx="390" cy="152" r="4.5" fill="#e7bd41" stroke="#062654" stroke-width="1.8"/>
+    <path d="M452 76 L452 232" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <circle cx="452" cy="76" r="4.5" fill="#e7bd41" stroke="#062654" stroke-width="1.8"/>
+    <path d="M522 152 L522 232" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <circle cx="522" cy="152" r="4.5" fill="#e7bd41" stroke="#062654" stroke-width="1.8"/>
+    <path d="M584 76 L584 232" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <circle cx="584" cy="76" r="4.5" fill="#e7bd41" stroke="#062654" stroke-width="1.8"/>
+    <text x="102" y="250" font-size="14" fill="#062654" text-anchor="end">heater</text>
+    <path d="M654 81 L654 147" fill="none" stroke="#5b6577" stroke-width="1.2" marker-end="url(#a-sec)" marker-start="url(#a-sec)"/>
+    <text x="662" y="111" font-size="12" fill="#5b6577">state</text>
+    <text x="662" y="126" font-size="12" fill="#5b6577">kept</text>
+  </g>
+</svg>

@@ -1,11 +1,11 @@
 //! ミッション幾何: フェーズごとの太陽距離・地球距離・太陽–地球–探査機の角（SEP）・太陽–探査機–地球の角（SPE）・光の伝搬時間。
-//! 距離と角度の計算・極値の詰め方は `sat_astro::timeline::geometry`（ここは区間の決め方・標本の取り方・出力の形だけ）。
+//! 距離と角度の計算・極値の詰め方は `sat_astro::timeline::geometry`（ここは区間の決め方・サンプルの取り方・出力の形だけ）。
 //!
 //! 入力は区間（leg）の並び。1 区間 = 1 つのフェーズ（フェーズが無い設計は設計の軌道 1 つ）とそのフェーズで効いている軌道で、
 //! 区間の期間は次の順に決める（どれを使ったかは出力の `span_basis`）: 軌道が 1 回限りの期間（[`Cycle::OneOff`]）を持てばそれ、
 //! なければフェーズの `duration`、それも無ければ軌道の 1 周（[`Cycle::Periodic`]）。区間は元期から始まる。
-//! 標本は区間ごとに [`SAMPLES_PER_LEG`] 個に等分する（時系列の周回数ごとの刻みと違い、数日〜数年の区間でも標本数が一定）。
-//! 極値は標本の前後を黄金分割で詰める（区間の中で単峰とみなすので、周回による速い変動は拾わない。幾何の量の変動は中心天体の軌道半径以下）。
+//! サンプルは区間ごとに [`SAMPLES_PER_LEG`] 個に等分する（時系列の周回数ごとの刻みと違い、数日〜数年の区間でもサンプル数が一定）。
+//! 極値はサンプルの前後を黄金分割で詰める（区間の中で単峰とみなすので、周回による速い変動は拾わない。幾何の量の変動は中心天体の軌道半径以下）。
 //!
 //! 後続の解析（回線・電源の最遠の条件）は、`legs[].earth_distance.max`（最遠の地球距離とその日付）と
 //! `legs[].sun_distance.max`（太陽距離が最大の日付）を、フェーズの ID（`legs[].phase`）で引いて読む。
@@ -25,7 +25,7 @@ use sat_astro::timeline::sample_times;
 use sat_units::typed::{Angle, Dimension, Length, Qty, Time};
 use serde::{Deserialize, Serialize};
 
-/// 区間ごとの標本数（等分）。
+/// 区間ごとのサンプル数（等分）。
 pub const SAMPLES_PER_LEG: usize = 720;
 
 /// 区間の入力。
@@ -89,7 +89,7 @@ pub struct GeometryLeg {
     pub span: Qty<Time>,
     /// 期間の決め方
     pub span_basis: GeometrySpanBasis,
-    /// 標本の刻み（期間 / 標本数）
+    /// サンプルの刻み（期間 / サンプル数）
     pub sample_step: Qty<Time>,
     /// 太陽の中心までの距離の範囲
     pub sun_distance: DatedRange<Qty<Length>>,
@@ -155,7 +155,7 @@ fn dated_at<D: Dimension>(start: Epoch, e: Extremum) -> Dated<Qty<D>> {
     }
 }
 
-/// 標本の時系列（太陽距離・地球距離・SEP・SPE）。
+/// サンプルの時系列（太陽距離・地球距離・SEP・SPE）。
 fn series(times: Vec<f64>, samples: &[GeometrySample]) -> Series {
     Series {
         t: times,

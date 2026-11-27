@@ -39,7 +39,7 @@ fn configuration_edits_match_cli() {
                 "label_en": "Stowed", "description": "Paddle folded onto the body" }),
             "create_configuration",
         ),
-        // 取付先を書かなくてよい。位置は取付点に対する相対、姿勢は角度（四元数にして書く）
+        // 取付先を書かなくてよい。位置は取付点に対する相対、姿勢は角度（クォータニオンにして書く）
         (
             vec![
                 "part",

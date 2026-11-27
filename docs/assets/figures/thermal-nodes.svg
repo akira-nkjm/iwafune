@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" role="img" aria-labelledby="t d">
+  <title id="t">Parts lumped into nodes and a plate split into cell nodes</title>
+  <desc id="d">Left: the parts BAT and HTR_BAT are listed in one node and share one temperature, and the unlisted part MTQ_X is a node of its own. Right: a plate split into a 3 by 2 grid of cell nodes P[i,j] along the in-plane axes u and v, with a conductance G between neighbouring cells.</desc>
+  <defs>
+    <marker id="a-acc" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#3382c2"/></marker>
+    <marker id="a-ink" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#062654"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="299" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <text x="24" y="36" font-size="14" fill="#062654" font-weight="700">Parts and nodes</text>
+    <rect x="24" y="60" width="296" height="104" rx="10" fill="#e8f1f9" stroke="#3382c2" stroke-width="1.8" stroke-dasharray="6 4"/>
+    <rect x="40" y="100" width="120" height="48" rx="4" fill="#ffffff" stroke="#062654" stroke-width="1.8"/>
+    <text x="100" y="129" font-size="14" fill="#062654" text-anchor="middle">BAT</text>
+    <rect x="184" y="100" width="120" height="48" rx="4" fill="#ffffff" stroke="#062654" stroke-width="1.8"/>
+    <text x="244" y="129" font-size="14" fill="#062654" text-anchor="middle">HTR_BAT</text>
+    <text x="40" y="84" font-size="14" fill="#1f63a0">node BAT: one temperature</text>
+    <rect x="24" y="196" width="152" height="80" rx="10" fill="#e8f1f9" stroke="#3382c2" stroke-width="1.8" stroke-dasharray="6 4"/>
+    <rect x="40" y="212" width="120" height="48" rx="4" fill="#ffffff" stroke="#062654" stroke-width="1.8"/>
+    <text x="100" y="241" font-size="14" fill="#062654" text-anchor="middle">MTQ_X</text>
+    <text x="190" y="232" font-size="14" fill="#1f63a0">unlisted part:</text>
+    <text x="190" y="251" font-size="14" fill="#1f63a0">a node of its own</text>
+    <path d="M360 28 L360 272" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <text x="400" y="36" font-size="14" fill="#062654" font-weight="700">Plate split into cell nodes</text>
+    <rect x="464" y="124" width="76" height="64" fill="#e8f1f9" stroke="#062654" stroke-width="1.8"/>
+    <text x="502" y="151" font-size="14" fill="#062654" text-anchor="middle">P[0,0]</text>
+    <rect x="464" y="60" width="76" height="64" fill="#e8f1f9" stroke="#062654" stroke-width="1.8"/>
+    <text x="502" y="87" font-size="14" fill="#062654" text-anchor="middle">P[0,1]</text>
+    <rect x="540" y="124" width="76" height="64" fill="#e8f1f9" stroke="#062654" stroke-width="1.8"/>
+    <text x="578" y="151" font-size="14" fill="#062654" text-anchor="middle">P[1,0]</text>
+    <rect x="540" y="60" width="76" height="64" fill="#e8f1f9" stroke="#062654" stroke-width="1.8"/>
+    <text x="578" y="87" font-size="14" fill="#062654" text-anchor="middle">P[1,1]</text>
+    <rect x="616" y="124" width="76" height="64" fill="#e8f1f9" stroke="#062654" stroke-width="1.8"/>
+    <text x="654" y="151" font-size="14" fill="#062654" text-anchor="middle">P[2,0]</text>
+    <rect x="616" y="60" width="76" height="64" fill="#e8f1f9" stroke="#062654" stroke-width="1.8"/>
+    <text x="654" y="87" font-size="14" fill="#062654" text-anchor="middle">P[2,1]</text>
+    <path d="M529 170 L551 170" fill="none" stroke="#3382c2" stroke-width="2.4" marker-end="url(#a-acc)" marker-start="url(#a-acc)"/>
+    <path d="M529 106 L551 106" fill="none" stroke="#3382c2" stroke-width="2.4" marker-end="url(#a-acc)" marker-start="url(#a-acc)"/>
+    <path d="M605 170 L627 170" fill="none" stroke="#3382c2" stroke-width="2.4" marker-end="url(#a-acc)" marker-start="url(#a-acc)"/>
+    <path d="M605 106 L627 106" fill="none" stroke="#3382c2" stroke-width="2.4" marker-end="url(#a-acc)" marker-start="url(#a-acc)"/>
+    <path d="M526 115 L526 133" fill="none" stroke="#3382c2" stroke-width="2.4" marker-end="url(#a-acc)" marker-start="url(#a-acc)"/>
+    <path d="M602 115 L602 133" fill="none" stroke="#3382c2" stroke-width="2.4" marker-end="url(#a-acc)" marker-start="url(#a-acc)"/>
+    <path d="M678 115 L678 133" fill="none" stroke="#3382c2" stroke-width="2.4" marker-end="url(#a-acc)" marker-start="url(#a-acc)"/>
+    <path d="M464 206 L529 206" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <text x="542" y="211" font-size="14" fill="#062654">u (index i)</text>
+    <path d="M446 188 L446 123" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <text x="454" y="108" font-size="14" fill="#062654" text-anchor="end">v (index j)</text>
+    <path d="M405 262 L431 262" fill="none" stroke="#3382c2" stroke-width="2.4" marker-end="url(#a-acc)" marker-start="url(#a-acc)"/>
+    <text x="446" y="267" font-size="14" fill="#062654">conductance G between neighbours</text>
+  </g>
+</svg>

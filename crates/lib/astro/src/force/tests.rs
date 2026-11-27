@@ -268,8 +268,8 @@ fn full_force_model_propagates() {
     let t = 2.0 * spec.period_s();
     let s = spec.state_at(t).expect("numerical propagation");
     let j2 = reference.state_at(t).expect("J2 numerical propagation");
-    // 同じ初期状態の J2 だけの数値伝搬との差は、2 周で高次の重力場などの分（数 km 以内）。
-    // 注: J2 永年項の伝搬（平均要素）と比べると、平均要素と接触要素の違いで 2 周 ~180 km ずれる。
+    // 同じ初期状態の J2 だけの数値伝播との差は、2 周で高次の重力場などの分（数 km 以内）。
+    // 注: J2 永年項の伝播（平均要素）と比べると、平均要素と接触要素の違いで 2 周 ~180 km ずれる。
     let d = (s.r_eci - j2.r_eci).norm();
     assert!(d > 1.0 && d < 5e3, "{d} m");
     assert!((s.r_eci.norm() - (R_EARTH + 550e3)).abs() < 30e3);

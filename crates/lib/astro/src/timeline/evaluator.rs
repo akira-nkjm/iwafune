@@ -1,5 +1,5 @@
-//! 時系列の標本の間の任意の時刻で、時系列の 1 点（位置・太陽方向・日照・姿勢）を求める。
-//! 標本の時刻では [`build`](super::build) の点と同じ値になる。熱の積分のように、標本の間で入熱を連続に評価する解析が使う。
+//! 時系列のサンプルの間の任意の時刻で、時系列の 1 点（位置・太陽方向・日照・姿勢）を求める。
+//! サンプルの時刻では [`build`](super::build) の点と同じ値になる。熱の積分のように、サンプルの間で入熱を連続に評価する解析が使う。
 
 use super::{OrbitPoint, TimelineSample, TimelineSpec, sample};
 use crate::AstroError;
@@ -10,7 +10,7 @@ use crate::orbit::{OrbitTrack, Trajectory};
 const SHADOW_EDGE_EPS: f64 = 1e-9;
 /// 日陰の境の時刻の許容幅 [s]。
 const SHADOW_EDGE_TOL_S: f64 = 1e-6;
-/// 任意の時刻の時系列の点を求める道具（軌道の伝搬の表を 1 回だけ作る）。
+/// 任意の時刻の時系列の点を求める道具（軌道の伝播の表を 1 回だけ作る）。
 pub struct TimelineEvaluator<'a> {
     spec: &'a TimelineSpec,
     orbit: Trajectory,
@@ -41,7 +41,7 @@ impl<'a> TimelineEvaluator<'a> {
 
     /// 区間 `[t0, t1]` の中で、日照率が全日照から外れる・全日陰になる（またはその逆の）時刻（昇順）。
     /// 日照率はこの時刻で折れ曲がる（円柱影ならとぶ）ので、入熱を積分するときはここで区間を分ける。
-    /// 区間の両端の日照率の符号の変化だけを探す（区間の中で戻る短い食は見つけない）。
+    /// 区間の両端の日照率の符号の変化だけを探す（区間の中で戻る短い蝕は見つけない）。
     pub fn shadow_edges(&self, t0: f64, t1: f64) -> Vec<f64> {
         let (a, b) = (self.at(t0).sunlit, self.at(t1).sunlit);
         let mut edges: Vec<f64> = [1.0 - SHADOW_EDGE_EPS, SHADOW_EDGE_EPS]

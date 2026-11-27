@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 380" role="img" aria-labelledby="t d">
+  <title id="t">Fly-by hyperbola with its asymptotes and turn angle</title>
+  <desc id="d">A hyperbolic path past a body that sits at the focus, on the concave side of the path. The closest point is at the periapsis radius rp from the body centre. The path follows the incoming asymptote, bends around the body and leaves along the outgoing asymptote. The turn angle delta is the angle between the incoming and outgoing excess velocities.</desc>
+  <defs>
+    <marker id="a-acc" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#3382c2"/></marker>
+    <marker id="a-gold" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#8a6400"/></marker>
+    <marker id="a-teal" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#0097a7"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="379" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M360 84 L64.8 348" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M360 84 L655.2 348" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M360 84 L418.1 32" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M96 336 L111.6 323 L125.4 311.5 L137.8 301.3 L149 292.2 L159.1 284.1 L168.3 276.7 L176.7 270.1 L184.5 264 L191.6 258.4 L198.2 253.3 L204.4 248.7 L210.1 244.3 L215.5 240.3 L220.6 236.6 L225.3 233.2 L229.8 230 L234 227 L238 224.2 L241.8 221.6 L245.4 219.1 L248.8 216.8 L252.1 214.6 L255.2 212.6 L258.2 210.6 L261.1 208.8 L263.8 207.1 L266.5 205.4 L269 203.9 L271.5 202.4 L273.8 201 L276.1 199.6 L278.3 198.4 L280.5 197.2 L282.5 196 L284.5 194.9 L286.5 193.9 L288.4 192.9 L290.2 191.9 L292 191 L293.7 190.1 L295.4 189.3 L297.1 188.5 L298.7 187.7 L300.2 187 L301.8 186.3 L303.3 185.6 L304.7 184.9 L306.2 184.3 L307.6 183.7 L309 183.1 L310.3 182.6 L311.6 182.1 L312.9 181.5 L314.2 181.1 L315.5 180.6 L316.7 180.1 L317.9 179.7 L319.1 179.3 L320.3 178.9 L321.5 178.5 L322.6 178.1 L323.7 177.8 L324.9 177.4 L326 177.1 L327 176.8 L328.1 176.5 L329.2 176.2 L330.2 175.9 L331.3 175.7 L332.3 175.4 L333.3 175.2 L334.3 175 L335.3 174.7 L336.3 174.5 L337.3 174.3 L338.2 174.1 L339.2 173.9 L340.1 173.8 L341.1 173.6 L342 173.5 L343 173.3 L343.9 173.2 L344.8 173 L345.7 172.9 L346.7 172.8 L347.6 172.7 L348.5 172.6 L349.4 172.5 L350.3 172.4 L351.2 172.4 L352.1 172.3 L352.9 172.2 L353.8 172.2 L354.7 172.1 L355.6 172.1 L356.5 172.1 L357.4 172 L358.2 172 L359.1 172 L360 172 L360.9 172 L361.8 172 L362.6 172 L363.5 172.1 L364.4 172.1 L365.3 172.1 L366.2 172.2 L367.1 172.2 L367.9 172.3 L368.8 172.4 L369.7 172.4 L370.6 172.5 L371.5 172.6 L372.4 172.7 L373.3 172.8 L374.3 172.9 L375.2 173 L376.1 173.2 L377 173.3 L378 173.5 L378.9 173.6 L379.9 173.8 L380.8 173.9 L381.8 174.1 L382.7 174.3 L383.7 174.5 L384.7 174.7 L385.7 175 L386.7 175.2 L387.7 175.4 L388.7 175.7 L389.8 175.9 L390.8 176.2 L391.9 176.5 L393 176.8 L394 177.1 L395.1 177.4 L396.3 177.8 L397.4 178.1 L398.5 178.5 L399.7 178.9 L400.9 179.3 L402.1 179.7 L403.3 180.1 L404.5 180.6 L405.8 181.1 L407.1 181.5 L408.4 182.1 L409.7 182.6 L411 183.1 L412.4 183.7 L413.8 184.3 L415.3 184.9 L416.7 185.6 L418.2 186.3 L419.8 187 L421.3 187.7 L422.9 188.5 L424.6 189.3 L426.3 190.1 L428 191 L429.8 191.9 L431.6 192.9 L433.5 193.9 L435.5 194.9 L437.5 196 L439.5 197.2 L441.7 198.4 L443.9 199.6 L446.2 201 L448.5 202.4 L451 203.9 L453.5 205.4 L456.2 207.1 L458.9 208.8 L461.8 210.6 L464.8 212.6 L467.9 214.6 L471.2 216.8 L474.6 219.1 L478.2 221.6 L482 224.2 L486 227 L490.2 230 L494.7 233.2 L499.4 236.6 L504.5 240.3 L509.9 244.3 L515.6 248.7 L521.8 253.3 L528.4 258.4 L535.5 264 L543.3 270.1 L551.7 276.7 L560.9 284.1 L571 292.2 L582.2 301.3" fill="none" stroke="#3382c2" stroke-width="2.4" marker-end="url(#a-acc)"/>
+    <circle cx="360" cy="216" r="24" fill="#e8f1f9" stroke="#062654" stroke-width="1.8"/>
+    <path d="M360 216 L360 172" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <circle cx="360" cy="216" r="3" fill="#062654"/>
+    <circle cx="360" cy="172" r="4" fill="#3382c2"/>
+    <path d="M67.8 345.3 L123.7 295.3" fill="none" stroke="#8a6400" stroke-width="2.4" marker-end="url(#a-gold)"/>
+    <path d="M592.6 292 L648.5 342" fill="none" stroke="#8a6400" stroke-width="2.4" marker-end="url(#a-gold)"/>
+    <path d="M394.3 53.3 A46 46 0 0 1 397.4 110.8" fill="none" stroke="#0097a7" stroke-width="1.8" marker-end="url(#a-teal)"/>
+    <circle cx="360" cy="84" r="3" fill="#5b6577"/>
+    <text x="418" y="89" font-size="14" fill="#006d79">δ</text>
+    <text x="369" y="187" font-size="14" fill="#062654">r<tspan dy="3.5" font-size="10">p</tspan></text>
+    <text x="360" y="260" font-size="12" fill="#5b6577" text-anchor="middle">body</text>
+    <text x="83.6" y="308.7" font-size="14" fill="#8a6400" text-anchor="end"><tspan font-weight="700">v</tspan><tspan dy="3.5" font-size="10">∞,in</tspan></text>
+    <text x="636.4" y="308.7" font-size="14" fill="#8a6400"><tspan font-weight="700">v</tspan><tspan dy="3.5" font-size="10">∞,out</tspan></text>
+    <text x="236.2" y="176" font-size="12" fill="#5b6577" text-anchor="end">incoming asymptote</text>
+    <text x="483.8" y="176" font-size="12" fill="#5b6577">outgoing asymptote</text>
+    <text x="348" y="160" font-size="12" fill="#1f63a0" text-anchor="end" paint-order="stroke" stroke="#ffffff" stroke-width="4" stroke-linejoin="round">periapsis</text>
+  </g>
+</svg>

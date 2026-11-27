@@ -1,6 +1,6 @@
 //! ΔV の内訳表（`propulsion.dv_budget`）。
 //!
-//! - マヌーバの公称の ΔV（有限燃焼は損失込み。`propulsion.maneuvers` と同じ値）を区分ごとに足す。
+//! - マヌーバの公称の ΔV（有限噴射は損失込み。`propulsion.maneuvers` と同じ値）を区分ごとに足す。
 //! - RCS でのアンロードの ΔV: フェーズ（期間のあるもの。無ければミッション期間）ごとの `aocs.rw_unloading` の 1 日の ΔV 換算 × 日数を、
 //!   区分 `unloading` に足す（[`super::unloading`]）。書かれた `unloading` のマヌーバがあれば、その ΔV に**足す**（置き換えない。
 //!   同じ区分の行の中で、書かれたものと計算値の両方が合計に入る）。足せなければ理由（[`UnloadingNote`]）を出す。

@@ -6,11 +6,11 @@ import type { SizingSeriesTarget } from "./SizingSeriesTarget";
  */
 export type SizingTimeSeries = { 
 /**
- * 時系列を回した日付（最長蝕の標本）
+ * 時系列を回した日付（最長蝕のサンプル）
  */
 epoch: string, 
 /**
- * 時系列を回した β（最長蝕の標本）
+ * 時系列を回した β（最長蝕のサンプル）
  */
 beta: number, 
 /**

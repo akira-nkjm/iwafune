@@ -93,7 +93,7 @@ pub(super) fn with_loads(mut i: EnergyBalanceInput) -> EnergyBalanceInput {
 #[test]
 fn sequence_of_two_alternating_modes_by_hand() {
     // 発電なし。A（9.5 W）600 s → B（19 W）300 s を繰り返す。電池からは 10 W・20 W。
-    // 1 周期（900 s）で 10·600 + 20·300 = 12 000 J 減る（区間の境目は刻み 10 s の標本に揃う）
+    // 1 周期（900 s）で 10·600 + 20·300 = 12 000 J 減る（区間の境目は刻み 10 s のサンプルに揃う）
     let mut i = with_loads(input(Vec::new(), vec![]));
     i.sequence = vec![segment("A", 600.0), segment("B", 300.0)];
     let out = EnergyBalance::run(&i).unwrap();

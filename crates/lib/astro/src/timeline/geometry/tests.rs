@@ -133,7 +133,7 @@ fn sun_distance_of_a_heliocentric_orbit_is_the_orbit_radius() {
     }
 }
 
-/// 日心 1.5 AU の円軌道: 太陽距離は一定で 1.5 AU（伝搬の誤差 1e-9）。地球距離は 1 周（1 年以上）で
+/// 日心 1.5 AU の円軌道: 太陽距離は一定で 1.5 AU（伝播の誤差 1e-9）。地球距離は 1 周（1 年以上）で
 /// 1.5 AU − (地球の日心距離) 〜 1.5 AU + (地球の日心距離)、地球の日心距離は AU(1 ± e) に入るので、
 /// 範囲は [0.5 − e, 2.5 + e] AU に収まる。
 #[test]
@@ -204,7 +204,7 @@ fn quadrature_has_sep_atan_of_the_distance_ratio() {
 }
 
 /// 三角形（太陽・地球・探査機）: 内角の和 SEP + SPE + (太陽での角) = π、余弦定理が 3 辺すべてで成り立ち、
-/// 光の伝搬時間 × 光速 = 地球距離。1 周（1.2 年）の全標本で確かめる。
+/// 光の伝搬時間 × 光速 = 地球距離。1 周（1.2 年）の全サンプルで確かめる。
 #[test]
 fn triangle_identities_hold_at_every_sample() {
     let orbit = ecliptic_circle(1.5 * AU, 1.0);
@@ -263,7 +263,7 @@ fn body_views_of_a_lunar_orbiter() {
     }
 }
 
-/// 標本の始めが軌道の元期と違っても、同じ時刻の値は同じ（`start` と元期の差を経過時間に直して伝搬する）。
+/// サンプルの始めが軌道の元期と違っても、同じ時刻の値は同じ（`start` と元期の差を経過時間に直して伝播する）。
 #[test]
 fn start_may_differ_from_the_orbit_epoch() {
     let orbit = ecliptic_circle(1.5 * AU, 0.2);
@@ -274,8 +274,8 @@ fn start_may_differ_from_the_orbit_epoch() {
     assert!((a[0].sep_rad - b[0].sep_rad).abs() < 1e-12);
 }
 
-/// 極値: `f(t) = 1 + cos(t − 0.3)` を刻み 0.5 で標本する。最大は t = 0.3、最小は t = 0.3 + π。
-/// 標本の最大は 0.5（真値から 0.2 = 0.4 刻み）、最小は 3.5（0.058）で、刻みが決める誤差の桁。詰めた極値の時刻の誤差は、
+/// 極値: `f(t) = 1 + cos(t − 0.3)` を刻み 0.5 でサンプルする。最大は t = 0.3、最小は t = 0.3 + π。
+/// サンプルの最大は 0.5（真値から 0.2 = 0.4 刻み）、最小は 3.5（0.058）で、刻みが決める誤差の桁。詰めた極値の時刻の誤差は、
 /// 頂点付近の 2 次の平らさによる限界 √(2ε·f/|f″|) ≈ √(2 × 2.2e-16 × 2 / 1) ≈ 3e-8 より小さい（上限 1e-7 とする）。
 #[test]
 fn refinement_beats_the_sample_spacing() {
@@ -290,12 +290,12 @@ fn refinement_beats_the_sample_spacing() {
     let (t_max, t_min) = (0.3, 0.3 + PI);
     assert!((x.max.t_s - t_max).abs() < 1e-7, "{}", x.max.t_s);
     assert!((x.min.t_s - t_min).abs() < 1e-7, "{}", x.min.t_s);
-    // 標本の最大・最小の誤差（0.2・0.058）より桁違いに小さい
+    // サンプルの最大・最小の誤差（0.2・0.058）より桁違いに小さい
     assert!((times[imax] - t_max).abs() > 0.1 && (times[imin] - t_min).abs() > 0.05);
     assert!((x.max.value - 2.0).abs() < 1e-14 && x.min.value.abs() < 1e-14);
 }
 
-/// 極値が端の標本なら端のまま（単調な関数）。評価の失敗はそのまま返る。空の標本は `None`。
+/// 極値が端のサンプルなら端のまま（単調な関数）。評価の失敗はそのまま返る。空のサンプルは `None`。
 #[test]
 fn refinement_keeps_end_samples_and_propagates_errors() {
     let times: Vec<f64> = (0..=10).map(f64::from).collect();
@@ -311,7 +311,7 @@ fn refinement_keeps_end_samples_and_propagates_errors() {
     assert!(extremes_by(&[], &[], Ok).expect("ok").is_none());
 }
 
-/// 幾何の量での極値: 日心 1.5 AU の円軌道の地球距離の最小は、標本より細かく詰めた値が標本の最小以下。
+/// 幾何の量での極値: 日心 1.5 AU の円軌道の地球距離の最小は、サンプルより細かく詰めた値がサンプルの最小以下。
 #[test]
 fn refined_geometry_extreme_is_not_worse_than_the_samples() {
     let orbit = ecliptic_circle(1.5 * AU, 1.0);

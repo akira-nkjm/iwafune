@@ -48,7 +48,7 @@ pub struct DataThroughputStationLink {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct DataThroughputInput {
-    /// 軌道・期間・パス探索の刻み・β（時系列と同じ標本の取り方。開始は軌道の元期）
+    /// 軌道・期間・パス探索の刻み・β（時系列と同じサンプルの取り方。開始は軌道の元期）
     pub sampling: OrbitSampling,
     pub stations: Vec<GroundStation>,
     /// ダウンリンクのデータレート

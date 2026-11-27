@@ -1,11 +1,11 @@
-//! 噴射中の電力収支（`power.thrust_balance`）。数値伝搬のマヌーバの噴射のモード（`constraints.mode`）の負荷で
+//! 噴射中の電力収支（`power.thrust_balance`）。数値伝播のマヌーバの噴射のモード（`constraints.mode`）の負荷で
 //! 電力収支 [`super::EnergyBalance`] を回し、低推力の上昇の間にバッテリーがもつかを見る。
 //! **電池の積分は電力収支のもの**で、ここは噴射の仕方を電力収支の負荷のかけ方に直すだけ。
 //!
 //! - 日照中だけ噴く: 日照中は噴射のモード、日陰は基本のモード（[`EnergyBalanceLoad::SunlitEclipse`]）。
 //! - 日陰でも噴く・デューティ 1: 噴射のモードを常に（[`EnergyBalanceLoad::Mode`]）。
 //! - 日陰でも噴く・デューティ d < 1: 1 周を「噴射のモード d × 周期 → 基本のモード (1 − d) × 周期」の並びにして回す
-//!   （噴く時間を 1 周の中でまとめる。刻みごとに散らす伝搬より放電が深く出る保守側）。
+//!   （噴く時間を 1 周の中でまとめる。刻みごとに散らす伝播より放電が深く出る保守側）。
 //! - 日照中だけ噴く・デューティ d < 1: 日照中ずっと噴くとみなす（保守側。[`ThrustBalanceNote::DutyAsFullSunlit`]）。
 //! - 基本のモードは電力収支の入力の基本のモード（設定か並びの最初）。要るのに無ければ誤り。
 
@@ -17,7 +17,7 @@ use crate::spec::{Analysis, AnalysisArea, AnalysisError, AnalysisKind, System};
 use sat_units::typed::{Fraction, Qty};
 use serde::{Deserialize, Serialize};
 
-/// 噴射 1 つ（数値伝搬のマヌーバ）の仕方。
+/// 噴射 1 つ（数値伝播のマヌーバ）の仕方。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ThrustLoad {
@@ -194,7 +194,7 @@ impl Analysis for ThrustBalance {
     const TITLE_EN: &'static str = "Energy balance while thrusting";
     const AREA: AnalysisArea = AnalysisArea::System(System::Power);
     const KIND: AnalysisKind = AnalysisKind::TimeSeries;
-    const DESCRIPTION: &'static str = "数値伝搬のマヌーバの噴射のモードの負荷で電力収支を回し、噴射の間にバッテリーがもつかを見る";
+    const DESCRIPTION: &'static str = "数値伝播のマヌーバの噴射のモードの負荷で電力収支を回し、噴射の間にバッテリーがもつかを見る";
     const DESCRIPTION_EN: &'static str = "Runs the energy balance with the firing mode of each propagated maneuver to check the battery survives the thrust arcs";
 
     type Input = ThrustBalanceInput;

@@ -39,7 +39,7 @@ pub(super) fn venus(date: &str) -> FlybyInput {
     }
 }
 
-/// 通過が実現できる日付（2028-10-01 出発・2029-01-10 金星・2030-03-01 到着。回頭 5.8° は 300 km の下限での最大 11.9° 以内）。
+/// 通過が実現できる日付（2028-10-01 出発・2029-01-10 金星・2030-03-01 到着。偏向 5.8° は 300 km の下限での最大 11.9° 以内）。
 fn feasible_input() -> PropulsionInput {
     let mut i = swing_input(vec![venus("2029-01-10T00:00:00Z")]);
     i.maneuvers[0].transfer.as_mut().unwrap().arrival = epoch("2030-03-01T00:00:00Z");
@@ -115,7 +115,7 @@ fn an_unpowered_flyby_is_not_counted_and_warns_when_the_speeds_differ() {
     assert_eq!(c.verdict, Verdict::Warning);
 }
 
-/// 下限の高度でも曲がりきれない日付は警告。足りない回頭の分の ΔV は噴射に含める（近点の噴射 + 足りない分）。
+/// 下限の高度でも曲がりきれない日付は警告。足りない偏向の分の ΔV は噴射に含める（近点の噴射 + 足りない分）。
 #[test]
 fn an_infeasible_turn_warns_and_charges_the_shortfall() {
     let i = swing_input(vec![venus("2029-02-01T00:00:00Z")]);
@@ -138,7 +138,7 @@ fn an_infeasible_turn_warns_and_charges_the_shortfall() {
     assert_eq!(c.verdict, Verdict::Warning);
 }
 
-/// 有限燃焼の遷移の時間は「慣性飛行 + 出発と捕獲の噴射の半分ずつ」。途中の通過の噴射は数えない。
+/// 有限噴射の遷移の時間は「慣性飛行 + 出発と捕獲の噴射の半分ずつ」。途中の通過の噴射は数えない。
 #[test]
 fn finite_burn_time_ignores_the_flyby_burn() {
     let mut i = feasible_input();

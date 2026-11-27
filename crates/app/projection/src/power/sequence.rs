@@ -96,7 +96,7 @@ pub(super) fn mode_timing(md: &Mode, m: &mut MissingInputs) -> ModeTiming {
     }
 }
 
-/// 食の出入りからの指定（オフセットが無ければ 0 s）。
+/// 蝕の出入りからの指定（オフセットが無ければ 0 s）。
 fn start_ref(r: &StartRef, target: Target, m: &mut MissingInputs) -> Option<AnalysisStart> {
     let offset = match &r.offset {
         None => Qty::from_raw(0.0),

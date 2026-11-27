@@ -1,6 +1,6 @@
-//! β と蝕の季節変動。各標本日の1周では太陽位置を固定し、中心天体（地球・月・惑星。半径は `CentralBody::radius_m`）の
+//! β と蝕の季節変動。各サンプル日の1周では太陽位置を固定し、中心天体（地球・月・惑星。半径は `CentralBody::radius_m`）の
 //! 円錐影を集計する。月周回で地球に隠される（月食）時間は数えない。
-//! 数値伝搬のマヌーバがあれば、標本日の軌道はマヌーバの順の軌道の推移（`propulsion::orbit_history`）から引く。
+//! 数値伝播のマヌーバがあれば、サンプル日の軌道はマヌーバの順の軌道の推移（`propulsion::orbit_history`）から引く。
 
 use crate::propulsion::{OrbitHistory, PropulsionInput, orbit_history};
 use crate::spec::{
@@ -15,15 +15,15 @@ use sat_astro::timeline::sample_times;
 use sat_units::typed::{Angle, Qty, Time};
 use serde::{Deserialize, Serialize};
 
-/// 季節の標本の既定間隔 [s]（1 日）。
+/// 季節のサンプルの既定間隔 [s]（1 日）。
 pub const DEFAULT_STEP_S: f64 = sat_astro::constants::SECONDS_PER_DAY;
-/// 1 周内の影の標本間隔の下限 [s]。境界の誤差は各境界で最大この間隔程度。
+/// 1 周内の影のサンプル間隔の下限 [s]。境界の誤差は各境界で最大この間隔程度。
 /// 実際の間隔は [`shadow_step_s`]（周期が長ければ周期の割合）。
 pub const SHADOW_STEP_S: f64 = 5.0;
-/// 1 周内の影の標本数の上限。100 分（6000 s）の周回軌道が下限の 5 s と一致する 1200 標本。
+/// 1 周内の影のサンプル数の上限。100 分（6000 s）の周回軌道が下限の 5 s と一致する 1200 サンプル。
 pub const MAX_SHADOW_STEPS_PER_ORBIT: f64 = 1200.0;
 
-/// 周期 `period_s` の軌道の 1 周内の影の標本間隔 [s]（`spec::step_for_period`。100 分までは 5 s のまま）。
+/// 周期 `period_s` の軌道の 1 周内の影のサンプル間隔 [s]（`spec::step_for_period`。100 分までは 5 s のまま）。
 pub fn shadow_step_s(period_s: f64) -> f64 {
     step_for_period(period_s, SHADOW_STEP_S, MAX_SHADOW_STEPS_PER_ORBIT)
 }
@@ -36,13 +36,13 @@ pub struct EclipseSeasonInput {
     pub duration: Qty<Time>,
     /// 省略時は1日。
     pub step: Option<Qty<Time>>,
-    /// マヌーバ（数値伝搬のマヌーバがあるときだけ projection が渡す）。あれば各標本日の軌道を
+    /// マヌーバ（数値伝播のマヌーバがあるときだけ projection が渡す）。あれば各サンプル日の軌道を
     /// マヌーバの順の軌道の推移（`propulsion::orbit_history`）から引く
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub maneuvers: Option<PropulsionInput>,
 }
 
-/// 日付付きの標本（半影は本影を含まない部分の時間）。
+/// 日付付きのサンプル（半影は本影を含まない部分の時間）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct EclipseSeasonPoint {
@@ -52,26 +52,26 @@ pub struct EclipseSeasonPoint {
     pub penumbra: Qty<Time>,
 }
 
-/// 季節解析の出力。極値の同値は最初の標本を選ぶ。判定・違反は付けない。
+/// 季節解析の出力。極値の同値は最初のサンプルを選ぶ。判定・違反は付けない。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct EclipseSeasonOutput {
     pub points: Vec<EclipseSeasonPoint>,
-    /// 本影と半影の合計が最大の標本。
+    /// 本影と半影の合計が最大のサンプル。
     pub longest: EclipseSeasonPoint,
     pub max_eclipse_duration: Qty<Time>,
     pub beta_min: EclipseSeasonPoint,
     pub beta_max: EclipseSeasonPoint,
-    /// 蝕が無いと判定した標本の数（端数の最終標本も含む。日数ではない）。
+    /// 蝕が無いと判定したサンプルの数（端数の最終サンプルも含む。日数ではない）。
     pub eclipse_free_samples: usize,
-    /// 季節の標本の蝕なしフラグを台形則で積算した期間（推定）。
+    /// 季節のサンプルの蝕なしフラグを台形則で積算した期間（推定）。
     pub eclipse_free_duration: Qty<Time>,
     pub step: Qty<Time>,
-    /// 1 周内の影の標本間隔（入力の軌道の周期から。マヌーバで周期が変わる標本日はその軌道の周期から）
+    /// 1 周内の影のサンプル間隔（入力の軌道の周期から。マヌーバで周期が変わるサンプル日はその軌道の周期から）
     pub shadow_step: Qty<Time>,
-    /// 1 周中の太陽位置を標本日の位置に固定する近似。
+    /// 1 周中の太陽位置をサンプル日の位置に固定する近似。
     pub fixed_sun_per_orbit: bool,
-    /// 標本日の軌道を変えたマヌーバ（実行の順。マヌーバの推移を使わなければ空）
+    /// サンプル日の軌道を変えたマヌーバ（実行の順。マヌーバの推移を使わなければ空）
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub maneuvers: Vec<String>,
     pub series: Series,
@@ -102,7 +102,7 @@ impl Analysis for EclipseSeason {
         ensure_positive("duration", input.duration.value())?;
         let step = input.step.map_or(DEFAULT_STEP_S, |q| q.value());
         let times = sample_times(input.duration.value(), step)?;
-        // 日ごとの1周を積み上げる。時刻格子・伝搬・太陽・影は既存の正本を使う。
+        // 日ごとの1周を積み上げる。時刻格子・伝播・太陽・影は既存の正本を使う。
         let history = match &input.maneuvers {
             Some(p) => orbit_history(p)?,
             None => OrbitHistory::constant(input.orbit.clone()),
@@ -125,7 +125,7 @@ impl Analysis for EclipseSeason {
     }
 }
 
-/// 軌道 `orbit` の元期から `t` 秒後の標本日（時刻は区間の軌道の元期から）。
+/// 軌道 `orbit` の元期から `t` 秒後のサンプル日（時刻は区間の軌道の元期から）。
 fn point(orbit: &OrbitSpec, t: f64) -> Result<EclipseSeasonPoint, AnalysisError> {
     let epoch = orbit.epoch.plus_seconds(t);
     let sun = orbit.central.relative_position_m(Body::Sun, epoch);

@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 350" role="img" aria-labelledby="t d">
+  <title id="t">An orbit sample between two L nodes of a belt map</title>
+  <desc id="d">Axes L and B/B0. Two neighbouring L nodes of a map are vertical lines that start at B/B0 = 1, where the flux is F0. Ticks on each node mark the values of B/B0 at which log10 F has fallen by another quarter. Lines joining ticks of the same number are lines of equal flux. An orbit sample lies between the two nodes and between two such lines.</desc>
+  <defs>
+    <marker id="a-ink" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#062654"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="349" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M96 292 L96 41" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <path d="M96 292 L635 292" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <path d="M250 240 L470 228" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M250 196 L470 174" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M250 158 L470 130" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M250 126 L470 96" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M250 292 L250 100" fill="none" stroke="#3382c2" stroke-width="2.4"/>
+    <path d="M470 292 L470 96" fill="none" stroke="#3382c2" stroke-width="2.4"/>
+    <path d="M244 240 L256 240" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M244 196 L256 196" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M244 158 L256 158" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M244 126 L256 126" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M244 100 L256 100" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M464 228 L476 228" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M464 174 L476 174" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M464 130 L476 130" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <path d="M464 96 L476 96" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <circle cx="250" cy="292" r="4" fill="#3382c2"/>
+    <circle cx="470" cy="292" r="4" fill="#3382c2"/>
+    <circle cx="132" cy="278" r="2.6" fill="#5b6577"/>
+    <circle cx="188" cy="262" r="2.6" fill="#5b6577"/>
+    <circle cx="356" cy="166" r="2.6" fill="#5b6577"/>
+    <circle cx="412" cy="132" r="2.6" fill="#5b6577"/>
+    <circle cx="452" cy="110" r="2.6" fill="#5b6577"/>
+    <circle cx="524" cy="84" r="2.6" fill="#5b6577"/>
+    <circle cx="580" cy="72" r="2.6" fill="#5b6577"/>
+    <circle cx="300" cy="207" r="5.5" fill="#e7bd41" stroke="#062654" stroke-width="1.2"/>
+    <text x="86" y="44" font-size="14" fill="#062654" text-anchor="end">B/B<tspan dy="3.5" font-size="10">0</tspan></text>
+    <text x="648" y="297" font-size="14" fill="#062654">L</text>
+    <text x="86" y="297" font-size="14" fill="#062654" text-anchor="end">1</text>
+    <text x="250" y="314" font-size="14" fill="#062654" text-anchor="middle">L node</text>
+    <text x="470" y="314" font-size="14" fill="#062654" text-anchor="middle">next L node</text>
+    <text x="236" y="245" font-size="12" fill="#062654" text-anchor="end">k = 1</text>
+    <text x="236" y="201" font-size="12" fill="#062654" text-anchor="end">k = 2</text>
+    <text x="236" y="163" font-size="12" fill="#062654" text-anchor="end">k = 3</text>
+    <text x="236" y="284" font-size="12" fill="#062654" text-anchor="end">F<tspan dy="3.5" font-size="10">0</tspan></text>
+    <text x="456" y="284" font-size="12" fill="#062654" text-anchor="end">F<tspan dy="3.5" font-size="10">0</tspan></text>
+    <path d="M488 285 L488 235" fill="none" stroke="#062654" stroke-width="1.2" marker-end="url(#a-ink)" marker-start="url(#a-ink)"/>
+    <text x="496" y="272" font-size="14" fill="#062654">Δ<tspan dy="3.5" font-size="10">1</tspan></text>
+    <path d="M488 221 L488 181" fill="none" stroke="#062654" stroke-width="1.2" marker-end="url(#a-ink)" marker-start="url(#a-ink)"/>
+    <text x="496" y="206" font-size="14" fill="#062654">Δ<tspan dy="3.5" font-size="10">2</tspan></text>
+    <text x="312" y="212" font-size="14" fill="#062654">sample (L, B/B<tspan dy="3.5" font-size="10">0</tspan><tspan dy="-3.5">)</tspan></text>
+    <text x="596" y="56" font-size="12" fill="#5b6577" text-anchor="middle">orbit samples</text>
+    <text x="266" y="112" font-size="12" fill="#5b6577">equal flux</text>
+    <text x="640" y="336" font-size="12" fill="#5b6577" text-anchor="end">each tick: log<tspan dy="3.5" font-size="10">10</tspan><tspan dy="-3.5"> F is 1/4 lower</tspan></text>
+  </g>
+</svg>

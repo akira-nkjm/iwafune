@@ -8,7 +8,7 @@ import type { OrbitSampling } from "./OrbitSampling";
  */
 export type TrappedDoseInput = { 
 /**
- * 軌道の標本の取り方（1 日分。`spec::daily_sampling`）
+ * 軌道のサンプルの取り方（1 日分。`spec::daily_sampling`）
  */
 sampling: OrbitSampling, 
 /**

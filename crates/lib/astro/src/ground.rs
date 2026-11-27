@@ -131,8 +131,8 @@ impl Topocentric {
     }
 }
 
-/// 粗い刻みの軌道の標本。刻みの間は位置と速度の 3 次 Hermite 補間で埋める
-/// （LEO・刻み 60 s で誤差 1 mm 未満）。数値伝搬でも積分は 1 回で済む。
+/// 粗い刻みの軌道のサンプル。刻みの間は位置と速度の 3 次 Hermite 補間で埋める
+/// （LEO・刻み 60 s で誤差 1 mm 未満）。数値伝播でも積分は 1 回で済む。
 struct Track<'a> {
     station: &'a GroundStation,
     topo: Topocentric,
@@ -280,7 +280,7 @@ impl<'a> Track<'a> {
                     }
                 }
                 (false, false) if i + 1 < n && el[i] > el[i - 1] && el[i] >= el[i + 1] => {
-                    // 粗い刻みの間に収まる短いパス（標本はどれも最低仰角未満）を拾う。
+                    // 粗い刻みの間に収まる短いパス（サンプルはどれも最低仰角未満）を拾う。
                     windows.extend(self.grazing(self.times[i - 1], self.times[i + 1]));
                 }
                 _ => {}

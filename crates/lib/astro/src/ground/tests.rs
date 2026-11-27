@@ -153,7 +153,7 @@ fn slant_range_at_zenith_horizon_and_on_the_moon() {
 }
 
 /// 月を回る極軌道（軌道面が地球と月を結ぶ線を含む）: 月の向こう側（元期の位置）では局から見て月の陰で
-/// 見えず（余裕 < 0）、手前側（半周後）では見える。局から衛星への線分と球の交わりを 2 次方程式で解いた値と全標本で一致する。
+/// 見えず（余裕 < 0）、手前側（半周後）では見える。局から衛星への線分と球の交わりを 2 次方程式で解いた値と全サンプルで一致する。
 #[test]
 fn moon_orbiter_behind_the_moon_is_occulted() {
     use crate::ephem::CentralBody;

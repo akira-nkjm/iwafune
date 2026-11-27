@@ -8,7 +8,7 @@ The rules for contributions (structure, coding conventions, workflow) are in [CO
 Requirements: Rust 1.100 or later (edition 2024), Node.js 24 or later, pnpm.
 
 ```bash
-pnpm -C web install && pnpm -C web build                       # build the GUI (the fune binary serves web/dist)
+pnpm -C web install && pnpm -C web build                       # build the GUI (the fune binary embeds web/dist when it is compiled)
 cargo run -p fune-cli -- -C fixtures/demo-6u gui                # open the GUI on the demo 6U satellite
 cargo run -p fune-cli -- -C fixtures/demo-6u part ls            # list parts from the CLI
 cargo run -p fune-cli -- -C fixtures/demo-6u analyze power.energy_balance
@@ -19,7 +19,8 @@ cargo run -p fune-cli -- -C fixtures/demo-6u analyze power.energy_balance
 | Path | Contents |
 |---|---|
 | `crates/lib/units` (`sat-units`) | Units, dimensions and typed quantities |
-| `crates/lib/astro` (`sat-astro`) | Math, integrators, time, orbits, ephemerides, eclipses, Earth models, attitude laws |
+| `crates/lib/astro` (`sat-astro`) | Math, integrators, time, orbits, ephemerides, eclipses, Earth models, attitude laws, radiation belts and shielding |
+| `crates/lib/checkkey` (`sat-checkkey`) | The key format of analysis checks, shared by the analyses and the model |
 | `crates/lib/analysis` (`sat-analysis`) | Subsystem analyses with typed SI inputs and outputs; no knowledge of the design model |
 | `crates/app/model` (`fune-model`) | Design data types, built-in vocabulary, resolution and validation |
 | `crates/app/store` (`fune-store`) | Reading and writing the TOML directory, revisions, locking |
@@ -27,10 +28,12 @@ cargo run -p fune-cli -- -C fixtures/demo-6u analyze power.energy_balance
 | `crates/app/projection` (`fune-projection`) | Resolved design → analysis inputs, with a list of missing inputs |
 | `crates/app/service` (`fune-service`) | Every function the CLI and the HTTP API call, plus their types (exported to TypeScript) |
 | `crates/app/server` (`fune-server`) | HTTP API (axum) and the embedded GUI |
+| `crates/app/report` (`fune-report`) | Report export: the data model of tables and figures, the SVG charts and the Typst module |
 | `crates/app/cli` (`fune-cli`) | The `fune` command |
+| `crates/xtask` (`xtask`) | `cargo xtask check`: the architecture rules |
 | `web/` | GUI (React, TypeScript) |
 | `fixtures/demo-6u` | Demo 6U satellite |
-| `docs/` | Architecture overview, data model, architecture registry, roadmap |
+| `docs/` | User guide (`guide/`), analyses (`analyses/`), data model, architecture and registry, report export, trapped-radiation data, roadmap; Japanese editions in `ja/` |
 
 `crates/lib/*` never depend on `crates/app/*`. `cargo xtask check` enforces the dependency direction and the
 "one capability, one place" rules recorded in [architecture/registry.md](architecture/registry.md).
@@ -47,7 +50,7 @@ pnpm -C web lint && pnpm -C web typecheck && pnpm -C web test
 cargo test -p fune-service export_ts           # regenerate web/src/api/gen after changing API types
 ```
 
-CI runs all of the above, then builds the release binary and smoke-tests the CLI and the HTTP server.
+CI runs the architecture check, the Rust checks (format, clippy, tests including the parity tests and the generated-types check) and the web checks (lint, typecheck, test, build). On pushes to `develop` and `main` it also builds the release binary and smoke-tests the CLI and the HTTP server.
 
 ## Branches and releases
 

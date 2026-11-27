@@ -16,8 +16,8 @@
 //! - 光の伝搬時間 = 距離 / 光速（片道。[`light_time_s`]）。
 //! - 三角形（太陽・天体・探査機）の内角は、太陽での角を `θ_S` として `SEP + SPE + θ_S = π`。距離は余弦定理を満たす（テストで確かめる）。
 //!
-//! 極値は標本の最小・最大（[`extreme_indices`]）と、標本の前後の区間で黄金分割（`math::golden_section_min`）して詰めたもの
-//! （[`extremes_by`]）の 2 つ。詰める区間では単峰とみなす（軌道の周回による細かい変動が標本の刻みより速い成分は、詰めても拾えない）。
+//! 極値はサンプルの最小・最大（[`extreme_indices`]）と、サンプルの前後の区間で黄金分割（`math::golden_section_min`）して詰めたもの
+//! （[`extremes_by`]）の 2 つ。詰める区間では単峰とみなす（軌道の周回による細かい変動がサンプルの刻みより速い成分は、詰めても拾えない）。
 //! 弧の連鎖の軌道（スイングバイのある巡航）は、境で位置が連続で速度が跳ぶので、距離・角は連続だが傾きが折れる。
 //! 詰める区間は境で分け、境そのものも極値の候補にする（[`extremes_by_split`]、[`breakpoints_from`]）。
 
@@ -64,7 +64,7 @@ pub struct ViewAngles {
 /// 時刻 1 つの太陽・地球の幾何（[`geometry_at`]）。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct GeometrySample {
-    /// 標本の始め（`start`）からの経過 [s]
+    /// サンプルの始め（`start`）からの経過 [s]
     pub t_s: f64,
     pub epoch: Epoch,
     /// 太陽の中心までの距離 [m]
@@ -90,7 +90,7 @@ pub enum Metric {
 }
 
 impl Metric {
-    /// 標本の中のこの量の値（SI・rad）。
+    /// サンプルの中のこの量の値（SI・rad）。
     pub fn of(self, s: &GeometrySample) -> f64 {
         match self {
             Self::SunDistance => s.sun_distance_m,
@@ -177,7 +177,7 @@ fn view(
 }
 
 /// 天体 `body` の幾何を `start` から `times_s`（昇順・`start` からの経過 [s]）の時刻ごとに求める。
-/// `start` は軌道の元期と違っていてよい（軌道の元期からの経過に直して伝搬する）。
+/// `start` は軌道の元期と違っていてよい（軌道の元期からの経過に直して伝播する）。
 pub fn body_views_at(
     orbit: &Trajectory,
     start: Epoch,
@@ -235,7 +235,7 @@ pub fn geometry_at(
         .collect()
 }
 
-/// 時刻 `start + t_s` の探査機の状態 `state` から太陽・地球の幾何の標本 1 つを作る。
+/// 時刻 `start + t_s` の探査機の状態 `state` から太陽・地球の幾何のサンプル 1 つを作る。
 fn sample_of(
     orbit: &Trajectory,
     start: Epoch,
@@ -263,7 +263,7 @@ fn sample_of(
 
 /// 任意の時刻の探査機の状態を何度も求める道具（極値を詰める評価のように、1 時刻ずつ多数回の評価をするとき用）。
 /// 軌道の表を 1 回だけ作る（[`Trajectory::track`]。解析的な軌道は表を使わず、[`Trajectory::states_at`] と同じ値）ので、
-/// 数値伝搬の軌道で時刻ごとに元期から積分し直さない。`start` から `last_s` [s] までで使える。
+/// 数値伝播の軌道で時刻ごとに元期から積分し直さない。`start` から `last_s` [s] までで使える。
 pub struct ProbeTrack<'a> {
     orbit: &'a Trajectory,
     start: Epoch,
@@ -305,8 +305,8 @@ impl<'a> ProbeTrack<'a> {
     }
 }
 
-/// 標本 `samples` の中の量 `metric` の最小・最大を、標本の前後の区間で詰めて求める。
-/// 詰める評価は [`ProbeTrack`]（表を 1 回だけ作る）で 1 時刻ずつ行う。標本が空なら `None`。
+/// サンプル `samples` の中の量 `metric` の最小・最大を、サンプルの前後の区間で詰めて求める。
+/// 詰める評価は [`ProbeTrack`]（表を 1 回だけ作る）で 1 時刻ずつ行う。サンプルが空なら `None`。
 pub fn refined_extremes(
     orbit: &Trajectory,
     start: Epoch,
@@ -325,8 +325,8 @@ pub fn refined_extremes(
     })
 }
 
-/// 時刻列 `times`（昇順）に、範囲の中の折れ目 `breaks`（昇順）を加えた昇順の列。標本の最小・最大を折れ目で取りこぼさないために使う
-/// （折れ目は距離の傾きが跳ぶ点で、標本の間にあると極値を見逃す）。折れ目が無ければ `times` のまま。
+/// 時刻列 `times`（昇順）に、範囲の中の折れ目 `breaks`（昇順）を加えた昇順の列。サンプルの最小・最大を折れ目で取りこぼさないために使う
+/// （折れ目は距離の傾きが跳ぶ点で、サンプルの間にあると極値を見逃す）。折れ目が無ければ `times` のまま。
 pub fn times_with_breaks(times: &[f64], breaks: &[f64]) -> Vec<f64> {
     let (Some(first), Some(last)) = (times.first().copied(), times.last().copied()) else {
         return Vec::new();
@@ -339,7 +339,7 @@ pub fn times_with_breaks(times: &[f64], breaks: &[f64]) -> Vec<f64> {
 }
 
 /// 軌道の折れ目（弧の連鎖の境。[`Trajectory::breakpoints_s`]）を、`start` からの経過 [s] にしたもの（昇順。折れ目の無い軌道は空）。
-/// 極値を詰める区間はこの折れ目で分ける（[`extremes_by_split`]）。**軌道の折れ目を標本の時刻の座標に直すのはここだけ**。
+/// 極値を詰める区間はこの折れ目で分ける（[`extremes_by_split`]）。**軌道の折れ目をサンプルの時刻の座標に直すのはここだけ**。
 pub fn breakpoints_from(orbit: &Trajectory, start: Epoch) -> Vec<f64> {
     let offset = start.seconds_since(orbit.epoch());
     orbit

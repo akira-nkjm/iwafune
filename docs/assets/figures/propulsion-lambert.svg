@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 400" role="img" aria-labelledby="t d">
+  <title id="t">Lambert arc between two body positions</title>
+  <desc id="d">The Sun at the focus, the circular orbits of the departure and target bodies, and the position vectors r1 at departure and r2 at arrival. A conic arc about the Sun joins the two positions; its velocities v1 and v2 are tangent to the arc at the ends. The transfer angle nu is measured at the Sun from r1 to r2 in the prograde direction.</desc>
+  <defs>
+    <marker id="a-gold" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#8a6400"/></marker>
+    <marker id="a-ink" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#062654"/></marker>
+    <marker id="a-teal" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#0097a7"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="399" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="250" cy="214" r="70" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <circle cx="250" cy="214" r="150" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M250 214 L295.2 251.9" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <path d="M250 214 L288 80.3" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <path d="M276 235.9 A34 34 0 0 0 264 183" fill="none" stroke="#0097a7" stroke-width="1.8" marker-end="url(#a-teal)"/>
+    <path d="M303.6 259 L304.5 258.2 L305.4 257.5 L306.3 256.7 L307.2 255.9 L308.1 255.1 L309 254.2 L309.9 253.4 L310.7 252.5 L311.6 251.7 L312.5 250.8 L313.3 249.9 L314.2 249 L315 248 L315.8 247.1 L316.7 246.1 L317.5 245.2 L318.3 244.2 L319.1 243.2 L319.9 242.1 L320.7 241.1 L321.4 240 L322.2 239 L323 237.9 L323.7 236.8 L324.4 235.7 L325.2 234.5 L325.9 233.4 L326.6 232.2 L327.3 231 L328 229.8 L328.7 228.6 L329.4 227.4 L330 226.1 L330.7 224.9 L331.3 223.6 L331.9 222.3 L332.5 220.9 L333.1 219.6 L333.7 218.3 L334.3 216.9 L334.8 215.5 L335.4 214.1 L335.9 212.7 L336.4 211.2 L336.9 209.8 L337.4 208.3 L337.9 206.8 L338.3 205.3 L338.7 203.7 L339.1 202.2 L339.5 200.6 L339.9 199 L340.3 197.4 L340.6 195.8 L340.9 194.2 L341.2 192.5 L341.5 190.8 L341.8 189.1 L342 187.4 L342.2 185.7 L342.4 184 L342.6 182.2 L342.7 180.4 L342.8 178.6 L342.9 176.8 L343 175 L343 173.1 L343 171.3 L343 169.4 L343 167.5 L342.9 165.6 L342.8 163.7 L342.7 161.7 L342.5 159.8 L342.3 157.8 L342.1 155.9 L341.8 153.9 L341.5 151.9 L341.2 149.9 L340.8 147.8 L340.4 145.8 L340 143.8 L339.5 141.7 L339 139.7 L338.4 137.6 L337.8 135.5 L337.2 133.4 L336.5 131.4 L335.8 129.3 L335 127.2 L334.2 125.1 L333.4 123 L332.5 120.9 L331.6 118.8 L330.6 116.7 L329.6 114.6 L328.5 112.6 L327.4 110.5 L326.3 108.4 L325.1 106.4 L323.8 104.3 L322.5 102.3 L321.2 100.3 L319.8 98.3 L318.3 96.3 L316.9 94.3 L315.3 92.4 L313.7 90.5 L312.1 88.6 L310.4 86.7 L308.7 84.8 L306.9 83 L305.1 81.2 L303.2 79.5 L301.3 77.7 L299.3 76.1 L297.3 74.4 L295.3 72.8 L293.2 71.2 L291 69.7" fill="none" stroke="#3382c2" stroke-width="2.4"/>
+    <path d="M303.6 259 L347.7 222.8" fill="none" stroke="#8a6400" stroke-width="2.4" marker-end="url(#a-gold)"/>
+    <path d="M291 69.7 L244.2 37.3" fill="none" stroke="#8a6400" stroke-width="2.4" marker-end="url(#a-gold)"/>
+    <circle cx="250" cy="214" r="11" fill="#e7bd41" stroke="#8a6400" stroke-width="1.8"/>
+    <circle cx="303.6" cy="259" r="5" fill="#062654"/>
+    <circle cx="291" cy="69.7" r="5" fill="#062654"/>
+    <text x="361.5" y="223.6" font-size="14" fill="#8a6400"><tspan font-weight="700">v</tspan><tspan dy="3.5" font-size="10">1</tspan></text>
+    <text x="232" y="26.5" font-size="14" fill="#8a6400" text-anchor="end"><tspan font-weight="700">v</tspan><tspan dy="3.5" font-size="10">2</tspan></text>
+    <text x="274.2" y="259" font-size="14" fill="#062654" text-anchor="end"><tspan font-weight="700">r</tspan><tspan dy="3.5" font-size="10">1</tspan></text>
+    <text x="269.5" y="114.1" font-size="14" fill="#062654" text-anchor="end"><tspan font-weight="700">r</tspan><tspan dy="3.5" font-size="10">2</tspan></text>
+    <text x="295.9" y="204.9" font-size="14" fill="#006d79">ν</text>
+    <text x="232" y="219" font-size="12" fill="#5b6577" text-anchor="end">Sun</text>
+    <text x="307" y="65.7" font-size="14" fill="#062654">target body at t<tspan dy="3.5" font-size="10">a</tspan></text>
+    <path d="M311.6 263 L430 299" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <text x="436" y="304" font-size="14" fill="#062654">departure body at t<tspan dy="3.5" font-size="10">d</tspan></text>
+    <path d="M349 172.4 L430 152.4" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <text x="436" y="148.4" font-size="14" fill="#1f63a0">transfer arc,</text>
+    <text x="436" y="167.4" font-size="14" fill="#1f63a0">time of flight T = t<tspan dy="3.5" font-size="10">a</tspan><tspan dy="-3.5"> − t</tspan><tspan dy="3.5" font-size="10">d</tspan></text>
+  </g>
+</svg>

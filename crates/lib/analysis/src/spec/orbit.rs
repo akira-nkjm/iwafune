@@ -43,14 +43,14 @@ pub fn orbit_ranges(t: &[f64], cycle: Cycle) -> Vec<Range<usize>> {
     out
 }
 
-/// 周回 `r`（[`orbit_ranges`] の半開区間）を、標本 `n` 個の閉区間 `s..=e` に直す。
-/// `e` は次の周回の先頭（最後の周回で末尾を越えるときは最後の標本）。**周回の閉区間はこれを使う。**
+/// 周回 `r`（[`orbit_ranges`] の半開区間）を、サンプル `n` 個の閉区間 `s..=e` に直す。
+/// `e` は次の周回の先頭（最後の周回で末尾を越えるときは最後のサンプル）。**周回の閉区間はこれを使う。**
 pub fn orbit_segment(r: &Range<usize>, n: usize) -> RangeInclusive<usize> {
     let last = n.saturating_sub(1);
     r.start.min(last)..=r.end.min(last)
 }
 
-/// 周回ごとの閉区間（[`orbit_segment`]）。周回が 1 つも無ければ全期間を 1 区間にする（標本が無ければ空）。
+/// 周回ごとの閉区間（[`orbit_segment`]）。周回が 1 つも無ければ全期間を 1 区間にする（サンプルが無ければ空）。
 /// 1 周未満の期間を 1 周に換算する集計（永年成分など）に使う。
 pub fn orbit_segments(n: usize, ranges: &[Range<usize>]) -> Vec<RangeInclusive<usize>> {
     if ranges.is_empty() {
@@ -106,7 +106,7 @@ pub fn masked_time_mean(t: &[f64], values: &[f64], mask: &[bool]) -> Option<f64>
     }
 }
 
-/// `flags` が真の時間の割合（0/1 の時間平均、[`orbit_mean`]）。`ranges` が空なら全期間で数え、標本が無ければ 0。
+/// `flags` が真の時間の割合（0/1 の時間平均、[`orbit_mean`]）。`ranges` が空なら全期間で数え、サンプルが無ければ 0。
 /// 例: 日照の割合・禁止角への侵入の割合。**時間の割合はこれを使う。**
 pub fn time_fraction(t: &[f64], flags: &[bool], ranges: &[Range<usize>]) -> Fraction {
     Fraction::new(orbit_mean(t, &indicator(flags), ranges))
@@ -203,13 +203,13 @@ mod tests {
 
     #[test]
     fn segments_are_closed_and_fall_back_to_the_whole_span() {
-        // 0..250 s（26 標本）: 2 周 [0, 10]・[10, 20]。周回が無ければ全期間 [0, 25]
+        // 0..250 s（26 サンプル）: 2 周 [0, 10]・[10, 20]。周回が無ければ全期間 [0, 25]
         let t: Vec<f64> = (0..=25).map(|i| f64::from(i) * 10.0).collect();
         let r = orbit_ranges(&t, periodic(100.0));
         assert_eq!(orbit_segments(t.len(), &r), vec![0..=10, 10..=20]);
         assert_eq!(orbit_segments(t.len(), &[]), vec![0..=25]);
         assert!(orbit_segments(0, &[]).is_empty());
-        // 最後の周回の終わりが末尾を越えるときは最後の標本で切る
+        // 最後の周回の終わりが末尾を越えるときは最後のサンプルで切る
         assert_eq!(orbit_segment(&(20..30), 26), 20..=25);
     }
 

@@ -28,7 +28,7 @@ const wrap = (el: React.ReactNode) =>
 
 describe("OrbitInset（描画）", () => {
   const I = getT().systems.thermalImage.orbit;
-  it("日照の標本では日照と書き、日陰の標本では日陰と書いて衛星の点を薄くする", () => {
+  it("日照のサンプルでは日照と書き、日陰のサンプルでは日陰と書いて衛星の点を薄くする", () => {
     const lit = wrap(<OrbitInset plane={plane} index={0} />);
     expect(lit).toContain(I.sunlit);
     expect(lit).toContain(I.label);
@@ -37,7 +37,7 @@ describe("OrbitInset（描画）", () => {
     expect(dark).toContain(I.eclipse);
     expect(dark).toContain('data-eclipse="true"');
   });
-  it("標本が無ければ何も出さない", () => {
+  it("サンプルが無ければ何も出さない", () => {
     expect(wrap(<OrbitInset plane={{ ...plane, x: [], y: [] }} index={0} />)).toBe("");
   });
 });

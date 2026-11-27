@@ -4,11 +4,11 @@ import type { Species } from "./Species";
 import type { TrappedFluxPoint } from "./TrappedFluxPoint";
 
 /**
- * 地図 1 つ（粒子 × 太陽活動）の結果。
+ * マップ 1 つ（粒子 × 太陽活動）の結果。
  */
 export type TrappedFluxCase = { species: Species, solar: SolarCondition, 
 /**
- * 地図の名前（`ap8min` など）
+ * マップの名前（`ap8min` など）
  */
 model: string, 
 /**
@@ -16,7 +16,7 @@ model: string,
  */
 field: string, 
 /**
- * 地図の元期（年）
+ * マップの元期（年）
  */
 epoch_year: number, 
 /**
@@ -24,10 +24,10 @@ epoch_year: number,
  */
 spectrum: Array<TrappedFluxPoint>, 
 /**
- * L が求まらず地図の外とした標本の数
+ * L が求まらずマップの外としたサンプルの数
  */
 samples_without_l: number, 
 /**
- * L の最小・最大（L が求まった標本。無ければ `None`）
+ * L の最小・最大（L が求まったサンプル。無ければ `None`）
  */
 l_min: number | null, l_max: number | null, };

@@ -163,7 +163,7 @@ fn incidence_follows_the_attitude() {
     let ot = Sizing::run(&tilted).unwrap();
     assert!((ot.modes[0].incidence_factor.value() - 0.5).abs() < 1e-9);
     assert!((ot.smad.required_area.value() / o.smad.required_area.value() - 2.0).abs() < 1e-9);
-    // モードの姿勢則は上段の姿勢則を替える。地心指向で天頂を向く面は日照中の平均の入射が 1 より小さい。
+    // モードの姿勢則は上段の姿勢則を替える。ナディア指向で天頂を向く面は日照中の平均の入射が 1 より小さい。
     let mut nadir = input();
     nadir.array = sap(1.0, -Vec3::Z);
     nadir.mode_laws.insert("NOMINAL".into(), nadir_pointing_z());
@@ -311,7 +311,7 @@ fn modes_with_the_same_attitude_share_the_incidence() {
             ..nominal.clone()
         })
         .collect();
-    // C だけ地心指向（A と B は時系列の太陽指向）
+    // C だけナディア指向（A と B は時系列の太陽指向）
     i.mode_laws.insert("C".to_owned(), nadir_pointing_z());
     let all = Sizing::run(&i).unwrap();
     let factor = |out: &SizingOutput, id: &str| {

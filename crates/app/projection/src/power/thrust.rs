@@ -1,5 +1,5 @@
-//! `power.thrust_balance`: 電力収支の入力（`power.energy_balance` の射影）と、数値伝搬のマヌーバの噴射の仕方
-//! （`[constraints]` の `mode`・`sunlit_only`・`duty`）。噴射のモードを書いた数値伝搬のマヌーバが無ければ不足の入力。
+//! `power.thrust_balance`: 電力収支の入力（`power.energy_balance` の射影）と、数値伝播のマヌーバの噴射の仕方
+//! （`[constraints]` の `mode`・`sunlit_only`・`duty`）。噴射のモードを書いた数値伝播のマヌーバが無ければ不足の入力。
 
 use super::energy_balance;
 use crate::context::Context;
@@ -9,7 +9,7 @@ use fune_model::design::ManeuverMethod;
 use sat_analysis::power::thrust_balance::{ThrustBalanceInput, ThrustLoad};
 use sat_units::typed::Fraction;
 
-/// 電力収支の入力と、噴射のモードを書いた数値伝搬のマヌーバ（実行の順）。
+/// 電力収支の入力と、噴射のモードを書いた数値伝播のマヌーバ（実行の順）。
 pub fn thrust_balance(ctx: &Context<'_>) -> Result<ThrustBalanceInput, MissingInputs> {
     let mut m = MissingInputs::new();
     let thrusts: Vec<ThrustLoad> = ctx

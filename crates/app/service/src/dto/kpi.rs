@@ -95,7 +95,7 @@ pub enum KpiKey {
     ManeuversEnd,
     /// 寿命初期から末期への重心の移動
     ComShift,
-    /// 噴射中の最大 DoD（数値伝搬のマヌーバのうち最大）
+    /// 噴射中の最大 DoD（数値伝播のマヌーバのうち最大）
     ThrustMaxDod,
     /// 打ち上げ適合の最小の余裕（質量・包絡・固有振動数のうち最小）
     LaunchFitMargin,

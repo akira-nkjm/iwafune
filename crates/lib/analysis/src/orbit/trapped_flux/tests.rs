@@ -1,4 +1,4 @@
-//! 捕捉粒子のフラックス解析の試験。合成の地図（同じ形式の小さなもの）と中心双極子の場で、赤道面の円軌道の値を手計算と比べる。
+//! 捕捉粒子のフラックス解析の試験。合成のマップ（同じ形式の小さなもの）と中心双極子の場で、赤道面の円軌道の値を手計算と比べる。
 //! 実データでの確認は `crates/app/service/tests/trapped_flux.rs`（配布ファイルがあるときだけ）。
 
 use super::*;
@@ -18,7 +18,7 @@ fn ascii(words: &[i64]) -> String {
         .collect()
 }
 
-/// 合成の地図。倍率はすべて 100、1/4 桁刻み。エネルギー 0.1 MeV と 400 MeV の副地図で、L = 1 と L = 3 の B/B₀ = 1 の log₁₀F は
+/// 合成のマップ。倍率はすべて 100、1/4 桁刻み。エネルギー 0.1 MeV と 400 MeV のサブマップで、L = 1 と L = 3 の B/B₀ = 1 の log₁₀F は
 /// 0.1 MeV で `top` と `top − 2`、400 MeV で `top − 2` と `top − 3`（B/B₀ の増分は 1 つだけ: 位置 1 → 2）。
 fn map(top: i64) -> TrappedMap {
     let sub = |energy: i64, f1: i64, f3: i64| {
@@ -136,21 +136,21 @@ fn equatorial_circular_orbit_matches_hand_calculation() {
         10f64.powf(3.0 - 1.5 * t) * 1e4,
         1e-4
     ));
-    // 太陽活動極大の地図は 1 桁上
+    // 太陽活動極大のマップは 1 桁上
     let ap_max = &out.cases[1];
     assert!(near(ap_max.spectrum[0].mean_flux.value(), 1.0e8, 1e-4));
     // 組にした場の名前: AP-8 MAX だけが 2 つめの場
     assert_eq!(out.cases[0].field, "test JC");
     assert_eq!(out.cases[1].field, "test GSFC");
     assert_eq!(out.cases[3].field, "test JC");
-    // L は 2、標本はすべて地図の中
+    // L は 2、サンプルはすべてマップの中
     assert!(near(ap_min.l_min.expect("l"), 2.0, 1e-4) && near(ap_min.l_max.expect("l"), 2.0, 1e-4));
     assert_eq!(ap_min.samples_without_l, 0);
     assert_eq!(out.used.samples, 13);
     assert_eq!(ap_min.epoch_year, 1970);
 }
 
-/// 電子のエネルギーの格子（0.04〜7 MeV）は地図の最小のエネルギー（0.1 MeV）より下を、最初の 2 つの副地図からの直線で外挿する（NASA の手順）。
+/// 電子のエネルギーの格子（0.04〜7 MeV）はマップの最小のエネルギー（0.1 MeV）より下を、最初の 2 つのサブマップからの直線で外挿する（NASA の手順）。
 #[test]
 fn electron_grid_starts_below_the_first_node() {
     let fx = Fixture::new();
@@ -167,7 +167,7 @@ fn electron_grid_starts_below_the_first_node() {
     );
 }
 
-/// L = 3.5（フラックスのある最後の節点 L = 3 と、その先のフラックス無しの節点 L = 3.2 の外）は地図の外としてフラックス 0。時間の割合 0。
+/// L = 3.5（フラックスのある最後の節点 L = 3 と、その先のフラックス無しの節点 L = 3.2 の外）はマップの外としてフラックス 0。時間の割合 0。
 #[test]
 fn orbit_outside_the_map_has_no_flux() {
     let fx = Fixture::new();
@@ -220,7 +220,7 @@ fn standard_grids_lie_inside_the_model_energy_ranges() {
     }
 }
 
-/// 標本を塊に分けて並列に求めた (L, B/B₀) は、直列に 1 点ずつ求めた値と一致する（ビットまで）。
+/// サンプルを塊に分けて並列に求めた (L, B/B₀) は、直列に 1 点ずつ求めた値と一致する（ビットまで）。
 #[test]
 fn threaded_positions_equal_serial_positions() {
     let fx = Fixture::new();

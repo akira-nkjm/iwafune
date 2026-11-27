@@ -57,7 +57,7 @@ fn gui_net_field_edits_match_cli() {
     assert!(p12v.contains("12.2") && !p12v.contains("limit"), "{p12v}");
 }
 
-/// 部品の配置の欄（取付先・取付点・位置・姿勢の四元数か角度）と `fune part place`。位置・姿勢は打った文字列のまま送る。
+/// 部品の配置の欄（取付先・取付点・位置・姿勢のクォータニオンか角度）と `fune part place`。位置・姿勢は打った文字列のまま送る。
 /// 取付先が空なら機体の根（`--root`）で、取付点の欄は書かない。
 #[test]
 fn gui_placement_matches_cli() {
@@ -82,7 +82,7 @@ fn gui_placement_matches_cli() {
             json!({ "command": "part_place", "part": "CAM", "on": "PANEL_PZ", "point": "CAM_PORT",
                 "position": "0 -55 -90 mm", "orientation": "1 0 0 0" }),
         ),
-        // 姿勢の角度（GUI の X・Y・Z の欄を並べた文字列）。四元数にして書く
+        // 姿勢の角度（GUI の X・Y・Z の欄を並べた文字列）。クォータニオンにして書く
         (
             vec![
                 "part",

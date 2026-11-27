@@ -1,14 +1,14 @@
-//! 日照・食に対する時刻の指定: モードの使う時間帯（`when`）・開始の基準（`start`）・並びの基準（`anchor`）と、
+//! 日照・蝕に対する時刻の指定: モードの使う時間帯（`when`）・開始の基準（`start`）・並びの基準（`anchor`）と、
 //! 最長継続時間の評価でずらす開始の選び方。**開始時刻の候補を決める規則はここだけ**（[`super::duration`] は選ばれた開始を評価する）。
 //!
-//! 食の出入りは標本の刻みに丸める（食明け = 日陰の次の最初の日照の標本、食入り = 日照の次の最初の日陰の標本の時刻）。
+//! 蝕の出入りはサンプルの刻みに丸める（蝕明け = 日陰の次の最初の日照のサンプル、蝕入り = 日照の次の最初の日陰のサンプルの時刻）。
 //!
 //! 最長継続時間の評価の開始の決め方（[`select_starts`]）:
-//! - `start` があれば、その基準の時刻 + オフセットの標本だけ（[`DurationTiming::Fixed`]）。
+//! - `start` があれば、その基準の時刻 + オフセットのサンプルだけ（[`DurationTiming::Fixed`]）。
 //! - `when` だけなら、窓（最長継続時間の間）がその時間帯にまるごと入る開始の範囲でずらす（[`DurationTiming::Windowed`]）。
-//! - どちらも無ければ 1 周の中で開始を標本ごとにずらして最悪を取る（[`DurationTiming::Unspecified`]）。
+//! - どちらも無ければ 1 周の中で開始をサンプルごとにずらして最悪を取る（[`DurationTiming::Unspecified`]）。
 //!
-//! 指定どおりの開始が作れないとき（食が無い・窓が時間帯に収まらない）は、指定を外した探索に戻して `note` に理由を返す。
+//! 指定どおりの開始が作れないとき（蝕が無い・窓が時間帯に収まらない）は、指定を外した探索に戻して `note` に理由を返す。
 
 use crate::spec::quantity_text;
 use sat_units::typed::{Qty, Time};
@@ -24,22 +24,22 @@ pub enum TimeWindow {
     Any,
     /// 日照中だけ
     Sunlit,
-    /// 日陰中（食）だけ
+    /// 日陰中（蝕）だけ
     Eclipse,
 }
 
-/// 開始の基準にする食の出入り。
+/// 開始の基準にする蝕の出入り。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[serde(rename_all = "snake_case")]
 pub enum EclipseEvent {
-    /// 食明け（日陰から日照に戻る時刻）
+    /// 蝕明け（日陰から日照に戻る時刻）
     EclipseExit,
-    /// 食入り（日照から日陰に入る時刻）
+    /// 蝕入り（日照から日陰に入る時刻）
     EclipseEntry,
 }
 
-/// 食の出入りからの開始の指定（基準の時刻 + `offset`。負なら前）。
+/// 蝕の出入りからの開始の指定（基準の時刻 + `offset`。負なら前）。
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct EventStart {
@@ -90,7 +90,7 @@ pub enum DurationTiming {
     Unspecified,
 }
 
-/// 食の出入りの標本の番号（時刻の順）。
+/// 蝕の出入りのサンプルの番号（時刻の順）。
 pub(super) fn event_samples(lit: &[bool], from: EclipseEvent) -> Vec<usize> {
     (1..lit.len())
         .filter(|&k| match from {
@@ -100,14 +100,14 @@ pub(super) fn event_samples(lit: &[bool], from: EclipseEvent) -> Vec<usize> {
         .collect()
 }
 
-/// 基準の時刻 + オフセット（標本の列の外でもよい）。基準になる出入りが無ければ None。
+/// 基準の時刻 + オフセット（サンプルの列の外でもよい）。基準になる出入りが無ければ None。
 /// 複数あるときは解析の始めに最も近い（最初の）出入り。
 pub(super) fn anchor_time(t: &[f64], lit: &[bool], r: &EventStart) -> Option<f64> {
     let k = *event_samples(lit, r.from).first()?;
     Some(t[k] + r.offset.value())
 }
 
-/// 並びの先頭の時刻。基準が無い（None）なら解析の始め。基準の出入りが標本に無いときは、解析の始めにして理由を返す。
+/// 並びの先頭の時刻。基準が無い（None）なら解析の始め。基準の出入りがサンプルに無いときは、解析の始めにして理由を返す。
 pub(super) fn sequence_origin(
     t: &[f64],
     lit: &[bool],
@@ -137,7 +137,7 @@ pub(super) fn anchor_name(from: EclipseEvent) -> &'static str {
     }
 }
 
-/// ずらす開始の標本（1 周分）。最初の標本は窓の前の刻みが無く窓が半刻み短くなるので、標本が 2 つ以上あれば開始にしない。
+/// ずらす開始のサンプル（1 周分）。最初のサンプルは窓の前の刻みが無く窓が半刻み短くなるので、サンプルが 2 つ以上あれば開始にしない。
 /// 解析期間の終わりから「周期 + 最長継続時間 + 周期」前から始まる 1 周（前は基本のモードで定常に近づき、後ろは 1 周の回復を見る）。
 /// 解析期間が足りなければ期間の始めから。
 pub(super) fn start_samples(t: &[f64], period_s: f64, duration: f64) -> Vec<usize> {
@@ -163,7 +163,7 @@ pub(super) struct Selection {
     pub note: Option<String>,
 }
 
-/// 窓（開始 `k` から `duration`）の標本がすべて時間帯 `when` に入るか。
+/// 窓（開始 `k` から `duration`）のサンプルがすべて時間帯 `when` に入るか。
 fn window_fits(t: &[f64], lit: &[bool], when: TimeWindow, k: usize, duration: f64) -> bool {
     let want = when == TimeWindow::Sunlit;
     (k..t.len())
@@ -220,7 +220,7 @@ pub(super) fn select_starts(
     }
 }
 
-/// 開始の基準が決まっているときの候補（基準の時刻 + オフセット以後の最初の標本）。
+/// 開始の基準が決まっているときの候補（基準の時刻 + オフセット以後の最初のサンプル）。
 /// 時間帯（`when`）も指定されていて、その開始が合わなければ警告を付ける。基準の出入りが 1 周に無ければ None。
 fn fixed(
     t: &[f64],
@@ -233,7 +233,7 @@ fn fixed(
     let mut starts: Vec<usize> = event_samples(lit, r.from)
         .into_iter()
         .filter_map(|e| {
-            // 基準の時刻 + オフセット以後の最初の標本。ずらす 1 周の外に丸められるものは含めない
+            // 基準の時刻 + オフセット以後の最初のサンプル。ずらす 1 周の外に丸められるものは含めない
             let target = t[e] + r.offset.value();
             let k = t.partition_point(|&x| x < target - tol);
             all.contains(&k).then_some(k)

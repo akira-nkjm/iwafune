@@ -36,7 +36,7 @@ pub(crate) fn sun_pointing_z() -> AttitudeLaw {
     }
 }
 
-/// +Z を地心に、+X を速度方向に向ける地心指向。
+/// +Z を地心に、+X を速度方向に向けるナディア指向。
 pub(crate) fn nadir_pointing_z() -> AttitudeLaw {
     AttitudeLaw::NadirPointing {
         axis: Vec3::Z,

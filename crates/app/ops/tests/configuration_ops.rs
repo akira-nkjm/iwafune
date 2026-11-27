@@ -383,7 +383,7 @@ fn remove_deletes_the_file() {
     assert!(matches!(plan(&snap, &[op]), Err(OpError::NotFound { .. })));
 }
 
-/// 配置の検査（単位・四元数の大きさ）は部品の `[pose]` と同じで、誤りなら計画ごと拒む。
+/// 配置の検査（単位・クォータニオンの大きさ）は部品の `[pose]` と同じで、誤りなら計画ごと拒む。
 #[test]
 fn a_bad_pose_in_a_configuration_is_rejected_like_a_part_pose() {
     let snap = run(snapshot(), &[create("STOWED")]);

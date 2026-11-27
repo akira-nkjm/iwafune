@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 312" role="img" aria-labelledby="t d">
+  <title id="t">Shadow, contact cover and facing box on an outer face</title>
+  <desc id="d">Side view of an outer face with normal n. Left: a box standing off the face at height h casts a shadow displaced along the Sun direction s. Middle: a box in contact covers part of the face. Right: a parallel box across a gap blocks part of the view of the environment, the view factor F_ab.</desc>
+  <defs>
+    <marker id="a-acc" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#3382c2"/></marker>
+    <marker id="a-gold" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#8a6400"/></marker>
+    <marker id="a-ink" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#062654"/></marker>
+    <marker id="a-sec" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#5b6577"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="311" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="32" y="236" width="656" height="36" fill="#e8f1f9" stroke="#062654" stroke-width="1.8"/>
+    <path d="M32 236 L688 236" fill="none" stroke="#062654" stroke-width="2.4"/>
+    <path d="M56 236 L56 181" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <text x="66" y="188" font-size="14" fill="#062654"><tspan font-weight="700">n̂</tspan></text>
+    <text x="32" y="292" font-size="12" fill="#5b6577">outer face of a part, side view</text>
+    <path d="M120 140 L180 236 L278.5 236 L196 104 L196 140 Z" fill="#062654" fill-opacity="0.07"/>
+    <path d="M120 140 L180 236" fill="none" stroke="#8a6400" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M196 104 L278.5 236" fill="none" stroke="#8a6400" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <rect x="120" y="104" width="76" height="36" fill="#f5f7fa" stroke="#062654" stroke-width="1.8"/>
+    <path d="M180 236 L278.5 236" fill="none" stroke="#062654" stroke-width="5"/>
+    <text x="229.2" y="259" font-size="14" fill="#062654" text-anchor="middle">shadow</text>
+    <text x="158" y="92" font-size="14" fill="#062654" text-anchor="middle">box off the face</text>
+    <path d="M104 145 L104 228" fill="none" stroke="#5b6577" stroke-width="1.2" marker-end="url(#a-sec)" marker-start="url(#a-sec)"/>
+    <path d="M98 140 L118 140" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <text x="96" y="193" font-size="14" fill="#5b6577" text-anchor="end">h</text>
+    <path d="M268 96 L241 52.7" fill="none" stroke="#8a6400" stroke-width="2.4" marker-end="url(#a-gold)"/>
+    <text x="272" y="74" font-size="14" fill="#8a6400"><tspan font-weight="700">ŝ</tspan></text>
+    <text x="288" y="74" font-size="12" fill="#8a6400">to the Sun</text>
+    <rect x="372" y="184" width="90" height="52" fill="#f5f7fa" stroke="#062654" stroke-width="1.8"/>
+    <path d="M372 236 L462 236" fill="none" stroke="#e7bd41" stroke-width="5"/>
+    <text x="417" y="259" font-size="14" fill="#062654" text-anchor="middle">covered, c</text>
+    <text x="417" y="172" font-size="14" fill="#062654" text-anchor="middle">box in contact</text>
+    <path d="M536 158 L536 236 L660 236 L660 158 Z" fill="#3382c2" fill-opacity="0.1"/>
+    <path d="M536 158 L536 236" fill="none" stroke="#3382c2" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M660 158 L660 236" fill="none" stroke="#3382c2" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <rect x="536" y="128" width="124" height="30" fill="#f5f7fa" stroke="#062654" stroke-width="1.8"/>
+    <path d="M536 236 L660 236" fill="none" stroke="#3382c2" stroke-width="5"/>
+    <path d="M576 232 L576 166" fill="none" stroke="#3382c2" stroke-width="1.8" marker-end="url(#a-acc)"/>
+    <text x="588" y="202" font-size="14" fill="#1f63a0">F<tspan dy="4" font-size="10">ab</tspan></text>
+    <text x="598" y="259" font-size="14" fill="#062654" text-anchor="middle">blocked view</text>
+    <text x="598" y="116" font-size="14" fill="#062654" text-anchor="middle">facing box</text>
+  </g>
+</svg>

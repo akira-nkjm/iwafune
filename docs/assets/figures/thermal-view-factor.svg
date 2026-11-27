@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 340" role="img" aria-labelledby="t d">
+  <title id="t">Point factor from the corners of a rectangle</title>
+  <desc id="d">A point p on rectangle a with normal n_a sees the parallel rectangle b above it. The vectors w_1 to w_4 run from p to the corners of b in cyclic order, and gamma_2 is the angle between w_2 and w_3.</desc>
+  <defs>
+    <marker id="a-acc" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#3382c2"/></marker>
+    <marker id="a-ink" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#062654"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="339" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M104 308 L384 308 L457.5 203 L177.5 203 Z" fill="#e8f1f9" stroke="#062654" stroke-width="1.8"/>
+    <path d="M272 140 L345.5 35 L625.5 35 L552 140 Z" fill="#e8f1f9" stroke="#062654" stroke-width="1.8" fill-opacity="0.75"/>
+    <path d="M250.3 259 L271.1 144.9" fill="none" stroke="#3382c2" stroke-width="1.8" marker-end="url(#a-acc)"/>
+    <path d="M250.3 259 L343.5 39.6" fill="none" stroke="#3382c2" stroke-width="1.8" marker-end="url(#a-acc)"/>
+    <path d="M250.3 259 L621.2 37.6" fill="none" stroke="#3382c2" stroke-width="1.8" marker-end="url(#a-acc)"/>
+    <path d="M250.3 259 L547.3 141.8" fill="none" stroke="#3382c2" stroke-width="1.8" marker-end="url(#a-acc)"/>
+    <path d="M353.3 197.5 A120 120 0 0 0 297.2 148.6" fill="none" stroke="#062654" stroke-width="1.2"/>
+    <text x="339.7" y="161.5" font-size="14" fill="#062654" text-anchor="middle" paint-order="stroke" stroke="#ffffff" stroke-width="4">γ<tspan dy="4" font-size="10">2</tspan></text>
+    <path d="M250.3 259 L250.3 220" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <text x="241.3" y="233" font-size="14" fill="#062654" text-anchor="end"><tspan font-weight="700">n̂</tspan><tspan dy="4" font-size="10">a</tspan></text>
+    <circle cx="250.3" cy="259" r="4" fill="#062654"/>
+    <text x="240.3" y="275" font-size="14" fill="#062654" text-anchor="end">p</text>
+    <text x="262" y="152" font-size="14" fill="#1f63a0" text-anchor="end"><tspan font-weight="700">w</tspan><tspan dy="4" font-size="10">1</tspan></text>
+    <text x="335.5" y="31" font-size="14" fill="#1f63a0" text-anchor="end"><tspan font-weight="700">w</tspan><tspan dy="4" font-size="10">2</tspan></text>
+    <text x="635.5" y="31" font-size="14" fill="#1f63a0"><tspan font-weight="700">w</tspan><tspan dy="4" font-size="10">3</tspan></text>
+    <text x="562" y="152" font-size="14" fill="#1f63a0"><tspan font-weight="700">w</tspan><tspan dy="4" font-size="10">4</tspan></text>
+    <text x="398" y="310" font-size="14" fill="#062654">rectangle a</text>
+    <text x="566" y="180" font-size="14" fill="#062654">rectangle b</text>
+  </g>
+</svg>

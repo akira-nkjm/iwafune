@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 372" role="img" aria-labelledby="t d">
+  <title id="t">Environmental heat on an outer face</title>
+  <desc id="d">Parallel sunlight arrives from the left. A planet with its shadow behind it, a circular orbit around the planet centre, and a spacecraft on the day side. At the spacecraft the face normal n and the angle theta between the normal and the nadir. At the planet centre the radial direction r towards the spacecraft, the Sun direction s and the solar zenith angle of the sub-satellite point between them. Direct sunlight reaches the face, the day side reflects sunlight as albedo, and the planet emits infrared.</desc>
+  <defs>
+    <marker id="a-acc" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#3382c2"/></marker>
+    <marker id="a-gold" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#8a6400"/></marker>
+    <marker id="a-ink" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#062654"/></marker>
+    <marker id="a-teal" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#0097a7"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="371" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="450" y="140" width="254" height="160" fill="#062654" fill-opacity="0.07"/>
+    <path d="M450 140 L704 140" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M450 300 L704 300" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M284.2 331.8 A200 200 0 1 1 615.8 331.8" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <circle cx="450" cy="220" r="80" fill="#e8f1f9" stroke="#062654" stroke-width="1.8"/>
+    <path d="M450 140 A80 80 0 0 1 450 300 Z" fill="#062654" fill-opacity="0.1"/>
+    <circle cx="450" cy="220" r="80" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <text x="490" y="225" font-size="14" fill="#062654" text-anchor="middle">planet</text>
+    <text x="590" y="225" font-size="14" fill="#5b6577" text-anchor="middle">shadow</text>
+    <text x="585" y="59.1" font-size="14" fill="#5b6577">orbit</text>
+    <path d="M450 220 L436 195.8 A28 28 0 0 0 422 220 Z" fill="#fbf3d9"/>
+    <path d="M436 195.8 A28 28 0 0 0 422 220" fill="none" stroke="#062654" stroke-width="1.2"/>
+    <path d="M450 220 L357.5 59.8" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M450 220 L423.5 174.1" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <path d="M450 220 L397 220" fill="none" stroke="#8a6400" stroke-width="1.8" marker-end="url(#a-gold)"/>
+    <circle cx="450" cy="220" r="3" fill="#062654"/>
+    <text x="430" y="168.8" font-size="14" fill="#062654"><tspan font-weight="700">r̂</tspan></text>
+    <text x="394" y="211" font-size="14" fill="#8a6400" text-anchor="middle"><tspan font-weight="700">ŝ</tspan></text>
+    <text x="416" y="242" font-size="12" fill="#5b6577" text-anchor="middle">solar zenith</text>
+    <text x="416" y="257" font-size="12" fill="#5b6577" text-anchor="middle">angle</text>
+    <path d="M28 46.8 L329 46.8" fill="none" stroke="#8a6400" stroke-width="2.4" marker-end="url(#a-gold)"/>
+    <path d="M28 220 L364 220" fill="none" stroke="#8a6400" stroke-width="2.4" marker-end="url(#a-gold)"/>
+    <text x="28" y="34.8" font-size="14" fill="#8a6400">direct sunlight S</text>
+    <path d="M371.2 199.4 L366.4 164.7" fill="none" stroke="#3382c2" stroke-width="2.4" marker-end="url(#a-acc)"/>
+    <path d="M455.3 137.8 L428.9 114.9" fill="none" stroke="#0097a7" stroke-width="2.4" marker-end="url(#a-teal)"/>
+    <text x="355.7" y="187.4" font-size="14" fill="#1f63a0" text-anchor="end">albedo a</text>
+    <text x="454.4" y="118.4" font-size="14" fill="#006d79">infrared I</text>
+    <rect x="338" y="34.8" width="24" height="24" rx="2" fill="#e8f1f9" stroke="#062654" stroke-width="1.8" transform="rotate(-60 350 46.8)"/>
+    <path d="M333.6 51.2 L354.4 63.2" fill="none" stroke="#3382c2" stroke-width="3.2"/>
+    <path d="M344 57.2 L321.5 96.2" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <path d="M333 76.2 A34 34 0 0 0 367 76.2" fill="none" stroke="#062654" stroke-width="1.2"/>
+    <text x="311" y="102.5" font-size="14" fill="#062654" text-anchor="end"><tspan font-weight="700">n̂</tspan></text>
+    <text x="350" y="98.8" font-size="14" fill="#062654" text-anchor="middle">θ</text>
+    <text x="381" y="81.9" font-size="12" fill="#5b6577">nadir</text>
+    <text x="330" y="34.8" font-size="14" fill="#062654" text-anchor="end">spacecraft</text>
+  </g>
+</svg>
