@@ -1,0 +1,265 @@
+---
+// docs の入口（option C: docs first）。Starlight の splash ページ（検索・言語・配色の切り替えは Starlight のヘッダー）に、
+// 見出しの hero と、はじめに・分野別・インストール・リリースの 4 つの部分を置く。
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
+import { docsEntry, INSTALL_COMMAND } from "../i18n/landing.ts";
+import type { Lang } from "../lib/doc-links.ts";
+import { docHref, RELEASES_URL, workspaceVersion } from "../lib/doc-links.ts";
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const c = docsEntry[lang];
+const version = workspaceVersion();
+---
+
+<StarlightPage
+  frontmatter={{
+    title: c.title,
+    description: c.description,
+    template: "splash",
+    editUrl: false,
+    hero: {
+      tagline: c.lead,
+      actions: [
+        { text: c.primary, link: docHref("guide/quickstart", lang), variant: "primary" },
+        { text: c.secondary, link: docHref("guide/install", lang), variant: "secondary" },
+      ],
+    },
+  }}
+>
+  <div class="docs-entry">
+    <section aria-labelledby="start-here" class="block">
+      <h2 id="start-here" class="label">{c.startHere}</h2>
+      <div class="cards">
+        {c.cards.map((card) => (
+          <a class="card" href={docHref(card.slug, lang)}>
+            <span class="kicker">{card.kicker}</span>
+            <span class="card-title">{card.title}</span>
+            <span class="card-text">{card.text}</span>
+          </a>
+        ))}
+      </div>
+    </section>
+
+    <div class="two">
+      <section aria-labelledby="guides" class="block main-col">
+        <h2 id="guides" class="label">{c.guides}</h2>
+        <div class="rows">
+          {[...c.areas, { slug: c.layout.slug, name: c.layout.name, short: c.layout.short, text: "" }].map((a) => (
+            <a class="row" href={docHref(a.slug, lang)}>
+              <span class="row-name">{a.name}</span>
+              <span class="row-short">{a.short}</span>
+            </a>
+          ))}
+        </div>
+      </section>
+
+      <div class="block side-col">
+        <section aria-labelledby="install">
+          <h2 id="install" class="label">{c.install.title}</h2>
+          <div class="panel">
+            <code tabindex="0" aria-labelledby="install">{INSTALL_COMMAND}</code>
+            <span class="panel-text">{c.install.text}</span>
+            <a class="panel-link" href={docHref("guide/install", lang)}>{c.install.more}</a>
+          </div>
+        </section>
+        <section aria-labelledby="release">
+          <h2 id="release" class="label">{c.release.title}</h2>
+          <a class="release" href={RELEASES_URL}>
+            {version && <span class="release-version">{c.release.version.replace("{version}", version)}</span>}
+            <span class="panel-text">{c.release.notes}</span>
+          </a>
+        </section>
+      </div>
+    </div>
+  </div>
+</StarlightPage>
+
+<style is:global>
+  /* Starlight の hero を docs の入口らしく整える（左寄せ・見出しは 44px・角丸 10px のボタン）。この入口のページだけ。 */
+  body:has(.docs-entry) {
+    --sl-content-width: 72rem;
+  }
+  body:has(.docs-entry) .hero {
+    justify-items: start;
+    padding: 2.5rem 0 1rem;
+  }
+  body:has(.docs-entry) .hero .stack {
+    align-items: flex-start;
+    text-align: left;
+    gap: 1.25rem;
+  }
+  body:has(.docs-entry) .hero .copy {
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  body:has(.docs-entry) .hero .copy > * {
+    max-width: 44rem;
+  }
+  body:has(.docs-entry) .hero h1 {
+    font-size: clamp(2rem, 1.2rem + 3vw, 2.75rem);
+    line-height: 1.15;
+    font-weight: 700;
+  }
+  body:has(.docs-entry) .hero .tagline {
+    font-size: 1.125rem;
+    color: var(--iw-ink-2);
+  }
+  body:has(.docs-entry) .hero .actions {
+    justify-content: flex-start;
+    gap: 0.75rem 1.25rem;
+  }
+  body:has(.docs-entry) .hero .sl-link-button {
+    border-radius: var(--iw-radius-sm);
+    padding: 0.65rem 1.25rem;
+    font-size: 1rem;
+    font-weight: 500;
+  }
+  body:has(.docs-entry) .hero .sl-link-button.primary {
+    font-weight: 700;
+  }
+  body:has(.docs-entry) .hero .sl-link-button.secondary {
+    border-color: var(--iw-line-strong);
+    color: var(--iw-ink);
+  }
+  body:has(.docs-entry) .docs-entry code {
+    padding: 0;
+    background: none;
+    border: 0;
+  }
+</style>
+
+<style>
+  .docs-entry {
+    --entry-width: 72rem;
+    max-width: var(--entry-width);
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+    padding-bottom: 3rem;
+  }
+  .block {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+  }
+  .label {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--iw-ink-3);
+  }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15.5rem, 1fr));
+    gap: 1rem;
+  }
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1.25rem;
+    border: 1px solid var(--iw-line);
+    border-radius: var(--iw-radius);
+    background: var(--iw-panel);
+    text-decoration: none;
+    color: var(--iw-ink);
+  }
+  .card:hover {
+    border-color: var(--iw-accent);
+  }
+  .kicker {
+    font-family: var(--iw-font-mono);
+    font-size: 0.75rem;
+    color: var(--iw-accent-ink);
+  }
+  .card-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+  }
+  .card-text {
+    font-size: 0.875rem;
+    color: var(--iw-ink-2);
+  }
+  .two {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2.5rem;
+  }
+  .main-col {
+    flex: 2 1 32rem;
+    min-width: 0;
+  }
+  .side-col {
+    flex: 1 1 18rem;
+    min-width: 0;
+    gap: 1.5rem;
+  }
+  .rows {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13.5rem, 1fr));
+    gap: 0 2rem;
+  }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.8rem 0.125rem;
+    border-top: 1px solid var(--iw-line);
+    text-decoration: none;
+    color: var(--iw-ink);
+  }
+  .row:hover .row-name {
+    color: var(--iw-accent-ink);
+  }
+  .row-name {
+    font-weight: 500;
+  }
+  .row-short {
+    font-size: 0.875rem;
+    color: var(--iw-ink-3);
+    text-align: right;
+  }
+  .panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1.1rem;
+    border: 1px solid var(--iw-line);
+    border-radius: var(--iw-radius);
+    background: var(--iw-panel);
+  }
+  .panel code {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    font-size: 0.8125rem;
+    padding-bottom: 0.25rem;
+    color: var(--iw-ink);
+    background: none;
+  }
+  .panel-text {
+    font-size: 0.875rem;
+    color: var(--iw-ink-2);
+  }
+  .panel-link {
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .release {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid var(--iw-line);
+    text-decoration: none;
+    color: var(--iw-ink);
+  }
+  .release-version {
+    font-weight: 500;
+  }
+</style>

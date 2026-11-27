@@ -16,6 +16,8 @@
   <b>Design data in git</b> · <b>CLI and GUI as equals</b> · <b>27 analyses across 8 areas</b>
 </p>
 
+**Documentation: <https://akira-nkjm.github.io/iwafune/>**
+
 iwafune is a workbench for the conceptual design of small satellites. The design lives in a git-friendly
 directory of TOML files. You edit it from either the `fune` CLI or a web GUI, and run subsystem analyses
 on the same data.

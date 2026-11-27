@@ -30,7 +30,8 @@ cargo run -p fune-cli -- -C fixtures/demo-6u analyze power.energy_balance
 | `crates/app/cli` (`fune-cli`) | The `fune` command |
 | `web/` | GUI (React, TypeScript) |
 | `fixtures/demo-6u` | Demo 6U satellite |
-| `docs/` | Architecture overview, data model, architecture registry, roadmap |
+| `docs/` | Guides, analyses, architecture overview, data model, architecture registry, roadmap (also the content of the documentation site) |
+| `site/` | Documentation site (Astro, Starlight) that renders `docs/` |
 
 `crates/lib/*` never depend on `crates/app/*`. `cargo xtask check` enforces the dependency direction and the
 "one capability, one place" rules recorded in [architecture/registry.md](architecture/registry.md).
@@ -46,6 +47,45 @@ cargo clippy --all-targets -- -D warnings
 pnpm -C web lint && pnpm -C web typecheck && pnpm -C web test
 cargo test -p fune-service export_ts           # regenerate web/src/api/gen after changing API types
 ```
+
+## Documentation site
+
+The site at <https://akira-nkjm.github.io/iwafune/> is built from `docs/` by `site/` (Astro with Starlight). It is a separate pnpm project
+(Node 24 or later); the content is never copied, so editing a Markdown file in `docs/` is all it takes to change a page.
+
+```bash
+pnpm -C site install --frozen-lockfile
+pnpm -C site dev                  # http://localhost:4321/iwafune/ (reads docs/ live)
+pnpm -C site build                # static site in site/dist
+pnpm -C site check                # astro check (types)
+pnpm -C site lint && pnpm -C site test
+pnpm -C site check:dist           # after a build: links under /iwafune/, anchors, no external resources, search index
+```
+
+How `docs/` maps to routes:
+
+- `docs/guide/install.md` is `/guide/install/`, `docs/guide/index.md` is `/guide/`, `docs/ja/guide/install.md` is `/ja/guide/install/`.
+  English is the root locale; a page without a Japanese edition is shown in English under `/ja/` with Starlight's notice.
+- A page has no front matter. The first `# H1` is the title (and is removed from the body), the first paragraph after it is the description.
+- Relative links between `.md` files become site routes (with their `#anchor`). Relative links that leave `docs/`
+  (`../../crates/…`) become links to the file on GitHub (`main`). Images are served from `/docs-files/…`.
+- Math is GitHub style: `$…$`, `$$…$$` and a `math` fence (KaTeX). A `mermaid` fence is drawn in the browser, following the light and dark theme.
+  `> [!NOTE]` style alerts become asides.
+- A screenshot placeholder `<!-- screenshot: /design/components — description -->` shows the description in a frame. If
+  `site/src/assets/shots/<slug>.png` exists (`<slug>.ja.png` for Japanese pages), the image is shown instead.
+  The slug is the route in lower case with every run of characters other than letters and digits replaced by `-`
+  (`/design/power/budget` is `design-power-budget`, `/` is `home`).
+- The sidebar lists the pages that exist, in a fixed order (`site/src/lib/sidebar.ts`); a page that is not listed there is still built.
+- The landing page (`/`, `/ja/`) and the documentation entry (`/docs/`, `/ja/docs/`) are Astro components with English and Japanese copy in `site/src/i18n/landing.ts`.
+- Colours, fonts and sizes are only in `site/src/styles/tokens.css`.
+
+To capture screenshots from the demo, start a GUI of your own (`fune -C fixtures/demo-6u gui --no-open --port <port>`) and run
+`CHROMIUM_PATH=/path/to/chrome pnpm -C site shots --base http://localhost:<port>` (add `--lang ja` for Japanese). It reads the placeholders
+in `docs/`, visits each route at 1440 x 900 at 2x, waits until the loading indicators are gone, and writes `site/src/assets/shots/<slug>.png`.
+Do not use ports 3000 or 5173 for this.
+
+Pull requests that change `site/` or `docs/` run the `site` job of CI. Pushes to `main` publish the site with `.github/workflows/pages.yml`
+(Pages must be set to "GitHub Actions" in the repository settings).
 
 CI runs all of the above, then builds the release binary and smoke-tests the CLI and the HTTP server.
 

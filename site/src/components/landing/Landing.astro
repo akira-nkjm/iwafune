@@ -1,0 +1,466 @@
+---
+// ランディングページ（option A: CLI first）。文言は i18n/landing.ts、色は tokens.css の変数。
+import componentsShot from "../../assets/landing/components.png";
+import layoutShot from "../../assets/landing/layout.png";
+import overviewShot from "../../assets/landing/overview.png";
+import thermalShot from "../../assets/landing/thermal.png";
+import { INSTALL_COMMAND, landing } from "../../i18n/landing.ts";
+import type { Lang } from "../../lib/doc-links.ts";
+import { docHref } from "../../lib/doc-links.ts";
+import LandingLayout from "./LandingLayout.astro";
+import Rich from "./Rich.astro";
+import Shot from "./Shot.astro";
+import Terminal from "./Terminal.astro";
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const c = landing[lang];
+const tourShots = [componentsShot, layoutShot, thermalShot];
+const tourSizes = "(min-width: 1100px) 640px, (min-width: 900px) 55vw, calc(100vw - 48px)";
+const tourWidths = [480, 640, 960, 1280];
+---
+
+<LandingLayout lang={lang}>
+  <section class="hero">
+    <div class="hero-text">
+      <p class="eyebrow">{c.hero.eyebrow}</p>
+      <h1>{c.hero.title}</h1>
+      <p class="lead"><Rich text={c.hero.lead} /></p>
+      <div class="actions">
+        <a class="button primary" href={docHref("guide/quickstart", lang)}>{c.hero.primary}</a>
+        <a class="link-strong" href={docHref("guide/concepts", lang)}>{c.hero.secondary}</a>
+      </div>
+      <div class="install">
+        <span class="install-label" id="install-label">{c.hero.installLabel}</span>
+        <code class="install-code" tabindex="0" aria-labelledby="install-label">{INSTALL_COMMAND}</code>
+      </div>
+    </div>
+    <div class="hero-terminal">
+      <Terminal title={c.hero.terminalTitle} label={c.hero.terminalAlt} />
+      <p class="note">{c.hero.terminalNote}</p>
+    </div>
+  </section>
+
+  <section class="principles" aria-label={c.principles.label}>
+    <div class="principles-inner">
+      {c.principles.items.map((p) => (
+        <div class="principle">
+          <h2>{p.title}</h2>
+          <p>{p.text}</p>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <section class="app" aria-labelledby="app-title">
+    <div class="app-head">
+      <h2 id="app-title">{c.app.title}</h2>
+      <p><Rich text={c.app.lead} /></p>
+    </div>
+    <div class="window">
+      <div class="window-bar">
+        <span class="dot" aria-hidden="true"></span>
+        <span class="dot" aria-hidden="true"></span>
+        <span class="dot" aria-hidden="true"></span>
+        <span class="window-title">{c.app.windowTitle}</span>
+      </div>
+      <Shot src={overviewShot} alt={c.app.alt} sizes="(min-width: 1120px) 1070px, calc(100vw - 48px)" widths={[640, 960, 1280, 1800, 2240]} />
+    </div>
+  </section>
+
+  <section class="tour" aria-label="Tour">
+    {c.tour.map((t, i) => (
+      <div class:list={["row", { reverse: i === 1 }]}>
+        <div class="row-text">
+          <span class="kicker">{t.kicker}</span>
+          <h2>{t.title}</h2>
+          <p>{t.text}</p>
+          <a class="link-strong" href={docHref(t.slug, lang)}>{t.link}</a>
+        </div>
+        <div class="row-shot">
+          <Shot src={tourShots[i]!} alt={t.alt} sizes={tourSizes} widths={tourWidths} />
+        </div>
+      </div>
+    ))}
+  </section>
+
+  <section class="areas" aria-labelledby="areas-title">
+    <div class="areas-head">
+      <h2 id="areas-title">{c.areas.title}</h2>
+      <p>{c.areas.lead}</p>
+    </div>
+    <div class="area-grid">
+      {c.areas.items.map((a) => (
+        <a class="area" href={docHref(a.slug, lang)}>
+          <span class="area-name">{a.name}</span>
+          <span class="area-text">{a.text}</span>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <section class="start" aria-labelledby="start-title">
+    <div class="start-card">
+      <div class="start-text">
+        <h2 id="start-title">{c.start.title}</h2>
+        <p>{c.start.text}</p>
+      </div>
+      <ol class="steps">
+        {c.start.steps.map((s) => (
+          <li>{s.before}{s.code && <code>{s.code}</code>}{s.after}</li>
+        ))}
+      </ol>
+      <a class="button secondary" href={docHref("guide/quickstart", lang)}>{c.start.cta}</a>
+    </div>
+  </section>
+</LandingLayout>
+
+<style>
+  section {
+    max-width: var(--iw-measure);
+    margin: 0 auto;
+    padding-left: var(--iw-gutter);
+    padding-right: var(--iw-gutter);
+  }
+  h1,
+  h2,
+  p {
+    margin: 0;
+  }
+  p {
+    color: var(--iw-ink-2);
+  }
+
+  /* ヒーロー */
+  .hero {
+    padding-top: 72px;
+    padding-bottom: 56px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 48px;
+    align-items: center;
+  }
+  .hero-text {
+    flex: 1 1 440px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .eyebrow {
+    font-family: var(--iw-font-mono);
+    font-size: 13px;
+    color: var(--iw-accent-ink);
+  }
+  h1 {
+    font-size: 46px;
+    line-height: 1.15;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-wrap: balance;
+  }
+  .lead {
+    font-size: 18px;
+    max-width: 34em;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+    align-items: center;
+    margin-top: 4px;
+  }
+  .button {
+    display: inline-block;
+    padding: 11px 20px;
+    border-radius: var(--iw-radius-sm);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .button.primary {
+    background: var(--iw-ink);
+    color: var(--iw-inverse);
+  }
+  .button.primary:hover {
+    background: var(--iw-accent-ink);
+    color: var(--iw-inverse);
+  }
+  .button.secondary {
+    border: 1px solid var(--iw-line-strong);
+    color: var(--iw-ink);
+  }
+  .button.secondary:hover {
+    background: var(--iw-panel-2);
+    color: var(--iw-ink);
+  }
+  .link-strong {
+    padding: 11px 4px;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .row-text .link-strong {
+    padding: 0;
+    align-self: flex-start;
+  }
+  .install {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .install-label {
+    font-size: 13px;
+    color: var(--iw-ink-3);
+  }
+  .install-code {
+    display: block;
+    padding: 12px 14px;
+    border-radius: var(--iw-radius-sm);
+    background: var(--iw-panel-2);
+    border: 1px solid var(--iw-line);
+    font-size: 13px;
+    color: var(--iw-ink);
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .hero-terminal {
+    flex: 1 1 460px;
+    min-width: 0;
+  }
+  .note {
+    margin: 10px 2px 0;
+    font-size: 13px;
+    color: var(--iw-ink-3);
+  }
+
+  /* 考え方 3 つ */
+  .principles {
+    max-width: none;
+    padding: 0;
+    border-top: 1px solid var(--iw-line);
+    border-bottom: 1px solid var(--iw-line);
+    background: var(--iw-panel);
+  }
+  .principles-inner {
+    max-width: var(--iw-measure);
+    margin: 0 auto;
+    padding: 44px var(--iw-gutter);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 32px;
+  }
+  .principle {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .principle h2 {
+    font-size: 19px;
+    font-weight: 700;
+  }
+  .principle p {
+    font-size: 15px;
+  }
+
+  /* ブラウザの中の同じ設計 */
+  .app {
+    padding-top: 72px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+  .app-head {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 40em;
+  }
+  .app-head h2,
+  .areas-head h2 {
+    font-size: 28px;
+    font-weight: 700;
+  }
+  .window {
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--iw-panel);
+    border: 1px solid var(--iw-line-strong);
+    box-shadow: var(--iw-shadow-window);
+  }
+  .window-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 16px;
+    background: var(--iw-panel-2);
+    border-bottom: 1px solid var(--iw-line);
+    font-family: var(--iw-font-mono);
+    font-size: 12px;
+    color: var(--iw-ink-3);
+  }
+  .dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--iw-tick);
+  }
+  .window-title {
+    margin-left: 8px;
+  }
+
+  /* 3 つの特徴 */
+  .tour {
+    padding-top: 72px;
+    padding-bottom: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 72px;
+  }
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 44px;
+    align-items: center;
+  }
+  .row.reverse {
+    flex-direction: row-reverse;
+  }
+  .row-text {
+    flex: 1 1 340px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .kicker {
+    font-family: var(--iw-font-mono);
+    font-size: 13px;
+    color: var(--iw-accent-ink);
+  }
+  .row-text h2 {
+    font-size: 30px;
+    line-height: 1.25;
+    font-weight: 700;
+    text-wrap: balance;
+  }
+  .row-shot {
+    flex: 1.5 1 440px;
+    min-width: 0;
+    border-radius: var(--iw-radius);
+    overflow: hidden;
+    border: 1px solid var(--iw-line-strong);
+    box-shadow: var(--iw-shadow-shot);
+  }
+
+  /* 解析の分野 */
+  .areas {
+    padding-top: 64px;
+    padding-bottom: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .areas-head {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .area-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+  }
+  .area {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 18px;
+    border: 1px solid var(--iw-line);
+    border-radius: var(--iw-radius);
+    background: var(--iw-panel);
+    text-decoration: none;
+    color: var(--iw-ink);
+  }
+  .area:hover {
+    border-color: var(--iw-accent);
+    color: var(--iw-ink);
+  }
+  .area-name {
+    font-weight: 700;
+  }
+  .area-text {
+    font-size: 14px;
+    color: var(--iw-ink-2);
+  }
+
+  /* 10 分のデモ */
+  .start {
+    padding-top: 56px;
+    padding-bottom: 72px;
+  }
+  .start-card {
+    border: 1px solid var(--iw-line-strong);
+    border-radius: var(--iw-radius);
+    background: var(--iw-panel);
+    padding: 32px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 32px;
+    align-items: center;
+  }
+  .start-text {
+    flex: 1 1 360px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .start-text h2 {
+    font-size: 24px;
+    font-weight: 700;
+  }
+  .steps {
+    flex: 1 1 360px;
+    min-width: 0;
+    margin: 0;
+    padding-left: 22px;
+    color: var(--iw-ink-2);
+    font-size: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  @media (max-width: 640px) {
+    .hero {
+      padding-top: 44px;
+      padding-bottom: 40px;
+      gap: 36px;
+    }
+    h1 {
+      font-size: 34px;
+    }
+    .lead {
+      font-size: 17px;
+    }
+    .app {
+      padding-top: 52px;
+    }
+    .tour {
+      padding-top: 52px;
+      gap: 52px;
+    }
+    .row {
+      gap: 24px;
+    }
+    .row-text h2 {
+      font-size: 26px;
+    }
+    .start-card {
+      padding: 24px 20px;
+    }
+  }
+</style>
