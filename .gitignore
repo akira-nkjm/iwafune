@@ -4,3 +4,8 @@ web/dist
 .fune/
 *.drawio.bkp
 .DS_Store
+
+# Documentation site
+site/dist
+site/.astro
+site/node_modules

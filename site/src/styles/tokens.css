@@ -1,0 +1,138 @@
+/*
+ * サイトの色・書体・寸法の正本（色の値はこのファイルだけに書く）。
+ * 色は GUI の正本 web/src/lib/tone.ts から書き出された web/src/styles/index.css と同じ値で、
+ * 食い違わないことを src/lib/tokens.test.ts が検査する。ほかの CSS・コンポーネントは var(--iw-…) だけを使う。
+ * 明るい配色が既定。暗い配色は `data-theme="dark"`、設定が無いときは OS の設定に従う。
+ */
+:root {
+  color-scheme: light;
+
+  /* 面 */
+  --iw-app: #fbfcfe;
+  --iw-panel: #ffffff;
+  --iw-panel-2: #f5f7fa;
+  --iw-sunken: #e7ebf2;
+  --iw-chip: #eceff5;
+  --iw-line-soft: rgba(6, 38, 84, 0.07);
+  --iw-line: rgba(6, 38, 84, 0.1);
+  --iw-line-strong: rgba(6, 38, 84, 0.14);
+  --iw-tick: #dce1ea;
+  /* 文字 */
+  --iw-ink: #062654;
+  --iw-ink-2: #414141;
+  --iw-ink-3: #5b6577;
+  --iw-ink-4: #8d8d8d;
+  --iw-inverse: #ffffff;
+  /* リンク・選択・フォーカス */
+  --iw-accent: #3382c2;
+  --iw-accent-ink: #1f63a0;
+  --iw-accent-tint: #e8f1f9;
+  /* 状態 */
+  --iw-pos: #0097a7;
+  --iw-pos-bg: #e3f4f6;
+  --iw-pos-ink: #006d79;
+  --iw-warn: #e7bd41;
+  --iw-warn-bg: #fbf3d9;
+  --iw-warn-ink: #8a6400;
+  --iw-neg: #b92626;
+  --iw-neg-bg: #fbe9e9;
+  --iw-neg-ink: #b92626;
+  /* 影 */
+  --iw-shadow-window: 0 18px 48px rgba(6, 38, 84, 0.14);
+  --iw-shadow-shot: 0 10px 30px rgba(6, 38, 84, 0.1);
+  --iw-shadow-pop: 0 12px 32px rgba(6, 38, 84, 0.16), 0 2px 6px rgba(6, 38, 84, 0.06);
+  /* コードの地（配色に従う） */
+  --iw-code-bg: var(--iw-panel-2);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --iw-app: #0e141d;
+  --iw-panel: #151d29;
+  --iw-panel-2: #1b2432;
+  --iw-sunken: #0a0f17;
+  --iw-chip: #243044;
+  --iw-line-soft: rgba(219, 230, 244, 0.07);
+  --iw-line: rgba(219, 230, 244, 0.11);
+  --iw-line-strong: rgba(219, 230, 244, 0.18);
+  --iw-tick: #2f3c52;
+  --iw-ink: #e6edf6;
+  --iw-ink-2: #c4cedc;
+  --iw-ink-3: #9ba7ba;
+  --iw-ink-4: #7d8aa0;
+  --iw-inverse: #0e141d;
+  --iw-accent: #4a93d6;
+  --iw-accent-ink: #7ab7ee;
+  --iw-accent-tint: #18293d;
+  --iw-pos: #1fb0c0;
+  --iw-pos-bg: #102a30;
+  --iw-pos-ink: #4fcfdc;
+  --iw-warn: #e7bd41;
+  --iw-warn-bg: #2d2810;
+  --iw-warn-ink: #e9c458;
+  --iw-neg: #e05555;
+  --iw-neg-bg: #341b20;
+  --iw-neg-ink: #f28585;
+  --iw-shadow-window: 0 18px 48px rgba(2, 6, 12, 0.6);
+  --iw-shadow-shot: 0 10px 30px rgba(2, 6, 12, 0.5);
+  --iw-shadow-pop: 0 12px 32px rgba(2, 6, 12, 0.6), 0 2px 6px rgba(2, 6, 12, 0.35);
+  --iw-code-bg: var(--iw-sunken);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+
+    --iw-app: #0e141d;
+    --iw-panel: #151d29;
+    --iw-panel-2: #1b2432;
+    --iw-sunken: #0a0f17;
+    --iw-chip: #243044;
+    --iw-line-soft: rgba(219, 230, 244, 0.07);
+    --iw-line: rgba(219, 230, 244, 0.11);
+    --iw-line-strong: rgba(219, 230, 244, 0.18);
+    --iw-tick: #2f3c52;
+    --iw-ink: #e6edf6;
+    --iw-ink-2: #c4cedc;
+    --iw-ink-3: #9ba7ba;
+    --iw-ink-4: #7d8aa0;
+    --iw-inverse: #0e141d;
+    --iw-accent: #4a93d6;
+    --iw-accent-ink: #7ab7ee;
+    --iw-accent-tint: #18293d;
+    --iw-pos: #1fb0c0;
+    --iw-pos-bg: #102a30;
+    --iw-pos-ink: #4fcfdc;
+    --iw-warn: #e7bd41;
+    --iw-warn-bg: #2d2810;
+    --iw-warn-ink: #e9c458;
+    --iw-neg: #e05555;
+    --iw-neg-bg: #341b20;
+    --iw-neg-ink: #f28585;
+    --iw-shadow-window: 0 18px 48px rgba(2, 6, 12, 0.6);
+    --iw-shadow-shot: 0 10px 30px rgba(2, 6, 12, 0.5);
+    --iw-shadow-pop: 0 12px 32px rgba(2, 6, 12, 0.6), 0 2px 6px rgba(2, 6, 12, 0.35);
+    --iw-code-bg: var(--iw-sunken);
+  }
+}
+
+/* 端末ブロック: どちらの配色でも暗い（暗い配色の値） */
+:root {
+  --iw-term-bg: #0e141d;
+  --iw-term-ink: #e6edf6;
+  --iw-term-prompt: #7ab7ee;
+  --iw-term-ok: #4fcfdc;
+  --iw-term-muted: #9ba7ba;
+  --iw-term-line: rgba(219, 230, 244, 0.18);
+}
+
+/* 書体と寸法 */
+:root {
+  --iw-font-text: "Noto Sans JP Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --iw-font-mono: "Noto Sans Mono Variable", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --iw-radius: 13px;
+  --iw-radius-sm: 10px;
+  --iw-measure: 1120px;
+  --iw-gutter: 24px;
+}

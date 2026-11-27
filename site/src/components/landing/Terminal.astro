@@ -1,0 +1,61 @@
+---
+// ランディングのヒーローの端末ブロック。どちらの配色でも暗い。
+interface Props {
+  title: string;
+  label: string;
+}
+const { title, label } = Astro.props;
+---
+
+<div class="terminal">
+  <div class="titlebar"><span>{title}</span></div>
+  <pre class="body" tabindex="0" aria-label={label}><code><span class="line"><span class="prompt">$</span> fune init my-sat</span>
+<span class="line"><span class="prompt">$</span> fune part place local/bat_40wh BAT</span>
+<span class="line"><span class="prompt">$</span> fune set BAT.mass "320 g" --source datasheet</span>
+<span class="line"><span class="prompt">$</span> fune check</span>
+<span class="line ok">✔ Check: no problems</span>
+<span class="line"><span class="prompt">$</span> fune analyze power.energy_balance</span>
+<span class="line ok">✔ power.energy_balance ran</span>
+<span class="line"><span class="prompt">$</span> fune gui</span>
+<span class="line muted">✔ Started the GUI: http://localhost:3000/</span></code></pre>
+</div>
+
+<style>
+  .terminal {
+    border-radius: var(--iw-radius);
+    border: 1px solid var(--iw-term-line);
+    background: var(--iw-term-bg);
+    color: var(--iw-term-ink);
+    font-family: var(--iw-font-mono);
+    font-size: 14px;
+    line-height: 1.75;
+    overflow: hidden;
+  }
+  .titlebar {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--iw-term-line);
+    color: var(--iw-term-muted);
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .body {
+    margin: 0;
+    padding: 18px 20px;
+    overflow-x: auto;
+    white-space: pre;
+    font: inherit;
+    line-height: inherit;
+  }
+  .body code {
+    font: inherit;
+  }
+  .prompt {
+    color: var(--iw-term-prompt);
+  }
+  .ok {
+    color: var(--iw-term-ok);
+  }
+  .muted {
+    color: var(--iw-term-muted);
+  }
+</style>

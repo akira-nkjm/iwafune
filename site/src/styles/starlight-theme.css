@@ -1,0 +1,113 @@
+/*
+ * Starlight をサイトの色（tokens.css）と書体にそろえる。色の値は書かず、var(--iw-…) だけを使う。
+ * Starlight は暗い配色が既定の前提なので、白・灰色・黒の段階を明暗どちらでも意味が合うように対応づける。
+ */
+:root,
+:root[data-theme="light"],
+:root[data-theme="dark"] {
+  --sl-font: var(--iw-font-text);
+  --sl-font-mono: var(--iw-font-mono);
+
+  /* 文字: white が最も濃く、gray-1..4 が段々と薄くなる */
+  --sl-color-white: var(--iw-ink);
+  --sl-color-gray-1: var(--iw-ink);
+  --sl-color-gray-2: var(--iw-ink-2);
+  --sl-color-gray-3: var(--iw-ink-3);
+  --sl-color-gray-4: var(--iw-ink-4);
+  /* 面と線: gray-5 が線、gray-6・gray-7 が面、black が地 */
+  --sl-color-gray-5: var(--iw-tick);
+  --sl-color-gray-6: var(--iw-panel-2);
+  --sl-color-gray-7: var(--iw-sunken);
+  --sl-color-black: var(--iw-app);
+
+  --sl-color-bg: var(--iw-app);
+  --sl-color-bg-nav: var(--iw-panel);
+  --sl-color-bg-sidebar: var(--iw-panel);
+  --sl-color-bg-inline-code: var(--iw-chip);
+  --sl-color-hairline: var(--iw-line-strong);
+  --sl-color-hairline-light: var(--iw-line);
+  --sl-color-hairline-shade: var(--iw-line-soft);
+  --sl-color-text: var(--iw-ink);
+  --sl-color-text-invert: var(--iw-inverse);
+  --sl-color-text-accent: var(--iw-accent-ink);
+  --sl-color-bg-accent: var(--iw-accent-ink);
+
+  --sl-color-accent-low: var(--iw-accent-tint);
+  --sl-color-accent: var(--iw-accent);
+  --sl-color-accent-high: var(--iw-accent-ink);
+
+  /* 囲み（aside）の色: note = 青、tip = 青緑、caution = 金、danger = 赤 */
+  --sl-color-blue-low: var(--iw-accent-tint);
+  --sl-color-blue: var(--iw-accent);
+  --sl-color-blue-high: var(--iw-accent-ink);
+  --sl-color-purple-low: var(--iw-accent-tint);
+  --sl-color-purple: var(--iw-accent);
+  --sl-color-purple-high: var(--iw-accent-ink);
+  --sl-color-green-low: var(--iw-pos-bg);
+  --sl-color-green: var(--iw-pos);
+  --sl-color-green-high: var(--iw-pos-ink);
+  --sl-color-orange-low: var(--iw-warn-bg);
+  --sl-color-orange: var(--iw-warn);
+  --sl-color-orange-high: var(--iw-warn-ink);
+  --sl-color-red-low: var(--iw-neg-bg);
+  --sl-color-red: var(--iw-neg);
+  --sl-color-red-high: var(--iw-neg-ink);
+
+  --sl-shadow-sm: var(--iw-shadow-shot);
+  --sl-shadow-md: var(--iw-shadow-pop);
+  --sl-shadow-lg: var(--iw-shadow-pop);
+
+  --sl-content-width: 56rem;
+  --sl-sidebar-width: 18.5rem;
+  --sl-line-height: 1.75;
+  --sl-line-height-headings: 1.3;
+}
+
+/* 見出しは Noto Sans JP の太字。ページの題名は大きすぎないように。 */
+.sl-markdown-content :is(h1, h2, h3, h4) {
+  font-weight: 700;
+}
+
+#_top,
+.content-panel h1 {
+  font-weight: 700;
+}
+
+/* キーボードで辿るときの枠 */
+:focus-visible {
+  outline: 2px solid var(--iw-accent-ink);
+  outline-offset: 2px;
+}
+
+/* 書体の確かさ: 日本語の文章に欧文の字間を足さない */
+body {
+  font-feature-settings: "palt" 0;
+}
+
+/* 動きを減らす設定 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* 日本語は文節の途中で折り返さない */
+:lang(ja) {
+  word-break: auto-phrase;
+  line-break: strict;
+}
+
+/* ヘッダーは細めにする（ロゴはマークと名前だけ。高さ 2rem） */
+:root {
+  --sl-nav-height: 3.25rem;
+}
+.site-title img {
+  height: 2rem;
+  max-height: none;
+  width: auto;
+}

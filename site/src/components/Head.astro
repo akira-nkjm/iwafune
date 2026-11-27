@@ -1,0 +1,9 @@
+---
+// Starlight の <head> に、図（Mermaid）を描くスクリプトを足す。図のあるページだけがライブラリを読む（scripts/mermaid.ts）。
+import Default from "@astrojs/starlight/components/Head.astro";
+---
+
+<Default><slot /></Default>
+<script>
+  import "../scripts/mermaid.ts";
+</script>

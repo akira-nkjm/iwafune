@@ -1,0 +1,152 @@
+/* docs の本文に出てくるもの（画面写真の枠、図、数式）のスタイル。色は var(--iw-…) だけを使う。 */
+
+.sl-markdown-content figure.shot {
+  margin: 1.5rem 0;
+}
+
+.sl-markdown-content figure.shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--iw-line-strong);
+  border-radius: var(--iw-radius-sm);
+  box-shadow: var(--iw-shadow-shot);
+}
+
+.sl-markdown-content .shot__caption {
+  margin-top: 0.5rem;
+  font-size: var(--sl-text-sm);
+  color: var(--iw-ink-3);
+}
+
+/* 写真がまだないときの枠 */
+.sl-markdown-content .shot__frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 12rem;
+  padding: 1.5rem;
+  text-align: center;
+  border: 1px dashed var(--iw-line-strong);
+  border-radius: var(--iw-radius-sm);
+  background: var(--iw-panel-2);
+  color: var(--iw-ink-3);
+}
+
+.sl-markdown-content .shot__route {
+  font-family: var(--iw-font-mono);
+  font-size: var(--sl-text-xs);
+  color: var(--iw-accent-ink);
+}
+
+.sl-markdown-content .shot__description {
+  font-size: var(--sl-text-sm);
+  max-width: 36rem;
+}
+
+/* 図（SVG）は本文の幅に収める */
+.sl-markdown-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Mermaid の図: 描かれるまでは元の文章を小さく見せ、描かれたら中央に置く */
+.sl-markdown-content pre.mermaid {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  overflow-x: auto;
+  white-space: pre;
+  font-family: var(--iw-font-mono);
+  font-size: var(--sl-text-xs);
+  color: var(--iw-ink-3);
+  background: var(--iw-panel);
+  border: 1px solid var(--iw-line);
+  border-radius: var(--iw-radius-sm);
+}
+
+.sl-markdown-content pre.mermaid[data-processed] {
+  display: flex;
+  justify-content: center;
+  white-space: normal;
+  font-family: var(--iw-font-text);
+  font-size: inherit;
+}
+
+.sl-markdown-content pre.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* 数式: 長い式は横にスクロールする */
+.sl-markdown-content .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+}
+
+.sl-markdown-content .katex {
+  font-size: 1.05em;
+}
+
+/*
+ * 表: 入力・出力の表は列が多く、長いキー（コード）と数式が入る。既定のままだと、コードが折り返さずに幅を取り、
+ * 名前や記号の列が 1〜2 文字ごとに折り返して読めなくなる。
+ * - 表は本文の幅いっぱいに広げる
+ * - 先頭の列（名前）と数式は途中で折り返さない幅を確保する
+ * - コードは長いキーの途中で折り返してよい（横スクロールにしない）
+ */
+.sl-markdown-content table {
+  display: table;
+  width: 100%;
+  table-layout: auto;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+.sl-markdown-content :is(th, td) {
+  padding: 0.55rem 0.75rem;
+  vertical-align: top;
+  word-break: auto-phrase;
+  overflow-wrap: break-word;
+}
+.sl-markdown-content th {
+  white-space: nowrap;
+  text-align: left;
+}
+.sl-markdown-content :is(th, td):first-child {
+  min-width: 8em;
+  padding-inline-start: 0;
+}
+.sl-markdown-content td .katex {
+  white-space: nowrap;
+}
+.sl-markdown-content td:has(> .katex:only-child),
+.sl-markdown-content td:has(.katex):not(:has(code)) {
+  min-width: 5.5em;
+}
+.sl-markdown-content td code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  font-size: 0.875em;
+}
+
+/* 日本語の字形には斜体が無く、機械的に傾けた字は読みにくい。日本語版では強調と図の説明文を立体のままにする
+   （図の説明文は色と大きさで本文と分ける）。 */
+:lang(ja) em,
+:lang(ja) i,
+:lang(ja) cite,
+:lang(ja) figcaption {
+  font-style: normal;
+}
+.sl-markdown-content p:has(> em:only-child) {
+  color: var(--sl-color-gray-3);
+  font-size: var(--sl-text-sm);
+}
+
+/* 列の多い表は、表の枠だけを横に動かす（ページ全体は横に動かさない）。 */
+.sl-markdown-content .table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}

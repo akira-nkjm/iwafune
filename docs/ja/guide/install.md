@@ -166,7 +166,7 @@ fune data fetch radiation       # gh が必要
 fune data fetch radiation --from <DIR>
 ```
 
-`fune data fetch` は `--from` のときも含めて、サイズと SHA-256 を確認します。取得したあと、`fune data status` ではその行が `✔ SHA-256 matches` になります。放射線データの出典と帰属は [捕捉放射線のデータ](../../trapped-radiation.md)にあります。データは GUI からも取得できます。[Settings](gui.md#settings) を参照してください。
+`fune data fetch` は `--from` のときも含めて、サイズと SHA-256 を確認します。取得したあと、`fune data status` ではその行が `✔ SHA-256 matches` になります。放射線データの出典と帰属は [捕捉放射線のデータ](../../trapped-radiation.md)にあります。データは GUI からも取得できます。[設定](gui.md#設定) を参照してください。
 
 ## アンインストール
 

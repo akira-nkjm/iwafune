@@ -50,6 +50,27 @@ cargo test -p fune-service export_ts           # regenerate web/src/api/gen afte
 
 CI はアーキテクチャの検査、Rust の検査（フォーマット、clippy、パリティテストと生成した型の検査を含むテスト）、Web の検査（lint、型検査、テスト、ビルド）を実行します。`develop` と `main` への push では、さらにリリースバイナリをビルドし、CLI と HTTP サーバーをスモークテストで確かめます。
 
+## ドキュメントのサイト
+
+`site/`（Astro と Starlight）が `docs/` から、ドキュメントのサイトを作ります。`pnpm -C site install --frozen-lockfile` のあと、
+`pnpm -C site dev`（開発）、`pnpm -C site build`（ビルド）、`pnpm -C site lint`、`pnpm -C site check`、`pnpm -C site test` を使います。
+内容は `docs/` が唯一の正本で、コピーしません。
+
+画面の写真は、`docs/` の目印 `<!-- screenshot: /design/components — 説明 -->` が指します。写真が `site/src/assets/shots/<slug>.png`
+（日本語のページは `<slug>.ja.png`）にあれば画像を、無ければ説明の枠を出します。slug は、ルートを小文字にして、英数字以外の連続を `-` にしたものです。
+ページの特定の状態を見せるときは、写真に名前を付けます: `<!-- screenshot: /systems/power as missing-inputs — 説明 -->`。
+名前（小文字の語を `-` でつなぐ）が付くと、写真は `<slug>--<name>.png` という別のファイルになります。名前の無い目印は、そのままのルートの写真です。
+
+写真を撮るには、GUI と CLI をビルドして（`pnpm -C web build`、`cargo build -p fune-cli`）、`pnpm -C site shots -- --fune target/debug/fune` を実行します。
+デモを一時ディレクトリにコピーし、写真ごとの `fune` コマンドを実行し、`fune gui --no-open` を空いているポートで起動して、
+Playwright で 1440×900・2 倍の解像度・ライトテーマの画面を、英語と日本語の両方で撮ります。サーバーとブラウザーは失敗したときも止めます。
+読み込み中の表示と `/api/` の通信がなくなるまで待ち、60 秒で落ち着かなければ写真の名前を添えて失敗します。画面に出る一時ディレクトリのパスは置き換えます。
+`--only <id>[,<id>]` で一部の写真だけ、`--lang en|ja` で片方の言語だけを撮れます。3000、5173、4321、3471 番のポートは使いません。
+写真ごとの撮り方（開くプロジェクト、先に実行するコマンド、行を開く・要素を見える所へ動かす・3D の描画を待つといった操作）は
+`site/scripts/shots/scenarios.ts` にあります。名前付きの目印にはシナリオが要り、シナリオには目印が要ります（コマンドが両方を検査します）。
+`pnpm install` はブラウザーを入れません（サイトは `playwright-core` を使います）。`pnpm -C site exec playwright-core install chromium` で入れるか、
+`--browser <path>`（か環境変数 `CHROMIUM_PATH`）で手元の Chromium を指します。CI では撮りません。
+
 ## ブランチとリリース
 
 日々の作業は `develop` に入れます。`main` は `develop` からのプルリクエストだけを受け取り、1 つ 1 つがリリースになります。

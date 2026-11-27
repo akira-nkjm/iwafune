@@ -1,0 +1,187 @@
+---
+// ランディングページの外枠（<html>、ヘッダー、フッター）。Starlight を通らない 1 ページ用。
+import "../../styles/landing.css";
+import logoDark from "../../../../docs/assets/logo-dark.svg";
+import logoLight from "../../../../docs/assets/logo-light.svg";
+import { landing } from "../../i18n/landing.ts";
+import type { Lang } from "../../lib/doc-links.ts";
+import { docHref, docsEntryHref, landingHref, RELEASES_URL } from "../../lib/doc-links.ts";
+import { REPO_URL, SITE_ORIGIN, withBase } from "../../lib/site.ts";
+import ThemeToggle from "./ThemeToggle.astro";
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const copy = landing[lang];
+const other: Lang = lang === "en" ? "ja" : "en";
+const canonical = `${SITE_ORIGIN}${landingHref(lang)}`;
+---
+
+<!doctype html>
+<html lang={copy.htmlLang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{copy.title}</title>
+    <meta name="description" content={copy.description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" hreflang="en" href={`${SITE_ORIGIN}${landingHref("en")}`} />
+    <link rel="alternate" hreflang="ja" href={`${SITE_ORIGIN}${landingHref("ja")}`} />
+    <link rel="icon" href={withBase("/favicon.svg")} type="image/svg+xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={copy.title} />
+    <meta property="og:description" content={copy.description} />
+    <meta property="og:url" content={canonical} />
+    <meta name="color-scheme" content="light dark" />
+    <script is:inline>
+      // 描画の前に配色を決める（Starlight と同じ保存先）。
+      (() => {
+        let stored = null;
+        try {
+          stored = localStorage.getItem("starlight-theme");
+        } catch {}
+        const light = matchMedia("(prefers-color-scheme: light)").matches;
+        const theme = stored === "light" || stored === "dark" ? stored : light ? "light" : "dark";
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#top">{copy.skip}</a>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href={landingHref(lang)} aria-label="iwafune">
+          <img class="logo logo-light" src={logoLight.src} width={logoLight.width} height={logoLight.height} alt="iwafune" />
+          <img class="logo logo-dark" src={logoDark.src} width={logoDark.width} height={logoDark.height} alt="iwafune" />
+        </a>
+        <nav class="main-nav" aria-label="Main">
+          <a href={docHref("guide/index", lang)}>{copy.nav.start}</a>
+          <a href={docHref("analyses/index", lang)}>{copy.nav.guides}</a>
+          <a href={docsEntryHref(lang)}>{copy.nav.reference}</a>
+          <a href={RELEASES_URL}>{copy.nav.releases}</a>
+        </nav>
+        <div class="header-end">
+          <a class="lang" href={landingHref(other)} hreflang={other} lang={other}>{copy.langSwitch.text}</a>
+          <a class="github" href={REPO_URL}>GitHub</a>
+          <ThemeToggle label={copy.themeToggle} />
+        </div>
+      </div>
+    </header>
+
+    <main id="top">
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <span class="tagline">{copy.footer.tagline}</span>
+        <a href={RELEASES_URL}>{copy.footer.releases}</a>
+        <a href={REPO_URL}>{copy.footer.source}</a>
+      </div>
+    </footer>
+  </body>
+</html>
+
+<style>
+  .site-header {
+    border-bottom: 1px solid var(--iw-line);
+    background: var(--iw-panel);
+  }
+  .header-inner {
+    max-width: var(--iw-measure);
+    margin: 0 auto;
+    padding: 8px var(--iw-gutter);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 28px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+  }
+  .logo {
+    display: block;
+    height: 32px;
+    width: auto;
+  }
+  .logo-dark {
+    display: none;
+  }
+  :global(:root[data-theme="dark"]) .logo-light {
+    display: none;
+  }
+  :global(:root[data-theme="dark"]) .logo-dark {
+    display: block;
+  }
+  .main-nav {
+    display: flex;
+    flex-wrap: wrap;
+    flex-grow: 1;
+    gap: 6px 22px;
+    font-size: 15px;
+  }
+  .main-nav a {
+    color: var(--iw-ink-2);
+    text-decoration: none;
+  }
+  .main-nav a:hover,
+  .github:hover {
+    color: var(--iw-accent-ink);
+  }
+  .header-end {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 14px;
+  }
+  .lang {
+    color: var(--iw-ink-3);
+    text-decoration: none;
+  }
+  .lang:hover {
+    color: var(--iw-accent-ink);
+  }
+  .github {
+    color: var(--iw-ink);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .site-footer {
+    border-top: 1px solid var(--iw-line);
+    background: var(--iw-panel);
+  }
+  .footer-inner {
+    max-width: var(--iw-measure);
+    margin: 0 auto;
+    padding: 24px var(--iw-gutter);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+    font-size: 14px;
+    color: var(--iw-ink-3);
+  }
+  .footer-inner .tagline {
+    flex-grow: 1;
+  }
+  .footer-inner a {
+    color: var(--iw-ink-3);
+  }
+  .footer-inner a:hover {
+    color: var(--iw-accent-ink);
+  }
+  @media (max-width: 520px) {
+    .header-inner {
+      gap: 10px 18px;
+    }
+    .main-nav {
+      order: 3;
+      flex-basis: 100%;
+    }
+    .header-end {
+      margin-left: auto;
+    }
+  }
+</style>

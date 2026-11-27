@@ -1,0 +1,10 @@
+---
+// `{fune gui}` のように波括弧で囲んだ部分を <code> にして出す（文言の中のコマンド用）。
+interface Props {
+  text: string;
+}
+const { text } = Astro.props;
+const parts = text.split(/(\{[^}]+\})/).filter((p) => p !== "");
+---
+
+{parts.map((p) => (p.startsWith("{") ? <code>{p.slice(1, -1)}</code> : p))}

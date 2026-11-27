@@ -1,0 +1,83 @@
+/* ランディングページ（Starlight を通らないページ）の土台。色は tokens.css の変数だけを使う。 */
+@import "@fontsource-variable/noto-sans-jp/index.css";
+@import "@fontsource-variable/noto-sans-mono/index.css";
+@import "./tokens.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--iw-app);
+  color: var(--iw-ink);
+  font-family: var(--iw-font-text);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--iw-accent-ink);
+}
+
+a:hover {
+  color: var(--iw-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--iw-accent-ink);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+code {
+  font-family: var(--iw-font-mono);
+  font-size: 0.92em;
+}
+
+img {
+  max-width: 100%;
+}
+
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -80px;
+  z-index: 10;
+  padding: 8px 14px;
+  border-radius: var(--iw-radius-sm);
+  background: var(--iw-ink);
+  color: var(--iw-inverse);
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  top: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* 日本語は文節の途中で折り返さない */
+:lang(ja) {
+  word-break: auto-phrase;
+  line-break: strict;
+}
+
+code[tabindex],
+pre[tabindex] {
+  scrollbar-width: thin;
+}
