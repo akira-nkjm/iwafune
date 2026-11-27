@@ -95,9 +95,11 @@ pub fn run(cli: &Cli, out: &Out) -> anyhow::Result<u8> {
         Command::History => edit::history(&open(g)?, out),
         Command::Undo => edit::step(&open(g)?, false, out),
         Command::Redo => edit::step(&open(g)?, true, out),
-        Command::Init { directory, name } => {
-            edit::init(&g.dir, directory.as_deref(), name.as_deref(), out)
-        }
+        Command::Init {
+            directory,
+            name,
+            demo,
+        } => edit::init(&g.dir, directory.as_deref(), name.as_deref(), *demo, out),
         Command::Status => read::status(&open(g)?, out),
         Command::Check { deny_warnings } => read::check(&open(g)?, *deny_warnings, out),
         Command::Get { path, state } => read::get(&open(g)?, path, state.as_deref(), out),

@@ -474,4 +474,4 @@ Every file is a few lines. Compare these with the commands you typed. The format
 
 - Add the other subsystems. Each [analysis page](../analyses/index.md) says which parts, settings and requirements that analysis needs. The `fune analyze` messages and `fune check` warnings point you to the next missing piece.
 - Learn the vocabulary: [Concepts](concepts.md).
-- Look at a full project: the demo in `fixtures/demo-6u`, as in the [quickstart](quickstart.md).
+- Look at a full project: the demo (`fune init my-demo --demo`), as in the [quickstart](quickstart.md).

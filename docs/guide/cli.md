@@ -2,7 +2,7 @@
 
 The `fune` command reads and edits a design project (a git-managed directory of TOML files), runs analyses and budgets, and prints the result. This page is organised by task. For each task you get the commands, a real example on the demo satellite, and what the command changes. A table of every command is at the end.
 
-The examples use a copy of the demo project (`fixtures/demo-6u`), as in the [quickstart](quickstart.md). Most edits are shown with `--dry-run`, which prints the diff and writes nothing, so you can try them without changing your copy. Output is shortened with `…` where it is long. Paths are shown relative to the project.
+The examples use a copy of the demo project (`fune init my-demo --demo`), as in the [quickstart](quickstart.md). Most edits are shown with `--dry-run`, which prints the diff and writes nothing, so you can try them without changing your copy. Output is shortened with `…` where it is long. Paths are shown relative to the project.
 
 `fune --help` lists the commands, and `fune <command> --help` shows the options of one. When this page and the help text differ, the help text is right.
 
@@ -100,6 +100,20 @@ $ fune init my-sat
 Next:
   cd my-sat
   fune status
+```
+
+**Create the demo.** `fune init [DIR] --demo` creates the demo 6U satellite that is bundled into `fune`, instead of an empty project. It keeps its own project name, so `--name` cannot be combined with it, and it refuses to write if `fune.toml` or any file it would write already exists.
+
+```console
+$ fune init my-demo --demo
+✔ Created project iwafune-6u-demo: my-demo/…
+  .gitignore
+  analysis/aocs.toml
+…
+Next:
+  cd my-demo
+  fune status
+  fune gui
 ```
 
 **Overview and checks.** `fune status` counts what the project has and summarises the diagnostics. `fune check` validates the design:
@@ -959,7 +973,7 @@ One line per command, from `fune --help` and the help of each subcommand. Every 
 
 | Command | Purpose |
 |---|---|
-| `fune init [DIR]` | Create a new project |
+| `fune init [DIR]` | Create a new project (`--demo`: the bundled demo satellite) |
 | `fune check` | Check the design data (exit code 1 on errors); `--deny-warnings` |
 | `fune gui` | Start the GUI (a local HTTP server) and open it in the browser |
 | `fune status` | Project overview |

@@ -4,6 +4,7 @@
 //! |---|---|
 //! | `layout` | ディレクトリの規約（どの種類のエンティティがどこに置かれるか。設定のパス → ファイルの唯一の対応。ファイル → 読み込みの診断の対象） |
 //! | `project` | プロジェクトのルート（fune.toml）の探索と初期化、git のブランチ名 |
+//! | `demo` | バイナリに同梱したデモのプロジェクト（`fixtures/demo-6u`。`build.rs` が列挙する）と、それを書き出す `fune init --demo` |
 //! | `read` | ファイル群を読んで Design を作る（位置情報付き。共有カタログは `catalog.lock` の commit のキャッシュを読み取り専用で読む） |
 //! | `codec` | 属性の値のファイル上の形 ⇄ `Value`（読みと書きの両方が使う） |
 //! | `write` | 変更をファイルに反映する（toml_edit で最小差分）。一時ファイル → rename で原子的に |
@@ -16,6 +17,7 @@
 //! 検証はしない（`fune_model::check`）。読み込みで見つかった構文・形の誤りは `Design::load_diagnostics` に残す。
 
 pub mod codec;
+pub mod demo;
 pub mod error;
 pub mod format;
 pub mod journal;

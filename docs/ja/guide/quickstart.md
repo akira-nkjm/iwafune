@@ -6,16 +6,17 @@
 
 ## 1. デモを入手する
 
-デモはリポジトリの `fixtures/demo-6u` にある架空の 6U 衛星です。自由に編集できるようにコピーし、あとで変更を確かめられるように、コピーを git の管理下に置きます。
+デモは `fune` に同梱されている架空の 6U 衛星です。自由に編集できるようにコピーを作り、あとで変更を確かめられるように、コピーを git の管理下に置きます。
 
 ```bash
-git clone https://github.com/akira-nkjm/iwafune
-cp -r iwafune/fixtures/demo-6u my-demo
+fune init my-demo --demo
 cd my-demo
 git init -b main
 git add -A
 git commit -m "Baseline demo"
 ```
+
+`fune init my-demo --demo` は作ったファイルの一覧を表示します。すでに `fune.toml` があるディレクトリには書き込みません。同じファイルはリポジトリの `fixtures/demo-6u` にもあります。
 
 `my-demo` というディレクトリができ、コミットが 1 つあるはずです。これがプロジェクトで、`fune.toml` を含むディレクトリです。`fune` はカレントディレクトリとその上のディレクトリから、このファイルを探してプロジェクトを見つけます。
 
