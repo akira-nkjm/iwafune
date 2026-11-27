@@ -145,7 +145,7 @@ fn defs_list_systems_and_budget_kinds_from_the_model() {
     assert_eq!(systems, AnalysisSystem::ALL);
     assert_eq!(design.defs.budget_kinds, BudgetKind::ALL);
     assert!(design.defs.systems.contains(&System::Payload));
-    assert_eq!(design.defs.labels.section["aocs"].label, "AOCS");
+    assert_eq!(design.defs.labels.section["aocs"].label, "姿勢系");
     assert_eq!(
         design.defs.labels.section["payload"].label,
         "ミッション機器"
@@ -381,7 +381,7 @@ fn budget_system_rows_and_optional_limits() {
     let before = saved.rows.iter().find(|r| r.node == aocs.node).unwrap();
     assert_eq!(aocs.current.si, before.current.si);
     assert_eq!(aocs.system, Some(System::Aocs));
-    assert_eq!(aocs.label.as_deref(), Some("AOCS"));
+    assert_eq!(aocs.label.as_deref(), Some("姿勢系"));
     assert_eq!(aocs.label_en.as_deref(), Some("AOCS"));
     let mut explicit = request;
     explicit.ops.push(
