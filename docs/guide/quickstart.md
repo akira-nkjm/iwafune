@@ -1,21 +1,22 @@
 # Quickstart: a 10-minute tour
 
-This tour takes about ten minutes. You copy the demo satellite, check it, look at it in the GUI, change one value, watch a budget turn red, run an analysis, read the change in git, and undo it. You need `fune` installed ([Install](install.md)) and git.
+This tour takes about ten minutes. You create a copy of the demo satellite, check it, look at it in the GUI, change one value, watch a budget turn red, run an analysis, read the change in git, and undo it. You need `fune` installed ([Install](install.md)) and git.
 
 Each step says what to do and what you should see. A line with only `…` means that output was trimmed. Your numbers will match, because the demo is fixed data.
 
 ## 1. Get the demo
 
-The demo is a fictional 6U satellite that lives in the repository, in `fixtures/demo-6u`. Copy it, so you can edit it freely, and put the copy under git so you can see your changes later:
+The demo is a fictional 6U satellite that is bundled into `fune`. Create a copy of it, so you can edit it freely, and put the copy under git so you can see your changes later:
 
 ```bash
-git clone https://github.com/akira-nkjm/iwafune
-cp -r iwafune/fixtures/demo-6u my-demo
+fune init my-demo --demo
 cd my-demo
 git init -b main
 git add -A
 git commit -m "Baseline demo"
 ```
+
+`fune init my-demo --demo` prints the files it created. It refuses to write into a directory that already has a `fune.toml`. The same files are in the repository, in `fixtures/demo-6u`.
 
 You should now have a directory `my-demo` with one commit. It is a project: a directory with a `fune.toml` file. `fune` finds the project by looking for that file in the current directory and in the directories above it.
 
