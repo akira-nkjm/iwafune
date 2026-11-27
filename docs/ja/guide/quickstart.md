@@ -45,7 +45,7 @@ Project: /path/to/my-demo  (Ctrl-C to quit)
 
 ブラウザが開き、Overview ページが表示されます。ポート 3000 が使用中のときは、`fune gui` が次の空きポートを使い、その番号を表示します。`--no-open` でブラウザを開かないようにでき、`--port` でポートを選べます。コマンドは実行したままにして、以下のコマンドは 2 つ目の端末で実行します。終わったら、1 つ目の端末で Ctrl-C を押して止めます。
 
-<!-- screenshot: / — デモの Overview ページ。KPI カード、Mass budget と Power budget のパネル、Diagnostics パネル -->
+<!-- screenshot: / as budgets — デモの Overview ページ。KPI カード、Mass budget と Power budget のパネル、Diagnostics パネル -->
 *デモのプロジェクトの Overview ページ。*
 
 ## 4. Overview ページを読む
@@ -115,7 +115,7 @@ budget
 
 変更前の Payload の行は 920 g、1.10 kg、1.20 kg、96.0 g でした。いまは ✖ が付いています。成長余裕を含めると 1.44 kg が必要で、配分は 1.20 kg だからです。GUI の Overview ページを開くと、同じ行が赤くなっています。合計は限度内のままです。衛星全体には余裕があり、サブシステムごとの配分は合計とは別に判定するためです。
 
-<!-- screenshot: / — CAM.mass を 1.2 kg にしたあとの Mass budget パネル。Payload の行が配分を超えて赤くなっている -->
+<!-- screenshot: / as mass-over — CAM.mass を 1.2 kg にしたあとの Mass budget パネル。Payload の行が配分を超えて赤くなっている -->
 *変更後に配分を超えた Payload の行。*
 
 ## 7. 解析を実行する

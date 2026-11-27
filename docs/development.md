@@ -78,14 +78,29 @@ How `docs/` maps to routes:
   `site/src/assets/shots/<slug>.png` exists (`<slug>.ja.png` for Japanese pages), the image is shown instead.
   The slug is the route in lower case with every run of characters other than letters and digits replaced by `-`
   (`/design/power/budget` is `design-power-budget`, `/` is `home`).
+  To show a particular state of a page, name the shot: `<!-- screenshot: /systems/power as missing-inputs — description -->`.
+  The name (lower-case words joined by `-`) gives the image its own file, `<slug>--<name>.png` (`systems-power--missing-inputs.png`);
+  a placeholder without a name keeps showing the plain route.
 - The sidebar lists the pages that exist, in a fixed order (`site/src/lib/sidebar.ts`); a page that is not listed there is still built.
 - The landing page (`/`, `/ja/`) and the documentation entry (`/docs/`, `/ja/docs/`) are Astro components with English and Japanese copy in `site/src/i18n/landing.ts`.
 - Colours, fonts and sizes are only in `site/src/styles/tokens.css`.
 
-To capture screenshots from the demo, start a GUI of your own (`fune -C fixtures/demo-6u gui --no-open --port <port>`) and run
-`CHROMIUM_PATH=/path/to/chrome pnpm -C site shots --base http://localhost:<port>` (add `--lang ja` for Japanese). It reads the placeholders
-in `docs/`, visits each route at 1440 x 900 at 2x, waits until the loading indicators are gone, and writes `site/src/assets/shots/<slug>.png`.
-Do not use ports 3000 or 5173 for this.
+To capture the screenshots, build the GUI and the CLI (`pnpm -C web build`, then `cargo build -p fune-cli`) and run
+`pnpm -C site shots -- --fune target/debug/fune`. The command is self-contained: it copies `fixtures/demo-6u` to a temporary
+directory, runs the shot's `fune` commands on the copy, starts `fune gui --no-open` on a free port, drives headless Chromium with
+Playwright at 1440 x 900 at 2x in the light theme, takes English and Japanese images (the GUI language is stored in the browser as
+`iwafune.lang`), and always stops the server and the browser, also on failure. It waits until the skeletons and busy indicators are
+gone and no `/api/` call is pending; a page that does not settle within 60 seconds is an error that names the shot. Paths of the
+temporary project are replaced in the picture. `--only <id>[,<id>]` captures some shots, `--lang en|ja` one language.
+The ports 3000, 5173, 4321 and 3471 are never used.
+
+How each shot is reached is in `site/scripts/shots/scenarios.ts`, keyed by the shot id (the slug, or `<slug>--<name>`): the project
+to open (the demo, a fresh `fune init` project, or the project that the commands in `docs/guide/first-satellite.md` build), the
+`fune` commands to run first, and Playwright steps (open a row, scroll an element into view, wait for the 3D canvas). A shot without
+a scenario just opens the route. A named placeholder needs a scenario, and a scenario needs a placeholder; the command checks both.
+Playwright's browser is not installed by `pnpm install` (the site uses `playwright-core`): install one with
+`pnpm -C site exec playwright-core install chromium`, or pass an existing Chromium with `--browser <path>` (or `CHROMIUM_PATH`).
+The capture is not run in CI.
 
 Pull requests that change `site/` or `docs/` run the `site` job of CI. Pushes to `main` publish the site with `.github/workflows/pages.yml`
 (Pages must be set to "GitHub Actions" in the repository settings).

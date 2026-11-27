@@ -85,7 +85,7 @@ GUI がサーバーに接続できないと、カウンターの下に赤い「C
 
 これらは`fune analyze` がコマンドとして表示するものと同じ対処です（[チュートリアルのステップ 11](first-satellite.md#11-解析を実行して不足している入力を埋める)）。どのダイアログにも、コマンドのプレビューが出ます。不足している入力はOverview のバジェットと、Requirements ページ（「Inputs are missing」）にも出ます。
 
-<!-- screenshot: /systems/power — 「Enter value」と「Add a part」の操作が見える、解析の Missing inputs の一覧 -->
+<!-- screenshot: /systems/power as missing-inputs — 「Enter value」と「Add a part」の操作が見える、解析の Missing inputs の一覧 -->
 *対処の操作つきの、不足している入力の一覧。*
 
 ### ケースの選択
@@ -122,7 +122,7 @@ Layout ページと、Thermal ページの「Thermal image」タブは、衛星�
 | リセット | 右上の **Home**（家の形）ボタンで、カメラと向きを初期状態に戻します |
 | ヘルプ | 右上の疑問符のボタンが、これらの操作を一覧にします |
 
-<!-- screenshot: /design/layout — 右下にビューキューブと 2 つの回転の矢印、右上にズーム、Home、ヘルプのボタンがある 3D ビュー -->
+<!-- screenshot: /design/layout as view-controls — 右下にビューキューブと 2 つの回転の矢印、右上にズーム、Home、ヘルプのボタンがある 3D ビュー -->
 *3D ビューの操作。*
 
 ### 2D の図のビュー
@@ -142,7 +142,7 @@ System diagram ページは同じ考え方を 2D で使います。ホイール�
 
 典型的な作業: 編集のあと、ここに戻って、バジェットが赤くなっていないかを確かめます。
 
-<!-- screenshot: / — KPI カードと、質量・電力のバジェットのパネルを表示した Overview -->
+<!-- screenshot: / as budgets — KPI カードと、質量・電力のバジェットのパネルを表示した Overview -->
 *Overview ページ。*
 
 ## Design

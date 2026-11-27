@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findMarkers, parseMarker, shotFileName, shotSlug } from "./shots.ts";
+import { findMarkers, parseMarker, shotFileName, shotId, shotSlug } from "./shots.ts";
 
 describe("shotSlug", () => {
   it("ルートをファイル名の元にする", () => {
@@ -21,9 +21,28 @@ describe("parseMarker / findMarkers", () => {
     });
     expect(parseMarker("screenshot: /a - plain hyphen")?.description).toBe("plain hyphen");
     expect(parseMarker("TODO later")).toBeNull();
+    expect(parseMarker("screenshot: <route> — placeholder text")).toBeNull();
+  });
+  it("名前付きの目印を読む", () => {
+    expect(parseMarker("screenshot: /systems/power as missing-inputs — The list")).toEqual({
+      route: "/systems/power",
+      name: "missing-inputs",
+      description: "The list",
+    });
+    // 説明の中の " as " は名前にしない。
+    expect(parseMarker("screenshot: /a — shown as a table")).toEqual({
+      route: "/a",
+      description: "shown as a table",
+    });
+  });
+  it("名前があると別の画像になる", () => {
+    expect(shotId("/systems/power", "missing-inputs")).toBe("systems-power--missing-inputs");
+    expect(shotFileName("/", "ja", "mass-over")).toBe("home--mass-over.ja.png");
+    expect(shotFileName("/", "en")).toBe("home.png");
   });
   it("コードブロックの中は読まない", () => {
     const md = "<!-- screenshot: /a — A -->\n```md\n<!-- screenshot: /b — B -->\n```\n";
     expect(findMarkers(md).map((m) => m.route)).toEqual(["/a"]);
+    expect(findMarkers("例: `<!-- screenshot: /x — X -->` と書く")).toEqual([]);
   });
 });

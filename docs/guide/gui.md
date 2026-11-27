@@ -85,7 +85,7 @@ When an analysis lacks inputs, the subsystem page lists them under **Missing inp
 
 They are the same fixes that `fune analyze` prints as commands ([tutorial, step 11](first-satellite.md#11-run-an-analysis-and-fix-the-missing-inputs)). Every dialog shows the command preview. Missing inputs also appear in the Overview budgets and on the Requirements page ("Inputs are missing").
 
-<!-- screenshot: /systems/power — the Missing inputs list of an analysis with the "Enter value" and "Add a part" actions visible -->
+<!-- screenshot: /systems/power as missing-inputs — the Missing inputs list of an analysis with the "Enter value" and "Add a part" actions visible -->
 *A list of missing inputs with fix actions.*
 
 ### The case selector
@@ -122,7 +122,7 @@ The Layout page and the "Thermal image" tab of the Thermal page show the satelli
 | Reset | The **Home** button (a house) at the top right resets the camera and the direction |
 | Help | The question-mark button at the top right lists these controls |
 
-<!-- screenshot: /design/layout — the 3D view with the view cube and the two roll arrows at the bottom right and the zoom, Home and help buttons at the top right -->
+<!-- screenshot: /design/layout as view-controls — the 3D view with the view cube and the two roll arrows at the bottom right and the zoom, Home and help buttons at the top right -->
 *The 3D view controls.*
 
 ### The 2D diagram view
@@ -142,7 +142,7 @@ The System diagram page uses the same ideas in 2D. Zoom with the wheel or a pinc
 
 **Typical task.** After an edit, come back here to see whether a budget turned red.
 
-<!-- screenshot: / — Overview with KPI cards and the mass and power budget panels -->
+<!-- screenshot: / as budgets — Overview with KPI cards and the mass and power budget panels -->
 *The Overview page.*
 
 ## Design

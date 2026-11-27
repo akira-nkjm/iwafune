@@ -45,7 +45,7 @@ Project: /path/to/my-demo  (Ctrl-C to quit)
 
 The browser opens on the Overview page. If port 3000 is busy, `fune gui` uses the next free port and prints it. Use `--no-open` if you do not want the browser to open, and `--port` to choose a port. Leave the command running, and use a second terminal for the commands below. Press Ctrl-C in the first terminal to stop it when you are done.
 
-<!-- screenshot: / — the Overview page of the demo: KPI cards, the Mass budget and Power budget panels, and the Diagnostics panel -->
+<!-- screenshot: / as budgets — the Overview page of the demo: KPI cards, the Mass budget and Power budget panels, and the Diagnostics panel -->
 *The Overview page of the demo project.*
 
 ## 4. Read the Overview page
@@ -115,7 +115,7 @@ budget
 
 Before the change the Payload row read 920 g, 1.10 kg, 1.20 kg and 96.0 g. It is now marked ✖: with growth margin it needs 1.44 kg against an allocation of 1.20 kg. Open the Overview page in the GUI and the same row is red there. The total is still within its limit, because the satellite as a whole has room: the allocation of each subsystem is checked separately from the total.
 
-<!-- screenshot: / — the Mass budget panel with the Payload row over its allocation (red), after CAM.mass is set to 1.2 kg -->
+<!-- screenshot: / as mass-over — the Mass budget panel with the Payload row over its allocation (red), after CAM.mass is set to 1.2 kg -->
 *The Payload row over its allocation after the change.*
 
 ## 7. Run an analysis

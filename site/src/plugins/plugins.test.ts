@@ -128,6 +128,19 @@ describe("remark-screenshots", () => {
     expect(fig.children[0]?.url).toBe("../../../../site/shots/design-components.ja.png");
     expect(seen[0]).toBe("/site/shots/design-components.ja.png");
   });
+  it("名前付きの目印は名前付きの画像を探す", () => {
+    const seen: string[] = [];
+    run(
+      "<!-- screenshot: / as mass-over — The over-allocated row -->\n",
+      "guide/a.md",
+      remarkScreenshots,
+      opts((f) => {
+        seen.push(f);
+        return false;
+      }),
+    );
+    expect(seen).toEqual(["/site/shots/home--mass-over.png", "/site/shots/home--mass-over.png"]);
+  });
   it("目印でないコメントは触らない", () => {
     const tree = run(
       "<!-- note -->\n",

@@ -1,7 +1,7 @@
 /**
  * 画面写真の目印（`<!-- screenshot: <route> — <description> -->`）を図に変える remark プラグイン。
  * `site/src/assets/shots/<slug>.png`（日本語のページは先に `<slug>.ja.png`）があればその画像を、無ければ説明を載せた枠を出す。
- * slug の規則は lib/shots.ts の `shotSlug`。
+ * 名前付きの目印（`<route> as <name>`）は `<slug>--<name>.png`。規則は lib/shots.ts。
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -44,7 +44,10 @@ const remarkScreenshots: Plugin<[ScreenshotsOptions?], Root> = (options = {}) =>
       const comment = /^<!--([\s\S]*?)-->$/.exec(node.value.trim());
       const marker = comment ? parseMarker(comment[1] ?? "") : null;
       if (!marker) return;
-      const candidates = [shotFileName(marker.route, lang), shotFileName(marker.route, "en")];
+      const candidates = [
+        shotFileName(marker.route, lang, marker.name),
+        shotFileName(marker.route, "en", marker.name),
+      ];
       const found = candidates.find((name) => exists(path.join(shotsDir, name)));
       let figure: Paragraph;
       if (found && file.path) {

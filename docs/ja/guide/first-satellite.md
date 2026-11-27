@@ -187,7 +187,7 @@ $ fune part ls
 
 `fune part ls` に 4 つの部品が並び、`fune check` に警告が出ないはずです。`OBC` を追加すると、モードのファイルが 2 つ変わりました。部品はすべてのモードに `off` の行を持つからです（`--mode-state` で別の状態を選べます）。部品の質量はカタログの項目から来ます。位置は搭載先を基準にした、部品自身の座標系の値です。GUI の Layout ページを開くと、箱が見えます。
 
-<!-- screenshot: /design/layout — バスに 3 つの部品を配置した 3D ビューと、開いた Parts ツリー -->
+<!-- screenshot: /design/layout as first-satellite — バスに 3 つの部品を配置した 3D ビューと、開いた Parts ツリー -->
 *バスと 3 つの部品を表示した Layout ページ。*
 
 ## 7. 1 つの部品で値を上書きする

@@ -39,6 +39,7 @@
     "@types/mdast": "4.0.4",
     "@types/node": "26.6.6",
     "mdast-util-to-string": "4.0.0",
+    "playwright-core": "1.65.1",
     "remark-parse": "11.0.0",
     "typescript": "6.0.3",
     "unified": "11.0.5",

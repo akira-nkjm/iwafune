@@ -187,7 +187,7 @@ $ fune part ls
 
 What you should see: four parts in `fune part ls`, and no warnings from `fune check`. Adding `OBC` modified two mode files: a part gets an `off` row in every mode (you can pick another state with `--mode-state`). The part's mass comes from its catalog item. Positions are relative to the mount, in the part's own frame; open the Layout page of the GUI to see the boxes.
 
-<!-- screenshot: /design/layout — the 3D view of the bus with the three parts placed and the Parts tree open -->
+<!-- screenshot: /design/layout as first-satellite — the 3D view of the bus with the three parts placed and the Parts tree open -->
 *The Layout page with the bus and the three parts.*
 
 ## 7. Override a value on one part
