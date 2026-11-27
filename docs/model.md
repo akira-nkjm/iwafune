@@ -1097,7 +1097,7 @@ So that a pose is never silently misread (`fune_projection::outline`):
 
 ### 5.4 Common analysis settings
 
-The list of subsystems is held by `AnalysisSystem`, and returned in the same order in the API's `DefsView.systems`. The display name of `aocs` is AOCS in both Japanese and English, and `payload` is "ミッション機器" in Japanese and "Payload" in English. Payload has no analyses and no settings yet. The old subsystem name `attitude` is not accepted.
+The list of subsystems is held by `AnalysisSystem`, and returned in the same order in the API's `DefsView.systems`. The display name of `aocs` is "姿勢系" in Japanese and "AOCS" in English, and `payload` is "ミッション機器" in Japanese and "Payload" in English. Payload has no analyses and no settings yet. The old subsystem name `attitude` is not accepted.
 
 Settings that belong to no subsystem are placed in `analysis/common.toml`. In the project's settings list, the scope is `analysis` and the system is null.
 `default_case` is an analysis case ID string. It is used only for the target analyses in §5.1 and the upper-level attitude law of the power balance; if omitted, the no-case-selected handling is kept.
