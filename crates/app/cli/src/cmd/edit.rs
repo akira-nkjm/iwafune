@@ -9,9 +9,19 @@ use fune_service::edit;
 use fune_service::{Workspace, edit::apply};
 use std::path::Path;
 
-/// `fune init [DIR] [--name NAME]`
-pub fn init(base: &Path, dir: Option<&Path>, name: Option<&str>, out: &Out) -> anyhow::Result<u8> {
-    let r = edit::init(base, dir, name)?;
+/// `fune init [DIR] [--name NAME | --demo]`
+pub fn init(
+    base: &Path,
+    dir: Option<&Path>,
+    name: Option<&str>,
+    demo: bool,
+    out: &Out,
+) -> anyhow::Result<u8> {
+    let r = if demo {
+        edit::init_demo(base, dir)?
+    } else {
+        edit::init(base, dir, name)?
+    };
     if out.json {
         out.json(&r)?;
         return Ok(0);
@@ -27,6 +37,11 @@ pub fn init(base: &Path, dir: Option<&Path>, name: Option<&str>, out: &Out) -> a
         println!("Next:");
         println!("  cd {next}");
         println!("  fune status");
+        if demo {
+            println!("  fune gui");
+        }
+    } else if demo {
+        println!("Next: fune status | fune gui");
     } else {
         println!("Next: fune status");
     }

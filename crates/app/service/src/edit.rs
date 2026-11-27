@@ -195,27 +195,47 @@ pub(crate) fn changed_files(changes: &[fune_store::FileChange]) -> Vec<ChangedFi
 /// - 既にあるディレクトリは、`fune.toml` がなければ使う（雛形のうち既にあるファイルは上書きしない）。
 /// - このコマンドが作ったディレクトリは、書き込みに失敗したら（空のものだけ）消す。
 pub fn init(base: &Path, target: Option<&Path>, name: Option<&str>) -> Result<InitResult> {
-    let joined = match target {
-        Some(t) => base.join(t),
-        None => base.to_path_buf(),
-    };
-    let dir = clean_absolute(&joined)?;
+    let dir = project_dir(base, target)?;
     let name = match name {
         Some(n) => n.to_owned(),
         None => derived_project_name(&dir)?,
     };
-    let created_dirs = missing_ancestors(&dir);
-    std::fs::create_dir_all(&dir)
+    create_project(&dir, |d| fune_store::project::init(d, &name))
+}
+
+/// 同梱のデモのプロジェクトを作る（`fune init [DIR] --demo`）。
+///
+/// ディレクトリの決め方と、失敗したときの後始末は [`init`] と同じ。プロジェクト名はデモのもの（`fune.toml` のまま）。
+/// `fune.toml` が既にあるか、デモが書くファイルのどれかが既にあれば、何も書かずに誤りにする（上書きしない）。
+pub fn init_demo(base: &Path, target: Option<&Path>) -> Result<InitResult> {
+    let dir = project_dir(base, target)?;
+    create_project(&dir, fune_store::demo::init)
+}
+
+/// `base/target`（なければ `base`）を、`.` と `..` を解いた絶対パスにする。
+fn project_dir(base: &Path, target: Option<&Path>) -> Result<PathBuf> {
+    let joined = match target {
+        Some(t) => base.join(t),
+        None => base.to_path_buf(),
+    };
+    clean_absolute(&joined)
+}
+
+/// `dir`（親も）を作り、`write` でファイルを書いて、結果を返す。失敗したら、このコマンドが作ったディレクトリは（空のものだけ）消す。
+fn create_project(
+    dir: &Path,
+    write: impl FnOnce(&Path) -> std::result::Result<Vec<String>, fune_store::StoreError>,
+) -> Result<InitResult> {
+    let created_dirs = missing_ancestors(dir);
+    std::fs::create_dir_all(dir)
         .map_err(|e| ServiceError::Store(format!("{}: {e}", dir.display())))?;
-    let result = fune_store::project::init(&dir, &name)
-        .map_err(store_error)
-        .and_then(|created| {
-            let ws = Workspace::open(&dir)?;
-            Ok(InitResult {
-                project: crate::query::project_info(&ws)?,
-                created,
-            })
-        });
+    let result = write(dir).map_err(store_error).and_then(|created| {
+        let ws = Workspace::open(dir)?;
+        Ok(InitResult {
+            project: crate::query::project_info(&ws)?,
+            created,
+        })
+    });
     if result.is_err() {
         // 深い方から、空のものだけ消す（`remove_dir` は空でなければ失敗するので、中身は消えない）
         for d in created_dirs.iter().rev() {

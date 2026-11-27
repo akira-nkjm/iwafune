@@ -487,4 +487,4 @@ check    = "dod"
 
 - ほかのサブシステムを追加します。各[解析のページ](../analyses/index.md)に、その解析に必要な部品、設定、要求が書かれています。`fune analyze` のメッセージと `fune check` の警告が、次に足りないものを教えます。
 - 用語を学びます。[概念](concepts.md)を読んでください。
-- 完全なプロジェクトを見ます。[クイックスタート](quickstart.md)で使った、`fixtures/demo-6u` のデモです。
+- 完全なプロジェクトを見ます。[クイックスタート](quickstart.md)で使った、デモ（`fune init my-demo --demo`）です。

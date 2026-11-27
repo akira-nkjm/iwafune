@@ -1,8 +1,0 @@
-/budget/          @system-lead
-/modes/           @system-lead @power-lead
-/mission/         @system-lead
-/parts/AOCS/      @aocs-lead
-/parts/POWER/       @power-lead
-/parts/COM/       @com-lead
-/analysis/power.toml    @power-lead
-/analysis/aocs.toml @aocs-lead

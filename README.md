@@ -88,11 +88,10 @@ fune status
 
 `fune init` with no directory creates the project in the current directory (or in `-C <dir>`), named after that directory; add `--name` to choose another name. An existing directory is fine as long as it has no `fune.toml`.
 
-Or explore the demo 6U satellite. It is in the repository (there is no template option in `fune init`); copy it so you can edit freely:
+Or explore the demo 6U satellite. It is bundled into `fune`; create a copy so you can edit freely:
 
 ```bash
-git clone https://github.com/akira-nkjm/iwafune
-cp -r iwafune/fixtures/demo-6u my-demo && cd my-demo
+fune init my-demo --demo && cd my-demo
 fune status
 ```
 
