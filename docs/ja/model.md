@@ -1091,7 +1091,7 @@ A_abs 太陽に面する面積、A_rad 放射する面積、C 熱容量、T_s �
 
 ### 5.4 解析の共通設定
 
-系の一覧は `AnalysisSystem` が持ち、API の `DefsView.systems` に同じ順序で返されます。`aocs` の表示名は日本語でも英語でも AOCS で、`payload` は日本語で「ミッション機器」、英語で「Payload」です。ペイロードにはまだ解析も設定もありません。古い系の名前 `attitude` は受け付けません。
+系の一覧は `AnalysisSystem` が持ち、API の `DefsView.systems` に同じ順序で返されます。`aocs` の表示名は日本語で「姿勢系」、英語で「AOCS」で、`payload` は日本語で「ミッション機器」、英語で「Payload」です。ペイロードにはまだ解析も設定もありません。古い系の名前 `attitude` は受け付けません。
 
 どの系にも属さない設定は `analysis/common.toml` に置きます。プロジェクトの設定の一覧では、scope は `analysis` で、system は null です。
 `default_case` は解析ケースの ID の文字列です。§5.1 の対象の解析と、電力収支の上位の姿勢則にだけ使います。省略すると、ケース未選択の扱いが保たれます。
