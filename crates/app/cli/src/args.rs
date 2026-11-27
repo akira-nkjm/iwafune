@@ -90,15 +90,19 @@ pub enum Command {
     /// With DIR, creates that directory (parents included) and the project inside it; the project name is the last part of DIR.
     /// Without DIR, creates the project in the current directory (or in -C <dir>); the name is the directory's name.
     /// --name sets the project name in either form. An existing directory is used unless it already has fune.toml.
-    /// Examples: fune init sample | fune init | fune init --name mysat | fune init path/to/sample --name mysat
+    /// With --demo, creates the demo 6U satellite bundled into this binary instead of an empty project (the same files as fixtures/demo-6u in the repository). It keeps its own project name, so --name cannot be combined with it, and it refuses to write if fune.toml or any file it would write already exists.
+    /// Examples: fune init sample | fune init | fune init --name mysat | fune init path/to/sample --name mysat | fune init my-demo --demo
     Init {
         /// Directory to create the project in (default: the current directory)
         // 全体の `-C`（id は `dir`）と衝突しないよう、フィールド名は `directory` にする
         #[arg(value_name = "DIR")]
         directory: Option<PathBuf>,
         /// Project name (default: the name of the directory)
-        #[arg(long, value_name = "NAME")]
+        #[arg(long, value_name = "NAME", conflicts_with = "demo")]
         name: Option<String>,
+        /// Create the bundled demo 6U satellite instead of an empty project
+        #[arg(long)]
+        demo: bool,
     },
     /// Check the design data (exit code 1 on errors)
     Check {
