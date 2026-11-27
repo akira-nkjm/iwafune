@@ -1,5 +1,5 @@
 //! `orbit.trapped_flux` を service 経由で、本物の配布データ（キャッシュにあるとき。無ければ読み飛ばす）とデモの設計で。
-//! 地図の読み込みは `data::install_cached_datasets`（CLI・HTTP の起動時と同じ）。
+//! マップの読み込みは `data::install_cached_datasets`（CLI・HTTP の起動時と同じ）。
 
 use fune_service::dto::{AnalysisRunStatus, RunAnalysisRequest};
 use fune_service::{Workspace, analysis, data};
@@ -10,7 +10,7 @@ fn demo() -> Workspace {
         .unwrap()
 }
 
-/// 4 つの地図と 2 つの古い場が読み込めたら `true`。無ければ読み飛ばしを表示して `false`。
+/// 4 つのマップと 2 つの古い場が読み込めたら `true`。無ければ読み飛ばしを表示して `false`。
 fn data_installed() -> bool {
     data::install_cached_datasets();
     let missing = data::radiation_missing();

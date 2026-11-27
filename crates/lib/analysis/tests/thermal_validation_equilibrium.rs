@@ -102,7 +102,7 @@ fn cube_one_face_to_the_sun() {
 }
 
 /// 宇宙での放射冷却（入熱なし、T_s = 0）: C dT/dt = −ε σ A T⁴ → 1/T³ = 1/T0³ + 3 ε σ A t / C。
-/// T0 = 400 K から 1200 s まで、10 s ごとのすべての標本を比べる。許容 1e-8 K（観測 2e-10 K。#297 の RK4 は 1e-6 K、観測 4e-9 K）。
+/// T0 = 400 K から 1200 s まで、10 s ごとのすべてのサンプルを比べる。許容 1e-8 K（観測 2e-10 K。#297 の RK4 は 1e-6 K、観測 4e-9 K）。
 #[test]
 fn radiative_cooling_in_deep_space() {
     let (eps, a, t0) = (0.86, 0.012, 400.0);
@@ -154,7 +154,7 @@ fn small_perturbation_decays_with_linear_time_constant() {
             .iter()
             .position(|&t| t >= tau_s)
             .expect("series covers one time constant");
-        // 標本は 1 s ごと。τ ちょうどの偏差は、隣の標本から線形補間で求める
+        // サンプルは 1 s ごと。τ ちょうどの偏差は、隣のサンプルから線形補間で求める
         let (t_a, t_b) = (out.series.t[at_tau - 1], out.series.t[at_tau]);
         let v = values(&out.series, "n");
         let w = (tau_s - t_a) / (t_b - t_a);
@@ -258,7 +258,7 @@ fn mixed_surface_equals_area_weighted_properties() {
 
 /// 高温まで上がる物体でも非定常が発散しないこと（#297 で見つかった不具合の再発防止）。固定刻みの RK4 で刻みを初期温度だけで決めていたとき、
 /// 平衡温度が 400 K を大きく超える物体を粗い時刻刻みで走らせると、RK4 が不安定になって温度が −∞ に発散した
-/// （α 0.3・ε 0.02 の平板、平衡 ≈ 775 K、標本の刻み 1000 s、`max_step` なし）。今は適応刻みで、平衡との差は 1e-8 K（#297 は 1 K）。
+/// （α 0.3・ε 0.02 の平板、平衡 ≈ 775 K、サンプルの刻み 1000 s、`max_step` なし）。今は適応刻みで、平衡との差は 1e-8 K（#297 は 1 K）。
 #[test]
 fn transient_stays_stable_when_equilibrium_is_hot() {
     let (alpha, eps, a) = (0.3, 0.02, 0.01);

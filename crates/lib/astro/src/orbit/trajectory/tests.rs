@@ -36,7 +36,7 @@ fn cases() -> Vec<OrbitSpec> {
     ]
 }
 
-/// `Elements` は元の [`OrbitSpec`] と同じ状態を、ビットまで同じに返す（解析的・数値の伝搬、複数の中心天体）。
+/// `Elements` は元の [`OrbitSpec`] と同じ状態を、ビットまで同じに返す（解析的・数値の伝播、複数の中心天体）。
 #[test]
 fn elements_states_are_bit_equal_to_the_spec() {
     let times = [0.0, 12.5, 600.0, 3600.25, 5400.0, 86_400.0];

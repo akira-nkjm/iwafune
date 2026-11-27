@@ -1,9 +1,9 @@
-//! モードの並びで回す電力収支: 並び（1 周期分）を繰り返して解析期間を覆い、標本ごとにその時刻のモードの
+//! モードの並びで回す電力収支: 並び（1 周期分）を繰り返して解析期間を覆い、サンプルごとにその時刻のモードの
 //! 負荷（日照中・日陰中、蝕の上書きは `mode_load` の評価のまま）と姿勢則の発電を使って電池を積分する。
 //!
 //! 時刻 `t` のモードは、並びの先頭からの経過を周期で割った余りが入る区間（`[始め, 終わり)`）のモード。
-//! 並びの先頭は解析の開始、または食の出入り + オフセット（`sequence_timing.anchor`。最初の出入りに合わせ、以後は周期で繰り返す）。
-//! 区間の境目は標本の刻みで丸める（刻みの間は線形補間）。
+//! 並びの先頭は解析の開始、または蝕の出入り + オフセット（`sequence_timing.anchor`。最初の出入りに合わせ、以後は周期で繰り返す）。
+//! 区間の境目はサンプルの刻みで丸める（刻みの間は線形補間）。
 
 use super::case::{balance, duty_of, mode_loads};
 use super::context::mode_generation;
@@ -37,7 +37,7 @@ pub struct EnergyBalanceSequence {
     /// 並びの区間（入力の順）
     pub segments: Vec<EnergyBalanceSegment>,
     /// 並びに沿って負荷と姿勢則を切り替えた収支（`id` は `sequence`）。
-    /// `load_sunlit`・`load_eclipse` は日照中・日陰中の標本の平均、判定は並びに沿って回したときのもの
+    /// `load_sunlit`・`load_eclipse` は日照中・日陰中のサンプルの平均、判定は並びに沿って回したときのもの
     pub balance: EnergyBalanceCaseResult,
 }
 
@@ -118,7 +118,7 @@ pub(super) fn evaluate(
     Ok(Some((sequence, trace)))
 }
 
-/// 標本ごとの負荷と発電の列。`columns[i]` は並びの `i` 番目の区間のモードの値。
+/// サンプルごとの負荷と発電の列。`columns[i]` は並びの `i` 番目の区間のモードの値。
 fn along_sequence(
     ctx: &Context,
     columns: &[&ModeColumns],

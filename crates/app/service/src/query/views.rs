@@ -183,7 +183,7 @@ pub(crate) fn mode_table(design: &Design) -> ModeTable {
     }
 }
 
-/// 食の出入りからの位置の指定の表示用。
+/// 蝕の出入りからの位置の指定の表示用。
 fn start_view(r: &fune_model::design::StartRef) -> ModeStartView {
     ModeStartView {
         from: r.from,

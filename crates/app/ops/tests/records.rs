@@ -98,7 +98,13 @@ fn sources_and_harnesses() {
             id: "em_test_2026_10".into(),
         }],
     );
-    assert!(matches!(used, Err(OpError::Rejected { .. })));
+    let Err(OpError::Invalid { message }) = used else {
+        panic!("expected a refusal");
+    };
+    assert!(
+        message.starts_with("Source `em_test_2026_10` cannot be removed: referred to by "),
+        "{message}"
+    );
     // 出典の付いた長さは `[length]` の下に 1 行 1 要素なので、値だけを変えると 1 行だけが変わる。
     let mut h = snap.design.harnesses["H_PCDU_RWX"].clone();
     if let Some(length) = h.length.as_mut() {
@@ -303,8 +309,10 @@ fn default_analysis_case_setting_round_trips() {
         }],
     ) {
         Err(OpError::Invalid { message }) => {
-            assert!(message.contains("default case"), "{message}");
-            assert!(message.contains("`default_case`"), "{message}");
+            assert!(
+                message.contains("`default_case` in analysis/common.toml"),
+                "{message}"
+            );
         }
         other => panic!("expected Invalid, got {:?}", other.map(|p| p.changes)),
     }

@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" role="img" aria-labelledby="t d">
+  <title id="t">Triangular and trapezoidal slew rate profiles</title>
+  <desc id="d">Two plots of the rotation rate omega against time t with the same scales. Left, triangular: the rate rises with slope tau over J for the time ta and falls at the same slope, with a peak below the momentum limit H over J. Right, trapezoidal: the rate reaches H over J after ta, stays there for the coasting time tc, and falls for ta. The area under each curve is the slew angle theta.</desc>
+  <defs>
+    <marker id="a-ink" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#062654"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="299" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M70 232 L140 127 L140 127 L210 232 Z" stroke="none" fill="#e8f1f9"/>
+    <path d="M70 82 L280 82" fill="none" stroke="#b92626" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M70 232 L140 127 L140 127 L210 232" fill="none" stroke="#3382c2" stroke-width="2.4"/>
+    <path d="M70 232 L70 61" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <path d="M70 232 L295 232" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <text x="60" y="64" font-size="14" fill="#062654" text-anchor="end">ω</text>
+    <text x="308" y="237" font-size="14" fill="#062654">t</text>
+    <text x="70" y="34" font-size="14" fill="#062654">triangular:  θJτ ≤ H<tspan dy="-5" font-size="10">2</tspan></text>
+    <path d="M76 248 L134 248" fill="none" stroke="#062654" stroke-width="1.2" marker-end="url(#a-ink)" marker-start="url(#a-ink)"/>
+    <text x="105" y="268" font-size="14" fill="#062654" text-anchor="middle">t<tspan dy="3.5" font-size="10">a</tspan></text>
+    <path d="M146 248 L204 248" fill="none" stroke="#062654" stroke-width="1.2" marker-end="url(#a-ink)" marker-start="url(#a-ink)"/>
+    <text x="175" y="268" font-size="14" fill="#062654" text-anchor="middle">t<tspan dy="3.5" font-size="10">a</tspan></text>
+    <path d="M210 232 L210 253" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M140 232 L140 253" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M70 127 L140 127" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <text x="60" y="132" font-size="14" fill="#062654" text-anchor="end">ω<tspan dy="3.5" font-size="10">peak</tspan></text>
+    <text x="60" y="87" font-size="14" fill="#b92626" text-anchor="end">H/J</text>
+    <text x="140" y="208" font-size="12" fill="#1f63a0" text-anchor="middle">area θ</text>
+    <text x="189" y="177.5" font-size="12" fill="#5b6577">slope −τ/J</text>
+    <path d="M400 232 L500 82 L570 82 L670 232 Z" stroke="none" fill="#e8f1f9"/>
+    <path d="M400 82 L670 82" fill="none" stroke="#b92626" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M500 82 L500 232" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M570 82 L570 232" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M400 232 L500 82 L570 82 L670 232" fill="none" stroke="#3382c2" stroke-width="2.4"/>
+    <path d="M400 232 L400 61" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <path d="M400 232 L685 232" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <text x="390" y="64" font-size="14" fill="#062654" text-anchor="end">ω</text>
+    <text x="698" y="237" font-size="14" fill="#062654">t</text>
+    <text x="400" y="34" font-size="14" fill="#062654">trapezoidal:  θJτ &gt; H<tspan dy="-5" font-size="10">2</tspan></text>
+    <path d="M406 248 L494 248" fill="none" stroke="#062654" stroke-width="1.2" marker-end="url(#a-ink)" marker-start="url(#a-ink)"/>
+    <text x="450" y="268" font-size="14" fill="#062654" text-anchor="middle">t<tspan dy="3.5" font-size="10">a</tspan></text>
+    <path d="M506 248 L564 248" fill="none" stroke="#062654" stroke-width="1.2" marker-end="url(#a-ink)" marker-start="url(#a-ink)"/>
+    <text x="535" y="268" font-size="14" fill="#062654" text-anchor="middle">t<tspan dy="3.5" font-size="10">c</tspan></text>
+    <path d="M576 248 L664 248" fill="none" stroke="#062654" stroke-width="1.2" marker-end="url(#a-ink)" marker-start="url(#a-ink)"/>
+    <text x="620" y="268" font-size="14" fill="#062654" text-anchor="middle">t<tspan dy="3.5" font-size="10">a</tspan></text>
+    <path d="M670 232 L670 253" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M500 232 L500 253" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <path d="M570 232 L570 253" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+    <text x="390" y="79" font-size="14" fill="#062654" text-anchor="end">ω<tspan dy="3.5" font-size="10">peak</tspan></text>
+    <text x="390" y="97" font-size="12" fill="#b92626" text-anchor="end">= H/J</text>
+    <text x="535" y="172" font-size="12" fill="#1f63a0" text-anchor="middle">area θ</text>
+  </g>
+</svg>

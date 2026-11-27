@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 280" role="img" aria-labelledby="t d">
+  <title id="t">Panel incidence angle and solar beta angle</title>
+  <desc id="d">Left: the incidence angle theta between the panel normal n and the Sun direction s. Right: the beta angle between the Sun direction s and its projection on the orbit plane, whose normal is h.</desc>
+  <defs>
+    <marker id="a-gold" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#8a6400"/></marker>
+    <marker id="a-ink" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#062654"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="279" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <text x="24" y="36" font-size="14" fill="#062654" font-weight="700">(a) Incidence angle</text>
+    <text x="384" y="36" font-size="14" fill="#062654" font-weight="700">(b) Beta angle</text>
+    <path d="M360 24 L360 256" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M48 232 L268 232 L324 168 L104 168 Z" fill="#e8f1f9" stroke="#062654" stroke-width="1.8"/>
+    <path d="M186 200 L186 75" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <path d="M186 200 L286.3 109.7" fill="none" stroke="#8a6400" stroke-width="2.4" marker-end="url(#a-gold)"/>
+    <path d="M232.1 158.5 A62 62 0 0 0 186 138" fill="none" stroke="#3382c2" stroke-width="1.8"/>
+    <circle cx="186" cy="200" r="3" fill="#062654"/>
+    <text x="217.7" y="133.7" font-size="14" fill="#1f63a0" text-anchor="middle">θ</text>
+    <text x="176" y="82" font-size="14" fill="#062654" text-anchor="end"><tspan font-weight="700">n̂</tspan></text>
+    <text x="298" y="110.3" font-size="14" fill="#8a6400"><tspan font-weight="700">ŝ</tspan></text>
+    <text x="48" y="254" font-size="14" fill="#5b6577">panel face</text>
+    <path d="M400 232 L630 232 L686 168 L456 168 Z" fill="#e8f1f9" stroke="#062654" stroke-width="1.8"/>
+    <path d="M626 92 L626 186" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M500 200 L626 186" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M500 200 L500 75" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <path d="M500 200 L622.2 95.3" fill="none" stroke="#8a6400" stroke-width="2.4" marker-end="url(#a-gold)"/>
+    <path d="M575.5 191.6 A76 76 0 0 0 557.7 150.5" fill="none" stroke="#3382c2" stroke-width="1.8"/>
+    <circle cx="500" cy="200" r="3" fill="#062654"/>
+    <circle cx="626" cy="186" r="2.5" fill="#5b6577"/>
+    <text x="584.4" y="168.4" font-size="14" fill="#1f63a0" text-anchor="middle">β</text>
+    <text x="490" y="82" font-size="14" fill="#062654" text-anchor="end"><tspan font-weight="700">ĥ</tspan></text>
+    <text x="634" y="96" font-size="14" fill="#8a6400"><tspan font-weight="700">ŝ</tspan></text>
+    <text x="400" y="254" font-size="14" fill="#5b6577">orbit plane</text>
+  </g>
+</svg>

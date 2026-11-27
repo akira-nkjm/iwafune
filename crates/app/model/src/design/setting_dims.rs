@@ -99,7 +99,7 @@ macro_rules! setting_quantities {
 }
 
 setting_quantities! {
-    /// 季節解析の標本の間隔
+    /// 季節解析のサンプルの間隔
     ORBIT_ECLIPSE_SEASON_STEP: Time = Conditions["orbit", "eclipse_season", "step"];
     /// 高度低下の積分の期間の上限（`[decay]`）
     ORBIT_DECAY_SPAN: Time = Conditions["orbit", "decay", "span"];

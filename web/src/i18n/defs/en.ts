@@ -1,3 +1,4 @@
+import { plural } from "../plural";
 import type { defsJa } from "./ja";
 
 export const defsEn: typeof defsJa = {
@@ -18,7 +19,8 @@ export const defsEn: typeof defsJa = {
       tryCaption: "sat-units parses it and returns the dimension and the SI value",
       tryLabel: "Quantity input",
       title: "Units",
-      caption: (units: number, dims: number) => `${units} units · ${dims} dimensions`,
+      caption: (units: number, dims: number) =>
+        `${plural(units, "unit")} · ${plural(dims, "dimension")}`,
       filter: "Filter by dimension",
       allDimensions: "All dimensions",
       cannotLoad: (msg: string) => `Cannot load units: ${msg}`,
@@ -33,7 +35,7 @@ export const defsEn: typeof defsJa = {
     },
     attributes: {
       title: "Attribute definitions",
-      caption: (n: number, builtin: number) => `${n} attributes (${builtin} built-in)`,
+      caption: (n: number, builtin: number) => `${plural(n, "attribute")} (${builtin} built-in)`,
       add: "Add attribute",
       id: "ID",
       name: "Name",
@@ -56,7 +58,7 @@ export const defsEn: typeof defsJa = {
     },
     kinds: {
       title: "Kind definitions",
-      caption: (n: number) => `${n} kinds`,
+      caption: (n: number) => plural(n, "kind"),
       add: "Add kind",
       id: "ID",
       name: "Name",

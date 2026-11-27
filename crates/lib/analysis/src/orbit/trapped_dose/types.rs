@@ -47,7 +47,7 @@ pub enum DoseSettingSource {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct TrappedDoseInput {
-    /// 軌道の標本の取り方（1 日分。`spec::daily_sampling`）
+    /// 軌道のサンプルの取り方（1 日分。`spec::daily_sampling`）
     pub sampling: OrbitSampling,
     /// 遮蔽の厚さ（等価アルミ。増える順。無ければ [`DEFAULT_THICKNESSES_MM`]）
     #[serde(default)]
@@ -79,7 +79,7 @@ pub struct TrappedDosePoint {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct TrappedDoseCase {
     pub solar: SolarCondition,
-    /// 使った地図（陽子・電子）
+    /// 使ったマップ（陽子・電子）
     pub proton_model: String,
     pub electron_model: String,
     /// 厚さごとの線量率
@@ -108,7 +108,7 @@ pub struct TrappedDoseUsed {
     pub span: Qty<Time>,
     pub step: Qty<Time>,
     pub samples: usize,
-    /// L が求まらず地図の外とした標本の数（磁場ごとの最大）
+    /// L が求まらずマップの外としたサンプルの数（磁場ごとの最大）
     pub samples_without_l: usize,
     pub geometry: DoseGeometry,
     pub geometry_source: DoseSettingSource,

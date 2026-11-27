@@ -3,7 +3,7 @@
 //! - **捨てる量**: `momentum` を与えなければ、ホイールの最大角運動量の最大 × 使ってよい割合（既定 0.8）。
 //! - **MTQ**: 出せるトルクは `τ = η · m_eff · |B|`。`m_eff` は MTQ の組が機体のどの軸の向きにも出せる双極子の最小
 //!   （各機体軸 j について `Σ_i m_max,i |a_i·e_j|` を求め、その最小）。`|B|` は軌道に沿った磁場の大きさの時間平均
-//!   （`sat_astro::geomag::field_about_eci_t`。標本は `sat_astro::timeline::OrbitSampling`）。磁場のモデルは地球だけで、ほかの中心天体の
+//!   （`sat_astro::geomag::field_about_eci_t`。サンプルは `sat_astro::timeline::OrbitSampling`）。磁場のモデルは地球だけで、ほかの中心天体の
 //!   軌道では MTQ を評価せず（`mtq` は `None`）、理由と RCS で足りるかを `mtq_field_gap` に返す（[`MtqFieldGap`]。RCS の評価は続ける）。
 //!   η は **双極子が B と直交する成分しかトルクにならず、B の向きが軌道上で変わることを見込んだ平均の有効率**で、
 //!   入力で与える（省略時 0.5。概算）。
@@ -86,7 +86,7 @@ pub struct UnloadTimeMtq {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum UnloadTimeField {
-    /// 軌道に沿って平均する（期間・刻み・β は時系列と同じ標本の取り方）
+    /// 軌道に沿って平均する（期間・刻み・β は時系列と同じサンプルの取り方）
     Orbit { sampling: OrbitSampling },
     /// 大きさを直接与える
     Constant { strength: Qty<MagneticFluxDensity> },
@@ -248,7 +248,7 @@ fn field_stats(field: &UnloadTimeField) -> Result<(FieldStats, Option<f64>), Ana
             Ok(((b, b, b), None))
         }
         UnloadTimeField::Orbit { sampling } => {
-            // 磁場は位置だけで決まるので、姿勢則の要らない軌道の標本で求める（β の指定は RAAN に当てる）
+            // 磁場は位置だけで決まるので、姿勢則の要らない軌道のサンプルで求める（β の指定は RAAN に当てる）
             let central = sampling.orbit.central();
             if MtqFieldReason::of(central).is_some() {
                 // `run` が先に外すので通らない（磁場を 0 として計算しないための守り）

@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 306" role="img" aria-labelledby="t d">
+  <title id="t">Link terms of the demo downlink as a waterfall</title>
+  <desc id="d">Floating bars to scale against a zero line: EIRP I +9.01, free-space loss -164.65, other losses -3.40, receiver figure of merit +9.00, Boltzmann term +228.60, bit rate term -63.01, required Eb/N0 -9.60. The running sum ends at the margin M of 5.95 dB.</desc>
+  <rect x="0.5" y="0.5" width="719" height="305" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M79 228 L84 228" fill="none" stroke="#062654" stroke-width="1.2"/>
+    <text x="74" y="233" font-size="12" fill="#062654" text-anchor="end">−150</text>
+    <path d="M79 188 L84 188" fill="none" stroke="#062654" stroke-width="1.2"/>
+    <text x="74" y="193" font-size="12" fill="#062654" text-anchor="end">−100</text>
+    <path d="M79 148 L84 148" fill="none" stroke="#062654" stroke-width="1.2"/>
+    <text x="74" y="153" font-size="12" fill="#062654" text-anchor="end">−50</text>
+    <path d="M79 108 L84 108" fill="none" stroke="#062654" stroke-width="1.2"/>
+    <text x="74" y="113" font-size="12" fill="#062654" text-anchor="end">0</text>
+    <path d="M79 68 L84 68" fill="none" stroke="#062654" stroke-width="1.2"/>
+    <text x="74" y="73" font-size="12" fill="#062654" text-anchor="end">50</text>
+    <path d="M84 32 L84 245.6" fill="none" stroke="#062654" stroke-width="1.8"/>
+    <text x="74" y="36" font-size="12" fill="#5b6577" text-anchor="end">dB</text>
+    <path d="M84 108 L696 108" fill="none" stroke="#062654" stroke-width="1.2"/>
+    <rect x="98" y="100.8" width="56" height="7.2" fill="#3382c2"/>
+    <text x="126" y="92.8" font-size="12" fill="#062654" text-anchor="middle">+9.01</text>
+    <text x="126" y="282" font-size="12" fill="#062654" text-anchor="middle">I</text>
+    <path d="M154 100.8 L174 100.8" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="3 3"/>
+    <rect x="174" y="100.8" width="56" height="131.7" fill="#5b6577"/>
+    <text x="202" y="171.7" font-size="12" fill="#ffffff" text-anchor="middle">−164.65</text>
+    <text x="202" y="282" font-size="12" fill="#062654" text-anchor="middle">−L<tspan dy="4" font-size="10">fs</tspan></text>
+    <path d="M230 232.5 L250 232.5" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="3 3"/>
+    <rect x="250" y="232.5" width="56" height="2.7" fill="#5b6577"/>
+    <text x="278" y="253.2" font-size="12" fill="#062654" text-anchor="middle">−3.40</text>
+    <text x="278" y="282" font-size="12" fill="#062654" text-anchor="middle">−L<tspan dy="4" font-size="10">extra</tspan></text>
+    <path d="M306 235.2 L326 235.2" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="3 3"/>
+    <rect x="326" y="228" width="56" height="7.2" fill="#3382c2"/>
+    <text x="354" y="253.2" font-size="12" fill="#062654" text-anchor="middle">+9.00</text>
+    <text x="354" y="282" font-size="12" fill="#062654" text-anchor="middle">Γ</text>
+    <path d="M382 228 L402 228" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="3 3"/>
+    <rect x="402" y="45.2" width="56" height="182.9" fill="#3382c2"/>
+    <text x="430" y="37.2" font-size="12" fill="#062654" text-anchor="middle">+228.60</text>
+    <text x="430" y="282" font-size="12" fill="#062654" text-anchor="middle">−10 log<tspan dy="4" font-size="10">10</tspan><tspan dy="-4"> k</tspan></text>
+    <path d="M458 45.2 L478 45.2" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="3 3"/>
+    <rect x="478" y="45.2" width="56" height="50.4" fill="#5b6577"/>
+    <text x="506" y="75.4" font-size="12" fill="#ffffff" text-anchor="middle">−63.01</text>
+    <text x="506" y="282" font-size="12" fill="#062654" text-anchor="middle">−10 log<tspan dy="4" font-size="10">10</tspan><tspan dy="-4"> R</tspan></text>
+    <path d="M534 95.6 L554 95.6" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="3 3"/>
+    <rect x="554" y="95.6" width="56" height="7.7" fill="#5b6577"/>
+    <text x="582" y="87.6" font-size="12" fill="#062654" text-anchor="middle">−9.60</text>
+    <text x="582" y="282" font-size="12" fill="#062654" text-anchor="middle">−Q<tspan dy="4" font-size="10">req</tspan></text>
+    <path d="M610 103.2 L630 103.2" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="3 3"/>
+    <rect x="630" y="103.2" width="56" height="4.8" fill="#e7bd41"/>
+    <rect x="630" y="103.2" width="56" height="4.8" fill="#e7bd41" stroke="#8a6400" stroke-width="1.2"/>
+    <text x="658" y="95.2" font-size="14" fill="#8a6400" text-anchor="middle" font-weight="700">5.95</text>
+    <text x="658" y="282" font-size="14" fill="#8a6400" text-anchor="middle" font-weight="700">M</text>
+  </g>
+</svg>

@@ -1,4 +1,4 @@
-//! 4 つの束縛粒子の地図と、それぞれが組にする地磁気モデル。
+//! 4 つの束縛粒子のマップと、それぞれが組にする地磁気モデル。
 
 /// 粒子の種類。
 #[derive(
@@ -13,7 +13,7 @@ pub enum Species {
     Electron,
 }
 
-/// 太陽活動の条件（地図の元期）。
+/// 太陽活動の条件（マップの元期）。
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
 )]
@@ -26,7 +26,7 @@ pub enum SolarCondition {
     Maximum,
 }
 
-/// 地図が前提にする地磁気モデル。
+/// マップが前提にする地磁気モデル。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum BeltField {
     /// Jensen & Cain (1962) の 1960 年の係数（AP-8 極小・AE-8 極小・AE-8 極大）
@@ -40,7 +40,7 @@ impl BeltField {
     pub const ALL: [BeltField; 2] = [BeltField::JensenCain1960, BeltField::Gsfc1266To1970];
 }
 
-/// 束縛粒子の地図。
+/// 束縛粒子のマップ。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum TrappedModel {
     /// AP-8 MIN（陽子、太陽活動極小）
@@ -54,7 +54,7 @@ pub enum TrappedModel {
 }
 
 impl TrappedModel {
-    /// 4 つの地図。
+    /// 4 つのマップ。
     pub const ALL: [TrappedModel; 4] = [
         TrappedModel::Ap8Min,
         TrappedModel::Ap8Max,
@@ -78,7 +78,7 @@ impl TrappedModel {
         }
     }
 
-    /// 粒子と太陽活動から地図を選ぶ。
+    /// 粒子と太陽活動からマップを選ぶ。
     pub fn of(species: Species, solar: SolarCondition) -> Self {
         match (species, solar) {
             (Species::Proton, SolarCondition::Minimum) => Self::Ap8Min,
@@ -96,7 +96,7 @@ impl TrappedModel {
         }
     }
 
-    /// 地図の名前（表示と配布ファイルの名前の元。`ap8min` など）。
+    /// マップの名前（表示と配布ファイルの名前の元。`ap8min` など）。
     pub fn id(self) -> &'static str {
         match self {
             Self::Ap8Min => "ap8min",

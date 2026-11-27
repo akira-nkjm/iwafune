@@ -1,5 +1,5 @@
 //! 日付つきの遷移の多体の確認（`propulsion.transfer_check`）。Curtis Example 8.8（1996-11-07 → 1997-09-12 の地球 → 火星）を
-//! 解析式の暦（このクレートのテストは DE440 を登録しない）で回す。伝搬の検証（太陽だけで Lambert の到着に戻る・保存量・
+//! 解析式の暦（このクレートのテストは DE440 を登録しない）で回す。伝播の検証（太陽だけで Lambert の到着に戻る・保存量・
 //! 摂動の見積もり）は `sat_astro::transfer::cruise` のテストにある。ここは結果の組み立てと判定を見る。
 
 use super::dated_tests::mars_input;
@@ -49,7 +49,7 @@ fn analytic_ephemeris_reports_numbers_without_judging() {
     );
 }
 
-/// 到着の超過速度は、`propulsion.maneuvers` の遷移（Lambert）の値と同じで、伝搬との差は惑星の摂動の分（小さい）。
+/// 到着の超過速度は、`propulsion.maneuvers` の遷移（Lambert）の値と同じで、伝播との差は惑星の摂動の分（小さい）。
 #[test]
 fn arrival_v_inf_follows_the_lambert_transfer() {
     let i = mars_input(97.0, "1996-11-07T00:00:00Z");

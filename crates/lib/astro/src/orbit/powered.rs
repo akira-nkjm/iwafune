@@ -1,4 +1,4 @@
-//! 推力を入れた数値伝搬（Cowell 法に推力の項と質量を足す）。[`crate::force`] の加速度と
+//! 推力を入れた数値伝播（Cowell 法に推力の項と質量を足す）。[`crate::force`] の加速度と
 //! [`crate::force::thrust`] の推力を [`crate::ode::Dop853`] で積分する。
 //!
 //! - 状態は位置・速度・質量・積んだ ΔV の 8 成分。質量は推薬の流量 `F / v_e`（[`crate::rocket::mass_flow_kg_s`]）で減る。
@@ -39,7 +39,7 @@ pub struct ThrustArc {
     pub duty: f64,
     /// 制御の刻み [s]
     pub control_step_s: f64,
-    /// 伝搬の上限の時間 [s]
+    /// 伝播の上限の時間 [s]
     pub max_duration_s: f64,
 }
 
@@ -67,7 +67,7 @@ pub struct PoweredSample {
     pub firing_fraction: f64,
 }
 
-/// 推力を入れた伝搬の結果。
+/// 推力を入れた伝播の結果。
 #[derive(Debug, Clone, PartialEq)]
 pub struct PoweredArc {
     /// 始め・ほぼ 1 周ごと・終わりの点
@@ -107,7 +107,7 @@ struct Control {
     normal_sign: f64,
 }
 
-/// 伝搬の文脈（変わらない値）。
+/// 伝播の文脈（変わらない値）。
 struct Powered<'a> {
     central: CentralBody,
     forces: &'a ForceConfig,
@@ -211,7 +211,7 @@ fn check(arc: &ThrustArc, mass0: f64) -> Result<(), AstroError> {
     }
 }
 
-/// 中心天体 `central` のまわりを、元期 `epoch` の状態 `x0`・質量 `mass0` [kg] から、目標 `target` に着くまで噴射して伝搬する。
+/// 中心天体 `central` のまわりを、元期 `epoch` の状態 `x0`・質量 `mass0` [kg] から、目標 `target` に着くまで噴射して伝播する。
 pub fn propagate_powered(
     central: CentralBody,
     forces: &ForceConfig,
@@ -249,7 +249,7 @@ pub fn propagate_powered(
     run(&p, goal, x0, mass0, di.signum())
 }
 
-/// 伝搬の途中の値（状態・時刻・噴いた時間・時系列）。
+/// 伝播の途中の値（状態・時刻・噴いた時間・時系列）。
 struct Progress {
     y: Y,
     t: f64,

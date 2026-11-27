@@ -7,7 +7,7 @@ import type { TrappedDosePoint } from "./TrappedDosePoint";
  */
 export type TrappedDoseCase = { solar: SolarCondition, 
 /**
- * 使った地図（陽子・電子）
+ * 使ったマップ（陽子・電子）
  */
 proton_model: string, electron_model: string, 
 /**

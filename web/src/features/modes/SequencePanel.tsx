@@ -94,7 +94,7 @@ function SequenceDetail({
   );
 }
 
-/** 「食明け +5 min」のような先頭の位置（無ければ空） */
+/** 「蝕明け +5 min」のような先頭の位置（無ければ空） */
 function anchorText(
   anchor: ModeStartView | null,
   enumLabel: (ty: string, value: string) => string,

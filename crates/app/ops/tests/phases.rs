@@ -352,10 +352,13 @@ fn renames_and_removals_follow_the_references() {
     );
     // 消す: ケースが指していれば拒み、外してからなら消せる
     let blocked = plan(&snap, &with(Op::RemovePhase { id: "T1".into() }));
-    let Err(OpError::Rejected { diagnostics }) = blocked else {
-        panic!("not rejected");
+    let Err(OpError::Invalid { message }) = blocked else {
+        panic!("not refused");
     };
-    assert!(diagnostics.iter().any(|d| d.code == "ref.phase"));
+    assert!(
+        message.contains("`phase` of case(s) hot_imaging"),
+        "{message}"
+    );
     let p = plan(
         &snap,
         &with(Op::SetCasePhase {

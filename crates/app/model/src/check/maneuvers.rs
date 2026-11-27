@@ -34,7 +34,7 @@ pub(super) fn check_maneuvers(ctx: &mut Ctx) {
 }
 
 /// 直接書いた ΔV（`delta_v`）: 速度の次元で負でなく、軌道を変える書き方（`[target]`・`via_altitude`・`[transfer]`）と
-/// 一緒に書かず、計算の段階は impulsive か low_thrust（有限燃焼の損失・数値伝搬は軌道の計算が要る）。
+/// 一緒に書かず、計算の段階は impulsive か low_thrust（有限噴射の損失・数値伝播は軌道の計算が要る）。
 fn check_delta_v(ctx: &mut Ctx, m: &Maneuver, entity: &EntityKey) {
     let Some(q) = &m.delta_v else {
         return;
@@ -94,7 +94,7 @@ fn check_duty(ctx: &mut Ctx, m: &Maneuver, entity: &EntityKey) {
 }
 
 /// 日付つきの遷移（`[transfer]`）: 出発・到着の両方の日付が要り、目標の天体（`target.body`）が要る。
-/// 天体間の遷移で使えない計算の段階（低推力は `maneuver.body_method`、数値伝搬はここ）は誤り。
+/// 天体間の遷移で使えない計算の段階（低推力は `maneuver.body_method`、数値伝播はここ）は誤り。
 fn check_transfer(ctx: &mut Ctx, m: &Maneuver, entity: &EntityKey) {
     let Some(tr) = &m.transfer else {
         return;

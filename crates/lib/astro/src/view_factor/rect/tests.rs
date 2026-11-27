@@ -191,12 +191,12 @@ fn half_blocking_plate_halves_the_view_factor() {
     let visible: &dyn Fn(Vec3, Vec3) -> bool = &|p, q| (p + q).dot(along) <= 0.0;
     let half = rect_view_factor(&a, &b, Some(visible), Quadrature::DEFAULT);
     let expected = 0.5 * parallel_opposed(1.0, 1.0, 1.0);
-    // 対称な節点と重みで標本化するので、`p` と `−p` の見える割合の和がちょうど 1 になり、境目の標本化の誤差が打ち消し合う
+    // 対称な節点と重みでサンプル化するので、`p` と `−p` の見える割合の和がちょうど 1 になり、境目のサンプル化の誤差が打ち消し合う
     assert!((half / expected - 1.0).abs() < 1e-9, "{half} {expected}");
 }
 
 /// 対称でない遮蔽（x の中点が 0.2 を超える線分を遮る）は、定義の 4 重積分（ガウス・ルジャンドル 24⁴ 点。段差のある被積分関数なので
-/// それ自体に 1 % ほどの誤差がある）に数 % 以内で一致する。遮蔽ありの値の精度は「数 %」（見える割合の標本化）。
+/// それ自体に 1 % ほどの誤差がある）に数 % 以内で一致する。遮蔽ありの値の精度は「数 %」（見える割合のサンプル化）。
 #[test]
 fn off_centre_blocker_matches_the_definition_within_a_few_percent() {
     let a = rect([0.0, 0.0, 0.0], Vec3::Z, 0.5, 0.5);

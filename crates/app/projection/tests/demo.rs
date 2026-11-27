@@ -69,7 +69,7 @@ fn root_part_is_body_origin() {
     assert!((q.w - 1.0).abs() < 1e-12);
 }
 
-/// 電力収支のケースは、モードごとの姿勢則を使う（SAFE・NOMINAL は太陽指向、MISSION・DOWNLINK は地心指向）。
+/// 電力収支のケースは、モードごとの姿勢則を使う（SAFE・NOMINAL は太陽指向、MISSION・DOWNLINK はナディア指向）。
 #[test]
 fn energy_balance_cases_use_each_modes_attitude_law() {
     let (design, resolved) = demo();

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 310" role="img" aria-labelledby="t d">
+  <title id="t">Stored-energy rate against net bus power</title>
+  <desc id="d">The rate of change of the stored energy against the net bus power p. For negative p the line has the slope one over eta_dis, for positive p the slope eta_ch up to the charge power limit P_lim, beyond which the rate is constant.</desc>
+  <defs>
+    <marker id="a-ink" viewBox="0 0 7 7" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#062654"/></marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="719" height="309" rx="10" fill="#ffffff" stroke="#062654" stroke-opacity="0.14"/>
+  <g font-family="'Noto Sans JP', 'Noto Sans', system-ui, sans-serif" font-size="14" fill="#062654" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M72 158 L655 158" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <path d="M340 288 L340 33" fill="none" stroke="#062654" stroke-width="1.8" marker-end="url(#a-ink)"/>
+    <path d="M480 158 L480 46" fill="none" stroke="#5b6577" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M242 280.5 L340 158 L480 46 L626 46" fill="none" stroke="#3382c2" stroke-width="2.4"/>
+    <circle cx="340" cy="158" r="3" fill="#062654"/>
+    <text x="660" y="180" font-size="14" fill="#062654" text-anchor="end">net bus power p</text>
+    <text x="328" y="40" font-size="14" fill="#062654" text-anchor="end">stored-energy rate E</text>
+    <circle cx="323.8" cy="25.6" r="1.3" fill="#062654"/>
+    <text x="480" y="178" font-size="14" fill="#062654" text-anchor="middle">P<tspan dy="4" font-size="10">lim</tspan></text>
+    <text x="348" y="177" font-size="14" fill="#062654">0</text>
+    <text x="396" y="136" font-size="14" fill="#1f63a0">slope η<tspan dy="4" font-size="10">ch</tspan></text>
+    <text x="492" y="34" font-size="14" fill="#1f63a0">charge power capped</text>
+    <text x="278" y="218" font-size="14" fill="#1f63a0" text-anchor="end">slope 1 / η<tspan dy="4" font-size="10">dis</tspan></text>
+    <text x="590" y="144" font-size="12" fill="#5b6577" text-anchor="middle">charging</text>
+    <text x="150" y="144" font-size="12" fill="#5b6577" text-anchor="middle">discharging</text>
+  </g>
+</svg>

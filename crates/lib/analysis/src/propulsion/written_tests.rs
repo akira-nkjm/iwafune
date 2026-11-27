@@ -184,7 +184,7 @@ fn low_thrust_and_thrusterless_allowances() {
     close(out.initial_mass.value(), DRY, 1e-12);
 }
 
-/// 軌道を変える書き方との併用、負の値、数値伝搬は誤り。
+/// 軌道を変える書き方との併用、負の値、数値伝播は誤り。
 #[test]
 fn unusable_allowances_are_errors() {
     let mut with_target = allowance("T", DvCategory::Other, 15.0);

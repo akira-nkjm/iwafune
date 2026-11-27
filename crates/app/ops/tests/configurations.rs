@@ -165,17 +165,16 @@ fn configuration_selection_references_follow_rename_and_block_removal() {
     let remove = Op::RemoveConfiguration {
         id: "STOWED".into(),
     };
-    for (clear, path) in [
-        (launch(None), "phases.EARLY.configuration"),
-        (phase(None), "conditions.launch.configuration"),
+    for (clear, referrer) in [
+        (launch(None), "`configuration` of phase(s) EARLY"),
+        (phase(None), "`configuration` in conditions/launch.toml"),
     ] {
         let ops = [setup.as_slice(), &[clear, remove.clone()]].concat();
-        let Err(OpError::Rejected { diagnostics }) = plan(&snap, &ops) else {
-            panic!("missing reference rejection");
+        let Err(OpError::Invalid { message }) = plan(&snap, &ops) else {
+            panic!("missing reference refusal");
         };
-        assert!(diagnostics.iter().any(|d| {
-            d.code == "ref.configuration" && d.target.as_ref().unwrap().to_string() == path
-        }));
+        assert!(message.contains(referrer), "{message}");
+        assert!(message.contains("Change those first"), "{message}");
     }
     let cleared = plan(
         &snap,

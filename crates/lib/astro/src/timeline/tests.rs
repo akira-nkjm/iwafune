@@ -55,7 +55,7 @@ fn eclipse_fraction_at_550_km_beta_zero() {
     assert_eq!(w.len(), 1, "{w:?}");
     let minutes = w[0].duration.value() / 60.0;
     let expected_min = expected * sp.sampling.orbit.cycle().length_s() / 60.0;
-    // 端は標本の時刻なので刻み（5 s）の分だけ短くなりうる
+    // 端はサンプルの時刻なので刻み（5 s）の分だけ短くなりうる
     assert!((minutes - expected_min).abs() < 0.2, "{minutes} min");
 }
 
@@ -155,7 +155,7 @@ fn time_mean_and_cumulative_trapezoid() {
     assert_eq!(cumulative_trapezoid(&t, &v[..2]).len(), 2);
 }
 
-/// 標本の取り方は JSON では時系列の同じ階層に並ぶ（`orbit`・`span`・`step`・`beta` を `attitude` と並べて書く）。
+/// サンプルの取り方は JSON では時系列の同じ階層に並ぶ（`orbit`・`span`・`step`・`beta` を `attitude` と並べて書く）。
 #[test]
 fn sampling_is_flattened_in_json() {
     let mut sp = spec(ShadowModel::Conical);
@@ -170,7 +170,7 @@ fn sampling_is_flattened_in_json() {
     assert_eq!(back.sampling.step, sp.sampling.step);
 }
 
-/// 標本の時刻では、任意の時刻の評価（`TimelineEvaluator::at`）が `build` の点と同じになる。
+/// サンプルの時刻では、任意の時刻の評価（`TimelineEvaluator::at`）が `build` の点と同じになる。
 #[test]
 fn evaluator_matches_build_at_sample_times() {
     let sp = spec(ShadowModel::Conical);
@@ -181,8 +181,8 @@ fn evaluator_matches_build_at_sample_times() {
     }
 }
 
-/// 円柱影の食の長さ（日照が 1 → 0 と 0 → 1 に変わる時刻の差）は、半角 asin(R/r) から周期 × asin(R/r)/π。
-/// 時刻は日照率の境を二分法で求めるので、標本の刻み（60 s）よりずっと小さい誤差で一致する。
+/// 円柱影の蝕の長さ（日照が 1 → 0 と 0 → 1 に変わる時刻の差）は、半角 asin(R/r) から周期 × asin(R/r)/π。
+/// 時刻は日照率の境を二分法で求めるので、サンプルの刻み（60 s）よりずっと小さい誤差で一致する。
 #[test]
 fn shadow_edges_give_the_analytic_eclipse_duration() {
     let mut sp = spec(ShadowModel::Cylindrical);

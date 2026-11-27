@@ -1,5 +1,5 @@
 //! 太陽との合（太陽–地球–探査機の角 SEP が小さい期間）。ほかの天体を回る衛星の回線だけが持つ。
-//! SEP の計算は `sat_astro::timeline::geometry`（`ground::earth_range` が標本にして最小と下回り時間を求める）。
+//! SEP の計算は `sat_astro::timeline::geometry`（`ground::earth_range` がサンプルにして最小と下回り時間を求める）。
 //! ここは出力の形・しきい値の既定・判定だけ。雑音温度の上昇（太陽の雑音が受信に入る）は扱わない。
 
 use crate::spec::{Check, Verdict, quantity_text, ratio_margin};
@@ -26,7 +26,7 @@ pub struct SolarConjunction {
     pub sep_min: Qty<Angle>,
     /// SEP が最小になった時刻
     pub sep_min_epoch: Epoch,
-    /// SEP がしきい値を下回っていた時間の合計（標本の間は直線で結んだ値）
+    /// SEP がしきい値を下回っていた時間の合計（サンプルの間は直線で結んだ値）
     pub time_below_threshold: Qty<Time>,
 }
 

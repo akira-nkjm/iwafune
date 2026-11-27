@@ -88,7 +88,7 @@ export function OpPreview({ ops, compact = false }: { ops: Op[] | null; compact?
       {check.result?.diagnostics
         .filter((d) => d.severity !== "info")
         .map((d) => (
-          <p key={`${d.code}-${d.path}`} className="text-[11px] text-warn-ink">
+          <p key={`${d.code}-${d.path}-${d.message}`} className="text-[11px] text-warn-ink">
             {d.path ? `${d.path}: ` : ""}
             {d.message}
           </p>

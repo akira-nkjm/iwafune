@@ -358,7 +358,7 @@ pub use orbit::{
 /// 時系列の中の区間と、その抽出。実体は sat-astro（下の層）にあり、ここでは再公開するだけ。
 pub use sat_astro::timeline::{Window, windows};
 
-/// 標本の間を線形補間して状態を積分する 1 刻み。実体は `sat_astro::ode`（積分器はそこだけ）にあり、ここでは再公開する。
+/// サンプルの間を線形補間して状態を積分する 1 刻み。実体は `sat_astro::ode`（積分器はそこだけ）にあり、ここでは再公開する。
 pub use sat_astro::ode::rk4_linear_step;
 
 #[cfg(test)]

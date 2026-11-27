@@ -38,7 +38,7 @@ export function ModeTiming({ mode }: { mode: ModeHeader }) {
   );
 }
 
-/** 「日照中 · 食明け +5 min」のような 1 行の要約 */
+/** 「日照中 · 蝕明け +5 min」のような 1 行の要約 */
 function summary(
   f: TimingFields,
   enumLabel: (ty: string, value: string) => string,

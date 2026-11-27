@@ -75,6 +75,45 @@ fn gui_text_edits_match_cli() {
     assert_same_files(&cli_root, &http_root, "setting unset");
 }
 
+/// 打った整数（`1`・`0`）は、整数のままでよいキーでなければ CLI も HTTP も同じ float で書く（#504）。
+/// まだ書かれていない欄（値の形が分からない）に打ったときも同じ。
+#[test]
+fn integer_text_for_a_real_setting_is_written_as_a_float_by_both() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let (_t1, cli_root) = demo_copy();
+    let (_t2, http_root) = demo_copy();
+    for (path, value, line) in [
+        ("analysis.power.initial_soc", "1", "initial_soc"),
+        ("analysis.aocs.srp_coefficient", "2", "srp_coefficient"),
+    ] {
+        // 一度消して、欄を「まだ書かれていない」状態にする
+        run_cli(&cli_root, &["setting", "unset", path]);
+        http_text(
+            &rt,
+            &http_root,
+            "/api/v1/ops/unset_from_text",
+            json!({ "path": path }),
+        );
+        run_cli(&cli_root, &["setting", "set", path, value]);
+        http_text(
+            &rt,
+            &http_root,
+            "/api/v1/ops/from_text",
+            json!({ "path": path, "value": value }),
+        );
+        assert_same_files(&cli_root, &http_root, path);
+        let file = if path.contains("power") {
+            "analysis/power.toml"
+        } else {
+            "analysis/aocs.toml"
+        };
+        let text = std::fs::read_to_string(http_root.join(file)).unwrap();
+        let row = text.lines().find(|l| l.starts_with(line)).unwrap();
+        assert!(row.ends_with(&format!("= {value}.0")), "{row}");
+    }
+    run_cli(&cli_root, &["fmt", "--check"]);
+}
+
 /// 部品の値とフィールドの書き込みと消去（`fune set`・`fune unset` と `POST /ops/from_text`・`/ops/unset_from_text`）。
 /// GUI の属性の欄は部品のパラメーターパス（`PartRow.paths` の値）と打った文字列をそのまま送る。
 /// (CLI の引数, 送り先, 本文)。

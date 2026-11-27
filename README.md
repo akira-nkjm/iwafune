@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <b>Design data in git</b> · <b>CLI and GUI as equals</b> · <b>27 analyses across 8 areas</b>
+  <b>Design data in git</b> · <b>CLI and GUI as equals</b> · <b>Subsystem analyses with verdicts</b>
 </p>
 
 **Documentation: <https://akira-nkjm.github.io/iwafune/>**
@@ -32,7 +32,9 @@ on the same data.
 - Save analysis settings as cases and compare them.
 - Use the CLI and the GUI interchangeably: both make the same edits, and the result is plain files in git.
 
-The GUI has Japanese and English UI. The CLI, docs and demo data are in English.
+The GUI has Japanese and English UI. The CLI and the demo data are in English; the documents are in English with Japanese editions.
+
+New here? Start with the [user guide](docs/guide/index.md): [install](docs/guide/install.md), a short [quickstart](docs/guide/quickstart.md) on the demo, and [your first satellite](docs/guide/first-satellite.md).
 
 ## Install
 
@@ -63,7 +65,7 @@ On macOS, use `universal-apple-darwin` in place of `x86_64-linux-gnu` and check 
 The binary is not notarized: downloaded with `gh` it runs as is, but a copy downloaded in a browser is blocked by
 Gatekeeper until you run `xattr -d com.apple.quarantine fune`.
 
-Then see [Getting started](#getting-started). On other platforms, [build from source](docs/development.md#building-from-source).
+Then see [Getting started](#getting-started); [docs/guide/install.md](docs/guide/install.md) has the details. On other platforms, [build from source](docs/development.md#building-from-source).
 
 ### Updating
 
@@ -84,7 +86,7 @@ git init
 fune status
 ```
 
-`fune init` with no directory creates the project in the current directory (or in `-C <dir>`), named after that directory; add `--name` to choose another name. An existing directory is fine as long as it has no `fune.toml`. (Before this change `fune init <NAME>` wrote into the current directory; use `fune init --name <NAME>` for that.)
+`fune init` with no directory creates the project in the current directory (or in `-C <dir>`), named after that directory; add `--name` to choose another name. An existing directory is fine as long as it has no `fune.toml`.
 
 Or explore the demo 6U satellite. It is in the repository (there is no template option in `fune init`); copy it so you can edit freely:
 
@@ -103,9 +105,9 @@ fune gui            # serves on http://127.0.0.1:3000 (the next free port if bus
 fune gui --no-open  # do not open the browser
 ```
 
-The sidebar has Overview, Design (Components, Catalog, System diagram, Modes, Layout, Maneuvers), one page per subsystem,
-Conditions (Orbit & stations, Analysis cases) and Project (Units & definitions, Diagnostics, Settings, Sources).
-Pages show the CLI command for an edit, so you can learn one from the other. The CLI examples below use the demo.
+The sidebar has Overview, Design (Components, Catalog, Layout, System diagram, Modes, Requirements), one page per subsystem,
+Conditions (Orbit & stations, Analysis cases, Phases) and Project (Diagnostics, Settings, Units & definitions, Sources); the [GUI guide](docs/guide/gui.md) goes through them.
+Pages show the CLI command for an edit, so you can learn one from the other. The CLI examples below use the demo; the [CLI guide](docs/guide/cli.md) covers every command.
 
 ### Walk through
 
@@ -177,20 +179,9 @@ and refuses (exit code 3) if you edited it, unless you pass `--force`.
 
 ## Analyses
 
-`fune analyze ls` lists them (27 on this version). Each takes typed SI inputs built from the design.
-
-| Area | Analyses |
-|---|---|
-| AOCS | RW unloading frequency, momentum unloading time, sensor FoV and exclusion angles, slew time |
-| C&DH | Data volume and storage |
-| Communications | Link budget, ground station visibility, downlink capacity and backlog |
-| Orbit | Beta angle and eclipse seasons, drag decay and station keeping |
-| Power | Mode power consumption, sunlit generation, orbital generation, energy balance and DoD, power sizing, energy balance while thrusting |
-| Propulsion | Maneuvers, delta-V budget, propellant and tanks, thruster usage, orbit history, mass properties with propellant |
-| Structure | Mass properties, quasi-static loads, natural frequency estimate |
-| Thermal | Steady state, transient |
-
-Orbit modelling includes Kepler/J2 and numerical propagation, EGM96 gravity, NRLMSISE-00, DE440 ephemerides, central bodies other than Earth and ground tracks.
+`fune analyze ls` lists the analyses of your version. Each takes typed SI inputs built from the design and returns key numbers and verdicts.
+The areas are AOCS, C&DH, communications, orbit (including radiation), power, propulsion, structure and thermal.
+[docs/analyses/index.md](docs/analyses/index.md) lists every analysis with a page for each area: the questions it answers, its inputs, formulas, verdict rules and checks.
 
 ## Working in a team
 
@@ -247,21 +238,24 @@ Some analyses use data that is not bundled. `fune data status` shows what is cac
 ```bash
 fune data fetch de440           # DE440 ephemeris (needs the GitHub CLI, gh)
 fune data fetch space_weather   # CelesTrak space weather table, F10.7 and Ap (needs curl)
-fune data fetch radiation       # AP-8/AE-8 trapped-radiation tables and geomagnetic coefficients (needs gh;
-                                # or `--from <DIR>` to install from a directory that holds the files)
+fune data fetch radiation       # AP-8/AE-8 trapped-radiation tables, geomagnetic coefficients and the SHIELDOSE-2
+                                # shielding tables (needs gh; or `--from <DIR>` to install from a directory that holds the files)
 ```
 
-All of them go to the user cache. The sources and attribution of the radiation data are in [docs/trapped-radiation.md](docs/trapped-radiation.md).
+All of them go to the user cache. [docs/guide/install.md](docs/guide/install.md) says which analyses need which data. The sources and attribution of the radiation data are in [docs/trapped-radiation.md](docs/trapped-radiation.md).
 
 ## Learn more
 
+- [docs/guide/index.md](docs/guide/index.md): the user guide (install, quickstart, first satellite, concepts, CLI, GUI)
+- [docs/analyses/index.md](docs/analyses/index.md): the analyses and the formulas behind them
 - [docs/model.md](docs/model.md): design data, file formats, directory layout
-- [docs/architecture.md](docs/architecture.md): how the code is put together
-- [docs/roadmap.md](docs/roadmap.md): planned features (tracked in GitHub Issues)
+- [docs/report.md](docs/report.md): exporting tables and figures for a Typst report
+- [docs/architecture-overview.md](docs/architecture-overview.md) and [docs/architecture.md](docs/architecture.md): how the code is put together
+- [docs/roadmap.md](docs/roadmap.md): what is done and what is planned (tracked in GitHub Issues)
 - [docs/development.md](docs/development.md): building from source, repository layout, releases
 - [CONTRIBUTING.md](CONTRIBUTING.md): rules for contributors
 
-The documents are written in English.
+The documents are written in English. Japanese editions are under [docs/ja/](docs/ja/guide/index.md).
 
 ## License
 

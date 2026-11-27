@@ -98,7 +98,7 @@ fn state_orbit() -> OrbitSettings {
     }
 }
 
-/// ケース `id` で発電の解析を回したときの時系列の最初の標本の発電 [W] と、時系列の軌道の元期。
+/// ケース `id` で発電の解析を回したときの時系列の最初のサンプルの発電 [W] と、時系列の軌道の元期。
 fn first_generation(d: &Design, id: Option<&str>) -> (f64, Epoch) {
     let resolved = fune_model::resolve(d);
     let ctx = Context::new(d, &resolved, id).expect("context");
@@ -115,7 +115,7 @@ fn first_generation(d: &Design, id: Option<&str>) -> (f64, Epoch) {
 }
 
 /// 近日点から始まる軌道で、ケースの `epoch` を遠日点（半周後）にすると、時系列は遠日点から始まり、発電は太陽光の強さに比例する:
-/// 最初の標本の発電の比は `(0.7 AU / 1.5 AU)²`（手計算。軌道は Kepler の二体で `r = a(1 ∓ e)`）。`epoch` の無いケースは軌道の元期から始まる。
+/// 最初のサンプルの発電の比は `(0.7 AU / 1.5 AU)²`（手計算。軌道は Kepler の二体で `r = a(1 ∓ e)`）。`epoch` の無いケースは軌道の元期から始まる。
 #[test]
 fn a_case_epoch_at_aphelion_gives_the_aphelion_flux() {
     let d0 = heliocentric(&[("plain", None)]);
@@ -196,8 +196,8 @@ fn a_case_epoch_must_lie_inside_a_one_off_span() {
 }
 
 /// 状態ベクトルの軌道の回線バジェット: 距離は軌道の期間全体での地球からの最大距離（`earth_to_body`）で、ケースの `epoch` で変わらない。
-/// 値は `orbit.geometry` の区間の最大（同じ幾何で詰めたもの）に、回線バジェットの標本の刻みの分（期間 420 日 / 200 = 2.1 日の半分だけ
-/// ずれた標本の距離の相対誤差は ½(ω·1.05 日)² ≈ 1.6e-4、ω は地球の公転の角速度 2e-7 rad/s）の余裕を見て 1e-3 で一致する。
+/// 値は `orbit.geometry` の区間の最大（同じ幾何で詰めたもの）に、回線バジェットのサンプルの刻みの分（期間 420 日 / 200 = 2.1 日の半分だけ
+/// ずれたサンプルの距離の相対誤差は ½(ω·1.05 日)² ≈ 1.6e-4、ω は地球の公転の角速度 2e-7 rad/s）の余裕を見て 1e-3 で一致する。
 #[test]
 fn the_link_range_of_a_state_orbit_is_the_farthest_over_the_span_whatever_the_case_epoch() {
     let mut d = heliocentric(&[]);

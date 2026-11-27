@@ -18,11 +18,11 @@ date: string,
  */
 v_inf_in: number, v_inf_out: number, 
 /**
- * 回頭角（入りと出の超過速度のなす角）
+ * 偏向角（入りと出の超過速度のなす角）
  */
 turn_angle: number, 
 /**
- * 回頭角から決まる近点の半径・高度（天体の中心・赤道半径から。曲がらない通過は無し = 無限大）。
+ * 偏向角から決まる近点の半径・高度（天体の中心・赤道半径から。曲がらない通過は無し = 無限大）。
  * 実現できないときは必要な値で、下限より小さい（表面より下のこともある）
  */
 periapsis_radius: number | null, periapsis_altitude: number | null, 
@@ -31,7 +31,7 @@ periapsis_radius: number | null, periapsis_altitude: number | null,
  */
 min_altitude: number, 
 /**
- * 下限の高度での最大の回頭角
+ * 下限の高度での最大の偏向角
  */
 max_turn_angle: number, 
 /**
@@ -39,7 +39,7 @@ max_turn_angle: number,
  */
 delta_v: number, 
 /**
- * 実現できないときの、足りない回頭の分の ΔV（実現できるなら 0）
+ * 実現できないときの、足りない偏向の分の ΔV（実現できるなら 0）
  */
 shortfall_delta_v: number, 
 /**
@@ -47,6 +47,6 @@ shortfall_delta_v: number,
  */
 powered: boolean, 
 /**
- * 回頭角が下限の高度で実現できるか
+ * 偏向角が下限の高度で実現できるか
  */
 feasible: boolean, };

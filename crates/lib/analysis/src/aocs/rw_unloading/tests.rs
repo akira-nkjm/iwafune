@@ -140,7 +140,7 @@ fn srp_on_sun_pointing_accumulates_secularly() {
 
 #[test]
 fn nadir_gravity_gradient_with_product_of_inertia_on_pyramid() {
-    // 地心指向（機体 z = 地心、y = −軌道面法線）で慣性に Ixz があると、τ = 3μ/r³ (n × I n) = 3μ/r³ (0, Ixz, 0)。
+    // ナディア指向（機体 z = 地心、y = −軌道面法線）で慣性に Ixz があると、τ = 3μ/r³ (n × I n) = 3μ/r³ (0, Ixz, 0)。
     // y は慣性空間で向きが変わらないので、1 周の永年成分 = 3μ/r³ · Ixz · T。周期成分はほぼ 0。
     let ixz = 0.01;
     let inertia = Mat3 {
@@ -191,7 +191,7 @@ fn nadir_gravity_gradient_with_product_of_inertia_on_pyramid() {
 
 #[test]
 fn aero_on_nadir_pointing_accumulates_about_orbit_normal() {
-    // 地心指向で CP が地心側（+z）に 2 cm: 抗力は −x（速度と逆）なので τ = r × F は機体 y（軌道面の法線）まわり。
+    // ナディア指向で CP が地心側（+z）に 2 cm: 抗力は −x（速度と逆）なので τ = r × F は機体 y（軌道面の法線）まわり。
     // y は慣性空間で向きが変わらないので、1 周の永年成分 ≈ 空力トルクの平均 × 周期。
     let mut sc = spacecraft(Mat3::diagonal(Vec3::new(0.05, 0.05, 0.05)));
     sc.aero = Some(written(2.2, 0.03, Vec3::new(0.0, 0.0, 0.02)));
@@ -220,7 +220,7 @@ fn thruster(id: &str, position: Vec3, direction: Vec3) -> Thruster {
     }
 }
 
-/// 地心指向で、+z に噴く 10 mN のスラスタの推力の線が重心から x に 2 mm ずれ、時間の 1 % 噴射する。
+/// ナディア指向で、+z に噴く 10 mN のスラスタの推力の線が重心から x に 2 mm ずれ、時間の 1 % 噴射する。
 fn thrust_misaligned() -> ThrustDisturbance {
     ThrustDisturbance {
         center_of_mass: Vec3::new(-0.002, 0.0, 0.0),

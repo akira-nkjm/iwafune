@@ -173,8 +173,8 @@ fn extrema_ties_and_eclipse_free_duration_by_hand() {
     assert_eq!(out.eclipse_free_duration.value(), 5.0);
 }
 
-/// 影の標本間隔は周期の割合: 100 分（6000 s）までは従来の 5 s、静止軌道（86 164 s）は周期 / 1200（約 71.8 s）で
-/// 1 周は 1200 標本。550 km の軌道（周期約 5 700 s）は 5 s のまま。
+/// 影のサンプル間隔は周期の割合: 100 分（6000 s）までは従来の 5 s、静止軌道（86 164 s）は周期 / 1200（約 71.8 s）で
+/// 1 周は 1200 サンプル。550 km の軌道（周期約 5 700 s）は 5 s のまま。
 #[test]
 fn shadow_step_follows_the_period() {
     assert_eq!(shadow_step_s(orbit().period_s()), SHADOW_STEP_S);

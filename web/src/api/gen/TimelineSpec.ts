@@ -4,7 +4,7 @@ import type { ShadowModel } from "./ShadowModel";
 import type { Trajectory } from "./Trajectory";
 
 /**
- * 時系列の作り方: 軌道の標本の取り方（[`OrbitSampling`]。JSON では同じ階層に並べる）と姿勢則・影のモデル。
+ * 時系列の作り方: 軌道のサンプルの取り方（[`OrbitSampling`]。JSON では同じ階層に並べる）と姿勢則・影のモデル。
  */
 export type TimelineSpec = { attitude: AttitudeLaw, shadow: ShadowModel, orbit: Trajectory, 
 /**

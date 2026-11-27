@@ -59,7 +59,7 @@ panels: Array<OrbitGenerationPanel>,
  */
 series: Series, 
 /**
- * パネルの面の日照割合（ほかの部品の影を引いた割合）の、日照中の標本での最小と平均。影を数えたときだけ付く
+ * パネルの面の日照割合（ほかの部品の影を引いた割合）の、日照中のサンプルでの最小と平均。影を数えたときだけ付く
  */
 shadowing?: ShadowingReport | null, 
 /**

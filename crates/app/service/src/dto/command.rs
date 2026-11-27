@@ -281,7 +281,7 @@ pub struct KindAddText {
     pub ports: Vec<String>,
 }
 
-/// 季節解析のケースにする標本。
+/// 季節解析のケースにするサンプル。
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum EclipseCaseAt {
@@ -289,7 +289,7 @@ pub enum EclipseCaseAt {
     BetaMin,
 }
 
-/// 太陽距離のケースにする標本（太陽を回る軌道の、ミッション期間の中の最小・最大）。
+/// 太陽距離のケースにするサンプル（太陽を回る軌道の、ミッション期間の中の最小・最大）。
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum SunDistanceCaseAt {

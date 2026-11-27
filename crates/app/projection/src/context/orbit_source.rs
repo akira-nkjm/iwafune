@@ -10,7 +10,7 @@
 //!   `sat_astro::transfer::cruise_trajectory`）。境で位置は連続・速度が跳び、通過の天体の影響圏の中は解かない（通過は一瞬）。
 //!   影響圏で切るのは最初の弧の始めと最後の弧の終わりだけ。通過のない遷移は弧 1 本（従来と同じ軌道）。
 //!
-//! - `state`: 状態ベクトル（`epoch`・`central`・`position`・`velocity`・`span`）。`sat_astro::orbit::StateSpec`（既存の数値伝搬。
+//! - `state`: 状態ベクトル（`epoch`・`central`・`position`・`velocity`・`span`）。`sat_astro::orbit::StateSpec`（既存の数値伝播。
 //!   力の設定は書かせず、原点の天体で決まる慣例の既定 `ForceConfig::deep_space_defaults`）。向きは ECI。期間は 1 回限り（`Cycle::OneOff`）。
 //!
 //! - `libration`: ラグランジュ点（`primary`・`secondary`・`point`・`epoch`）、`amplitude_z` を書けばそのまわりのハロー軌道（`branch`）。
@@ -61,7 +61,7 @@ impl Context<'_> {
         }
     }
 
-    /// 解析ケースの時刻から始まる軌道。**時系列の解析が標本を取る軌道は、これだけ**（`timeline.rs`）。ケースに `epoch` があれば、
+    /// 解析ケースの時刻から始まる軌道。**時系列の解析がサンプルを取る軌道は、これだけ**（`timeline.rs`）。ケースに `epoch` があれば、
     /// [`Context::trajectory`] の軌道をその時刻から始まる同じ軌道にし（`Trajectory::starting_at`）、無ければ [`Context::trajectory`] そのもの。
     /// ケースの `beta`・`sun_distance` は軌道の要素に当てる指定なので、`epoch` より先に効く（β は始めの時刻での値を指す）。
     /// 1 回限りの期間を持つ軌道では、`epoch` が期間の外（または終わり）なら不足入力としてケースの `epoch` を指す。
@@ -89,7 +89,7 @@ impl Context<'_> {
         }
     }
 
-    /// `source = "state"`: 元期・原点の天体・位置・速度・期間から、既存の数値伝搬で伝搬する軌道。足りない欄・読めない欄は不足入力に記録する。
+    /// `source = "state"`: 元期・原点の天体・位置・速度・期間から、既存の数値伝播で伝播する軌道。足りない欄・読めない欄は不足入力に記録する。
     fn state_trajectory(&self, o: &OrbitSettings, m: &mut MissingInputs) -> Option<Trajectory> {
         for key in ["source", "epoch", "central", "position", "velocity", "span"] {
             self.note(self.orbit_target(&[key]));

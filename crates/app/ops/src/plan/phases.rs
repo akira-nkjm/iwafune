@@ -3,10 +3,11 @@
 
 use super::others::new_flat_id;
 use super::records::{remove, set_id};
+use super::referrers::refuse_if_referenced;
 use crate::error::OpError;
 use crate::op::Op;
 use fune_model::Design;
-use fune_model::design::{Case, Phase};
+use fune_model::design::{Case, Phase, Referent};
 use fune_model::value::SettingValue;
 use fune_store::Edits;
 use fune_store::layout;
@@ -23,13 +24,16 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
             set_phase(edits, design, phase)
         }
         Op::SetPhase { phase } => set_phase(edits, design, phase),
-        Op::RemovePhase { id } => remove(
-            edits,
-            design.phases.contains_key(id.as_str()),
-            &layout::phase_file(id),
-            "Phase",
-            id,
-        ),
+        Op::RemovePhase { id } => {
+            refuse_if_referenced("Phase", id, &design.references(Referent::Phase(id)))?;
+            remove(
+                edits,
+                design.phases.contains_key(id.as_str()),
+                &layout::phase_file(id),
+                "Phase",
+                id,
+            )
+        }
         Op::RenamePhase { id, to } => {
             existing_phase(design, id)?;
             new_flat_id(design.phases.keys().map(|k| k.as_str()), to, "Phase")?;

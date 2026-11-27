@@ -17,6 +17,6 @@ sep_min: number,
  */
 sep_min_epoch: string, 
 /**
- * SEP がしきい値を下回っていた時間の合計（標本の間は直線で結んだ値）
+ * SEP がしきい値を下回っていた時間の合計（サンプルの間は直線で結んだ値）
  */
 time_below_threshold: number, };

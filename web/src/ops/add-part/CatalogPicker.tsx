@@ -35,7 +35,7 @@ export function CatalogPicker({
     return (
       <div
         data-testid="catalog-chosen"
-        className="flex items-center gap-2 rounded-[8px] border border-line-strong bg-panel px-2.5 py-1.5"
+        className="flex min-w-0 items-center gap-2 rounded-[8px] border border-line-strong bg-panel px-2.5 py-1.5"
       >
         <Summary option={chosen ?? { id: value, label: "", note: "" }} />
         <button

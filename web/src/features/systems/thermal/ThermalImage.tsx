@@ -28,7 +28,7 @@ import { orbitView } from "./insetGeometry";
 import { OrbitInset } from "./OrbitInset";
 
 /** 再生で 1 回に進める時刻の数と間隔。全体を約 10 秒で再生する */
-/** 再生の 1 コマの間隔 [ms]（等倍）と、選べる速さ。等倍は 1 コマに 1 標本（1 周がおよそ十数秒） */
+/** 再生の 1 コマの間隔 [ms]（等倍）と、選べる速さ。等倍は 1 コマに 1 サンプル（1 周がおよそ十数秒） */
 const TICK_MS = 80;
 const SPEEDS = [
   { value: "0.25", label: "0.25×", tickMs: TICK_MS * 4, step: 1 },

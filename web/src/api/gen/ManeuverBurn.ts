@@ -18,7 +18,7 @@ v_inf?: number,
  */
 altitude: number, 
 /**
- * ΔV（有限燃焼なら損失込み）
+ * ΔV（有限噴射なら損失込み）
  */
 delta_v: number, 
 /**

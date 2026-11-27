@@ -8,10 +8,10 @@ use sat_astro::orbit::Trajectory;
 use sat_astro::time::Epoch;
 use sat_astro::timeline::OrbitSampling;
 
-/// パスを探す窓（標本の取り方から求めたもの）。
+/// パスを探す窓（サンプルの取り方から求めたもの）。
 #[derive(Debug, Clone)]
 pub struct SearchWindow {
-    /// 伝搬に使う軌道（β を指定したときは RAAN を置き換えたもの。`OrbitSampling::resolved_orbit`）
+    /// 伝播に使う軌道（β を指定したときは RAAN を置き換えたもの。`OrbitSampling::resolved_orbit`）
     pub orbit: Trajectory,
     /// 探索の開始（軌道の元期）
     pub start: Epoch,
@@ -21,7 +21,7 @@ pub struct SearchWindow {
     pub step_s: f64,
 }
 
-/// 標本の取り方（期間・刻み）を検査し、パスを探す窓を返す。開始は軌道の元期（時系列と同じ）。
+/// サンプルの取り方（期間・刻み）を検査し、パスを探す窓を返す。開始は軌道の元期（時系列と同じ）。
 pub fn search_window(sampling: &OrbitSampling) -> Result<SearchWindow, AnalysisError> {
     let (span_s, step_s) = (sampling.span.value(), sampling.step.value());
     if !(span_s > 0.0 && step_s > 0.0 && step_s <= span_s) {
@@ -127,7 +127,7 @@ pub(crate) mod fixtures {
         )
     }
 
-    /// 1 日を 30 s 刻みで探す標本の取り方。
+    /// 1 日を 30 s 刻みで探すサンプルの取り方。
     pub(crate) fn one_day(
         orbit: impl Into<sat_astro::orbit::Trajectory>,
     ) -> sat_astro::timeline::OrbitSampling {

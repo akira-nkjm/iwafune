@@ -11,6 +11,6 @@ export type DecayWeatherSchedule = {
  */
 fallback: SolarActivity, 
 /**
- * 経過の順の標本（最初は元期）
+ * 経過の順のサンプル（最初は元期）
  */
 samples: Array<DecayWeatherSample>, };

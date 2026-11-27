@@ -152,11 +152,11 @@ pub struct ThermalTransientOutput {
     /// 使った積分の設定と費用（刻みの数・右辺の評価の数・ヒータの切り替えの数）
     #[serde(default)]
     pub integration: ThermalIntegration,
-    /// 軌道の図（インセット）と 3D の太陽の矢印に使う軌道面の表示用の座標。標本の時刻は `series.t` と同じ。
-    /// 表示枠は最初の標本で決めた固定の軌道面（+x が太陽側）。模式で、実際の日陰は `sunlit`（`sat_astro::timeline`）
+    /// 軌道の図（インセット）と 3D の太陽の矢印に使う軌道面の表示用の座標。サンプルの時刻は `series.t` と同じ。
+    /// 表示枠は最初のサンプルで決めた固定の軌道面（+x が太陽側）。模式で、実際の日陰は `sunlit`（`sat_astro::timeline`）
     #[serde(default)]
     pub orbit_plane: OrbitPlaneTrack,
-    /// 外面の日照割合（ほかの部品の影を引いた割合。直達日射にだけ掛ける）の、日照中の標本での最小と平均。影を数えたときだけ付く
+    /// 外面の日照割合（ほかの部品の影を引いた割合。直達日射にだけ掛ける）の、日照中のサンプルでの最小と平均。影を数えたときだけ付く
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shadowing: Option<crate::structure::external_geometry::ShadowingReport>,
     /// 温度範囲を持つ節点の種類ごとの判定（key は `range_high|range_low:<node>:<storage|operating|performance>`）と、

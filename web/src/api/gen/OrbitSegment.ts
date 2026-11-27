@@ -14,7 +14,7 @@ start: number,
  */
 maneuver: string | null, 
 /**
- * 数値伝搬のマヌーバの噴射の途中か
+ * 数値伝播のマヌーバの噴射の途中か
  */
 thrusting: boolean, 
 /**

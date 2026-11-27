@@ -1,6 +1,6 @@
 //! 古い地磁気モデルの係数ファイル（Jensen & Cain 1960、GSFC 12/66）と IGRF の配布ファイルを [`GaussModel`] に直す。
-//! I/O はしない（バイト列を受け取る）。AP-8・AE-8 の束縛粒子の地図はこの古い場で B・L を引く前提なので、
-//! 地図ごとの組み合わせ（[`crate::radiation::TrappedModel::field_id`]）がここのモデルを選ぶ。
+//! I/O はしない（バイト列を受け取る）。AP-8・AE-8 の束縛粒子のマップはこの古い場で B・L を引く前提なので、
+//! マップごとの組み合わせ（[`crate::radiation::TrappedModel::field_id`]）がここのモデルを選ぶ。
 //!
 //! # 係数の規約（NSSDC データセット PT-11B の 2 つのファイル）
 //!
@@ -130,7 +130,7 @@ impl GaussModel {
     }
 
     /// GSFC 12/66 の係数ファイル（`gsfc66.dat`）から、`year` 年に外挿した場を作る（元期 1960.0 の係数に
-    /// `ġ·Δt + ½·g̈·Δt²` を足し終えた**固定の場**。モデルの元期は `year`、年変化は 0）。AP-8 の太陽活動極大の地図は
+    /// `ġ·Δt + ½·g̈·Δt²` を足し終えた**固定の場**。モデルの元期は `year`、年変化は 0）。AP-8 の太陽活動極大のマップは
     /// 1970 年に外挿したこの場で B・L を引く。
     pub fn from_gsfc1266_bytes(bytes: &[u8], year: f64) -> Result<Self, AstroError> {
         const FILE: &str = "GSFC 12/66 coefficient file";
